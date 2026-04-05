@@ -1,62 +1,50 @@
-# critiqal
+# Critiqal
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+A minimalist social network for developers and athletes. Connect GitHub and Strava, share progress with friends, earn `$CRIT` tokens for real activity.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+No algorithms. No ads. No noise.
 
-## Running the application in dev mode
+---
 
-You can run your application in dev mode that enables live coding using:
+## Features
 
-```shell script
-./mvnw quarkus:dev
-```
+**Core Social**
+- Profiles, follow/unfollow, chronological feed
+- Post text updates manually or auto-sync from integrations
+- Reactions (no comments in v1)
+- Notifications: followers, reactions
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+**GitHub Integration**
+- OAuth2 connect
+- Auto-post on commits, merged PRs, new repos
+- Contribution stats on profile
 
-## Packaging and running the application
+**Strava Integration**
+- OAuth2 connect
+- Auto-post on runs, rides, swims, workouts
+- Weekly activity summary on profile
 
-The application can be packaged using:
+**Token Rewards ($CRIT)**
 
-```shell script
-./mvnw package
-```
+| Activity | Reward |
+|---|---|
+| Post per day | 1 $CRIT |
+| GitHub commit synced | 2 $CRIT |
+| Strava activity synced | 3 $CRIT |
+| 7-day streak | +10 $CRIT |
+| Follower milestone | 5 $CRIT |
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+Spend on: profile badges, extended bio, follower suggestions priority.
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+**On-Chain (Phase 4)**
+- EVM wallet connect
+- Claim in-app $CRIT balance to on-chain wallet
+- Token transaction history
 
-If you want to build an _über-jar_, execute the following command:
+---
 
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
-```
+## Stack
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
-```
-
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
-```
-
-You can then execute your native executable with: `./target/critiqal-1.0.0-SNAPSHOT-runner`
-
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Provided Code
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+- **Backend** — Java 21 + Quarkus, PostgreSQL 16, Redis 7
+- **Frontend** — Svelte 5 + TypeScript
+- **Infra** — Docker Compose, Nginx, GitHub Actions
