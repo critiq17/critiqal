@@ -3,8 +3,10 @@ package org.acme.domain.user;
 
 import io.quarkus.hibernate.reactive.panache.PanacheEntity;
 import jakarta.persistence.*;
+import org.acme.domain.post.Post;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Entity
