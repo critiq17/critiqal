@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import org.acme.domain.user.User;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
 public class Reaction extends PanacheEntity {
 
     @ManyToOne public Post post;
@@ -12,6 +13,4 @@ public class Reaction extends PanacheEntity {
 
     @Enumerated(EnumType.STRING)
     public ReactionType type;
-
-    @Table(uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
 }

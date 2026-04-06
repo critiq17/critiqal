@@ -24,7 +24,7 @@ public class PostRepository implements PanacheRepository<Post> {
     }
 
     public List<Post> search(String query) {
-        return find("LOWER(content) LIKE ?1 AND status = ?2 ORDER BY createdAt DESC"
+        return find("LOWER(content) LIKE ?1 AND status = ?2 ORDER BY createdAt DESC" +
                     "%" + query.toLowerCase() + "%", PostStatus.PUBLISHED)
                 .page(0, 50)
                 .list();
