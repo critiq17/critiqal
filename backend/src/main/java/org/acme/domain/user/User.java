@@ -1,7 +1,7 @@
 package org.acme.domain.user;
 
 
-import io.quarkus.hibernate.reactive.panache.PanacheEntity;
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
 import org.acme.domain.post.Post;
 
