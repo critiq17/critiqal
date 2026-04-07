@@ -3,6 +3,7 @@ package org.acme.domain.user;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
+import org.acme.domain.follow.Follow;
 import org.acme.domain.post.Post;
 
 import java.time.Instant;
@@ -30,7 +31,7 @@ public class User extends PanacheEntity {
     public List<Post> posts;
 
     @OneToMany(mappedBy = "follower")
-    public List<Follower> following;
+    public List<Follow> following;
 
     public static Optional<User> findByUsername(String username) {
         return find("username", username).firstResultOptional();

@@ -1,4 +1,4 @@
-package org.acme.domain.post;
+package org.acme.domain.reaction;
 
 public enum ReactionType {
     GIGACHAD,

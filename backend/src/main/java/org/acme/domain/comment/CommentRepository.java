@@ -1,8 +1,9 @@
-package org.acme.domain.post;
+package org.acme.domain.comment;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.acme.domain.post.Post;
 import org.acme.domain.user.User;
 
 import java.util.List;

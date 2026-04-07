@@ -1,8 +1,9 @@
-package org.acme.domain.post;
+package org.acme.domain.comment;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import org.acme.domain.post.Post;
 import org.acme.domain.user.User;
 
 import java.time.Instant;
