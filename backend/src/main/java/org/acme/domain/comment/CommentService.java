@@ -1,8 +1,9 @@
-package org.acme.domain.post;
+package org.acme.domain.comment;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.acme.domain.post.PostService;
 import org.acme.domain.user.UserService;
 
 import java.util.List;
@@ -10,8 +11,10 @@ import java.util.List;
 @ApplicationScoped
 public class CommentService {
 
-    @Inject CommentRepository commentRepo;
-    @Inject PostService postService;
+    @Inject
+    CommentRepository commentRepo;
+    @Inject
+    PostService postService;
     @Inject UserService userService;
 
     public List<Comment> getPostComments(Long postId) {

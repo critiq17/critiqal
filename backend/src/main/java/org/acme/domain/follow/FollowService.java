@@ -1,16 +1,20 @@
-package org.acme.domain.user;
+package org.acme.domain.follow;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.acme.domain.user.User;
+import org.acme.domain.user.UserService;
 
 import java.util.List;
 
 @ApplicationScoped
 public class FollowService {
 
-    @Inject FollowRepository followRepo;
-    @Inject UserService userService;
+    @Inject
+    FollowRepository followRepo;
+    @Inject
+    UserService userService;
 
     @Transactional
     public void follow(Long followerId, Long followingId) {

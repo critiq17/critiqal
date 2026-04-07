@@ -3,6 +3,7 @@ package org.acme.domain.user;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
+import org.acme.domain.follow.Follow;
 import org.acme.domain.post.Post;
 
 import java.time.Instant;

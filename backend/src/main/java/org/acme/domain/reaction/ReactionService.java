@@ -1,19 +1,21 @@
-package org.acme.domain.post;
+package org.acme.domain.reaction;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.acme.domain.post.PostService;
 import org.acme.domain.user.UserService;
 
-import java.lang.annotation.Inherited;
 import java.util.Map;
 import java.util.Optional;
 
 @ApplicationScoped
 public class ReactionService {
 
-    @Inject ReactionRepository reactRepo;
-    @Inject PostService postService;
+    @Inject
+    ReactionRepository reactRepo;
+    @Inject
+    PostService postService;
     @Inject UserService userService;
 
     public Map<ReactionType, Long> getReactions(Long postId) {

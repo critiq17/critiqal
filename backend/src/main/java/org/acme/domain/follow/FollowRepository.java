@@ -1,8 +1,9 @@
-package org.acme.domain.user;
+package org.acme.domain.follow;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.acme.domain.user.User;
 
 import java.util.List;
 
