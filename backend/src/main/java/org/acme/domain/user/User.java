@@ -30,7 +30,7 @@ public class User extends PanacheEntity {
     public List<Post> posts;
 
     @OneToMany(mappedBy = "follower")
-    public List<Follower> following;
+    public List<Follow> following;
 
     public static Optional<User> findByUsername(String username) {
         return find("username", username).firstResultOptional();
