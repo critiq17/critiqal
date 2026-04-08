@@ -3,12 +3,14 @@ package org.acme.domain.comment;
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import org.acme.domain.post.Post;
 import org.acme.domain.user.User;
 
 import java.time.Instant;
 
 @Entity
+@Table(name = "comments")
 public class Comment extends PanacheEntity {
 
     @ManyToOne public Post post;

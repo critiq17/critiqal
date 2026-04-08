@@ -23,5 +23,3 @@ public record UserDTO(
         );
     }
 }
-
-public record UpdateProfileRequest(String name, String bio, String avatarUrl) {}

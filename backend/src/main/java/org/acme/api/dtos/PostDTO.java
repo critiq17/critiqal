@@ -26,6 +26,3 @@ public record PostDTO(
         );
     }
 }
-
-
-public record CreatePostRequest(String content, String photoUrl) {}

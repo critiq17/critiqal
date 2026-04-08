@@ -21,5 +21,3 @@ public record CommentDTO(
         );
     }
 }
-
-public record AddCommentRequest(String content) {}
