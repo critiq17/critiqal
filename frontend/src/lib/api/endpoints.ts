@@ -19,5 +19,9 @@ export const API = {
 		follow: (id: number) => `/api/users/${id}/follow`,
 		followers: (id: number) => `/api/users/${id}/followers`,
 		following: (id: number) => `/api/users/${id}/following`
+	},
+	media: {
+		avatar: '/api/media/avatar',
+		postPhoto: (postId: number) => `/api/media/posts/${postId}/photo`
 	}
 } as const;

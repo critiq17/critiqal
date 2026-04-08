@@ -7,6 +7,7 @@ export interface Post {
 	author: User;
 	content: string;
 	photoUrl: string | null;
+	photoThumbnailUrl: string | null;
 	viewCount: number;
 	status: PostStatus;
 	createdAt: string;
