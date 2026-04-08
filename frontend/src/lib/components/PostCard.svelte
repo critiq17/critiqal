@@ -215,6 +215,18 @@
 		<p class="post-content">{post.content}</p>
 	</div>
 
+	{#if post.photoUrl}
+		<div class="post-photo-wrap">
+			<img
+				src={post.photoThumbnailUrl ?? post.photoUrl}
+				alt="Post photo"
+				class="post-photo"
+				loading="lazy"
+				decoding="async"
+			/>
+		</div>
+	{/if}
+
 	<div class="post-footer">
 		<!-- GIGACHAD reaction -->
 		<button
@@ -470,6 +482,31 @@
 		margin: 0;
 		white-space: pre-wrap;
 		word-break: break-word;
+	}
+
+	.post-photo-wrap {
+		margin: 0.75rem 0 0.875rem 3.25rem;
+		border-radius: 0.75rem;
+		overflow: hidden;
+		background: var(--color-surface-raised);
+	}
+
+	.post-photo {
+		display: block;
+		width: 100%;
+		max-height: 400px;
+		object-fit: cover;
+		border-radius: 0.75rem;
+		animation: fadeIn 0.25s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 
 	/* Footer */
