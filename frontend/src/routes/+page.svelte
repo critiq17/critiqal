@@ -84,11 +84,9 @@
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem 1fr 14rem;
-		max-width: 68rem;
-		margin: 0 auto;
+		grid-template-columns: 16rem minmax(0, 42rem) 14rem;
+		justify-content: center;
 		min-height: 100vh;
-		gap: 0;
 	}
 
 	.col-left {
@@ -97,13 +95,11 @@
 		height: 100vh;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
-		border-right: 1px solid var(--color-border);
 	}
 
 	.col-center {
 		padding: 0 2rem;
 		min-height: 100vh;
-		border-right: 1px solid var(--color-border);
 	}
 
 	.col-right {
@@ -228,7 +224,6 @@
 
 		.col-center {
 			padding: 0 1rem;
-			border-right: none;
 		}
 	}
 </style>

@@ -47,6 +47,10 @@ function createAuthStore() {
 		setUser(null);
 	}
 
+	function updateUser(user: User): void {
+		setUser(user);
+	}
+
 	return {
 		get user() {
 			return state.user;
@@ -59,7 +63,8 @@ function createAuthStore() {
 		},
 		init,
 		login,
-		logout
+		logout,
+		updateUser
 	};
 }
 

@@ -15,6 +15,7 @@ export const API = {
 		profile: (username: string) => `/api/users/${encodeURIComponent(username)}`,
 		search: '/api/users/search',
 		me: '/api/users/me',
+		posts: (username: string) => `/api/users/${encodeURIComponent(username)}/posts`,
 		follow: (id: number) => `/api/users/${id}/follow`,
 		followers: (id: number) => `/api/users/${id}/followers`,
 		following: (id: number) => `/api/users/${id}/following`

@@ -42,19 +42,21 @@
 	<div class="sidebar-bottom">
 		{#if authStore.isAuthenticated && authStore.user}
 			<div class="profile-card">
-				<div class="profile-avatar" aria-hidden="true">
-					{#if authStore.user.avatarUrl}
-						<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="avatar-img" />
-					{:else}
-						<span class="avatar-initial">
-							{(authStore.user.name ?? authStore.user.username).charAt(0).toUpperCase()}
-						</span>
-					{/if}
-				</div>
-				<div class="profile-info">
-					<span class="profile-name">{authStore.user.name ?? authStore.user.username}</span>
-					<span class="profile-username">@{authStore.user.username}</span>
-				</div>
+				<a href="/{authStore.user.username}" class="profile-card-link" aria-label="View your profile">
+					<div class="profile-avatar" aria-hidden="true">
+						{#if authStore.user.avatarUrl}
+							<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="avatar-img" />
+						{:else}
+							<span class="avatar-initial">
+								{(authStore.user.name ?? authStore.user.username).charAt(0).toUpperCase()}
+							</span>
+						{/if}
+					</div>
+					<div class="profile-info">
+						<span class="profile-name">{authStore.user.name ?? authStore.user.username}</span>
+						<span class="profile-username">@{authStore.user.username}</span>
+					</div>
+				</a>
 				<button class="logout-btn" onclick={handleLogout} aria-label="Sign out" title="Sign out">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="logout-icon" aria-hidden="true">
 						<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -145,6 +147,15 @@
 
 	.profile-card:hover {
 		background-color: var(--color-surface-raised);
+	}
+
+	.profile-card-link {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		flex: 1;
+		min-width: 0;
+		text-decoration: none;
 	}
 
 	.profile-avatar {
