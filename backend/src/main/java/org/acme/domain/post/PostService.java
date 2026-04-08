@@ -51,6 +51,13 @@ public class PostService {
     }
 
     @Transactional
+    public void updatePhoto(Long postId, String photoUrl, String thumbnailUrl) {
+        var post = getById(postId);
+        post.photoUrl = photoUrl;
+        post.photoThumbnailUrl = thumbnailUrl;
+    }
+
+    @Transactional
     public void deletePost(Long postId, Long requestedId) {
         var post = getById(postId);
         if (!post.author.id.equals(requestedId)) {
