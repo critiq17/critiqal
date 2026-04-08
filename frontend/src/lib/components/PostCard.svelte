@@ -176,6 +176,11 @@
 	}
 
 	const totalComments = $derived(commentsLoaded ? comments.length : 0);
+
+	const hasActiveReactions = $derived(
+		myReaction !== null ||
+		(reactionsLoaded && (reactions.GIGACHAD > 0 || reactions.THE_ROCK > 0 || reactions.DAVID > 0))
+	);
 </script>
 
 <article class="post-card">
@@ -215,38 +220,52 @@
 		<p class="post-content">{post.content}</p>
 	</div>
 
-	<div class="post-footer">
-		<!-- GIGACHAD reaction -->
-		<button
-			class="reaction-btn"
-			class:active={myReaction === 'GIGACHAD'}
-			onclick={() => handleReaction('GIGACHAD')}
-			disabled={!authStore.isAuthenticated || isReacting}
-			aria-label="GIGACHAD reaction"
-			aria-pressed={myReaction === 'GIGACHAD'}
-			title={authStore.isAuthenticated ? 'GIGACHAD' : 'Sign in to react'}
-		>
-			<img src="/assets/reactions/GIGACHAD.png" alt="GIGACHAD" class="reaction-img" />
-			{#if reactionsLoaded && reactions.GIGACHAD > 0}
-				<span class="reaction-count">{reactions.GIGACHAD}</span>
-			{/if}
-		</button>
+	{#if post.photoUrl}
+		<div class="post-photo-wrap">
+			<img
+				src={post.photoThumbnailUrl ?? post.photoUrl}
+				alt=""
+				class="post-photo"
+				loading="lazy"
+				decoding="async"
+			/>
+		</div>
+	{/if}
 
-		<!-- THE_ROCK reaction -->
-		<button
-			class="reaction-btn"
-			class:active={myReaction === 'THE_ROCK'}
-			onclick={() => handleReaction('THE_ROCK')}
-			disabled={!authStore.isAuthenticated || isReacting}
-			aria-label="THE ROCK reaction"
-			aria-pressed={myReaction === 'THE_ROCK'}
-			title={authStore.isAuthenticated ? 'THE ROCK' : 'Sign in to react'}
-		>
-			<img src="/assets/reactions/THEROCK.png" alt="THE ROCK" class="reaction-img" />
-			{#if reactionsLoaded && reactions.THE_ROCK > 0}
-				<span class="reaction-count">{reactions.THE_ROCK}</span>
-			{/if}
-		</button>
+	<div class="post-footer">
+		<div class="reactions-bar" class:reactions-active={hasActiveReactions}>
+			<!-- GIGACHAD reaction -->
+			<button
+				class="reaction-btn"
+				class:active={myReaction === 'GIGACHAD'}
+				onclick={() => handleReaction('GIGACHAD')}
+				disabled={!authStore.isAuthenticated || isReacting}
+				aria-label="GIGACHAD reaction"
+				aria-pressed={myReaction === 'GIGACHAD'}
+				title={authStore.isAuthenticated ? 'GIGACHAD' : 'Sign in to react'}
+			>
+				<img src="/assets/reactions/GIGACHAD.png" alt="GIGACHAD" class="reaction-img" />
+				{#if reactionsLoaded && reactions.GIGACHAD > 0}
+					<span class="reaction-count">{reactions.GIGACHAD}</span>
+				{/if}
+			</button>
+
+			<!-- THE_ROCK reaction -->
+			<button
+				class="reaction-btn"
+				class:active={myReaction === 'THE_ROCK'}
+				onclick={() => handleReaction('THE_ROCK')}
+				disabled={!authStore.isAuthenticated || isReacting}
+				aria-label="THE ROCK reaction"
+				aria-pressed={myReaction === 'THE_ROCK'}
+				title={authStore.isAuthenticated ? 'THE ROCK' : 'Sign in to react'}
+			>
+				<img src="/assets/reactions/THEROCK.png" alt="THE ROCK" class="reaction-img" />
+				{#if reactionsLoaded && reactions.THE_ROCK > 0}
+					<span class="reaction-count">{reactions.THE_ROCK}</span>
+				{/if}
+			</button>
+		</div>
 
 		<!-- Comments toggle -->
 		<button class="action-btn comment-btn" onclick={toggleComments} aria-label="Toggle comments">
@@ -472,12 +491,58 @@
 		word-break: break-word;
 	}
 
+	.post-photo-wrap {
+		margin: 0.75rem 0 0.875rem 3.25rem;
+		border-radius: 0.75rem;
+		overflow: hidden;
+		background: var(--color-surface-raised);
+	}
+
+	.post-photo {
+		display: block;
+		width: 100%;
+		max-height: 400px;
+		object-fit: cover;
+		border-radius: 0.75rem;
+		animation: fadeIn 0.25s ease-out;
+	}
+
+	@keyframes fadeIn {
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
+	}
+
 	/* Footer */
 	.post-footer {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		padding-left: 3.25rem;
+	}
+
+	/* Reactions bar — hidden by default, revealed on hover or when active */
+	.reactions-bar {
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+		max-width: 0;
+		overflow: hidden;
+		opacity: 0;
+		transform: translateY(4px);
+		transition: opacity 0.18s ease, transform 0.18s ease, max-width 0.2s ease;
+		pointer-events: none;
+	}
+
+	.post-card:hover .reactions-bar,
+	.reactions-bar.reactions-active {
+		max-width: 8rem;
+		opacity: 1;
+		transform: translateY(0);
+		pointer-events: auto;
 	}
 
 	/* Reaction buttons */
@@ -506,8 +571,8 @@
 	}
 
 	.reaction-img {
-		width: 1.375rem;
-		height: 1.375rem;
+		width: 1.65rem;
+		height: 1.65rem;
 		border-radius: 50%;
 		object-fit: cover;
 		display: block;

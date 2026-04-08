@@ -10,6 +10,7 @@ public record PostDTO(
         UserDTO author,
         String content,
         String photoUrl,
+        String photoThumbnailUrl,
         long viewCount,
         PostStatus status,
         Instant createdAt
@@ -20,6 +21,7 @@ public record PostDTO(
                 UserDTO.from(post.author),
                 post.content,
                 post.photoUrl,
+                post.photoThumbnailUrl,
                 post.viewCount,
                 post.status,
                 post.createdAt

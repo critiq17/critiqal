@@ -70,6 +70,26 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 	return parseResponse<T>(response);
 }
 
+async function upload<T>(path: string, formData: FormData, authenticated = true): Promise<T> {
+	const headers: Record<string, string> = {};
+
+	if (authenticated) {
+		const token = getStoredToken();
+		if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		}
+	}
+
+	const response = await fetch(`${BASE_URL}${path}`, {
+		method: 'POST',
+		headers,
+		body: formData,
+		credentials: 'include'
+	});
+
+	return parseResponse<T>(response);
+}
+
 export const apiClient = {
 	get<T>(path: string, authenticated = false): Promise<T> {
 		return request<T>('GET', path, { authenticated });
@@ -85,5 +105,9 @@ export const apiClient = {
 
 	delete<T = void>(path: string, authenticated = false): Promise<T> {
 		return request<T>('DELETE', path, { authenticated });
+	},
+
+	upload<T>(path: string, formData: FormData, authenticated = true): Promise<T> {
+		return upload<T>(path, formData, authenticated);
 	}
 };
