@@ -1,22 +1,34 @@
 <script lang="ts">
-	import type { Post, ReactionsMap, ReactionType } from '$lib/types';
+	import type { Post, Comment, ReactionsMap, ReactionType } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 
 	interface Props {
 		post: Post;
+		onDeleted?: (postId: number) => void;
 	}
 
-	let { post }: Props = $props();
+	let { post, onDeleted }: Props = $props();
 
+	// --- Reactions ---
 	let reactions = $state<ReactionsMap>({ GIGACHAD: 0, THE_ROCK: 0, DAVID: 0 });
-	let commentCount = $state(0);
-	let isLiked = $state(false);
-	let isLiking = $state(false);
-	let isExpanded = $state(false);
+	let myReaction = $state<ReactionType | null>(null);
 	let reactionsLoaded = $state(false);
+	let isReacting = $state(false);
 
-	const HEART_REACTION: ReactionType = 'GIGACHAD';
+	// --- Comments ---
+	let isExpanded = $state(false);
+	let comments = $state<Comment[]>([]);
+	let commentsLoaded = $state(false);
+	let commentsLoading = $state(false);
+	let newComment = $state('');
+	let isSubmitting = $state(false);
+	let deletingId = $state<number | null>(null);
+
+	// --- Post delete ---
+	let isDeleting = $state(false);
+
+	const isOwnPost = $derived(authStore.user?.id === post.author.id);
 
 	$effect(() => {
 		loadReactions();
@@ -24,46 +36,121 @@
 
 	async function loadReactions(): Promise<void> {
 		try {
-			const data = await postService.getReactions(post.id);
-			reactions = data;
+			const reactionsPromise = postService.getReactions(post.id);
+			const myReactionPromise = authStore.isAuthenticated
+				? postService.getMyReaction(post.id)
+				: Promise.resolve(undefined);
+
+			const [data, mine] = await Promise.all([reactionsPromise, myReactionPromise]);
+			reactions = { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0, ...data };
+			myReaction = mine ?? null;
 			reactionsLoaded = true;
 		} catch {
 			reactionsLoaded = true;
 		}
 	}
 
-	async function handleReaction(): Promise<void> {
-		if (!authStore.isAuthenticated || isLiking) return;
+	async function handleReaction(type: ReactionType): Promise<void> {
+		if (!authStore.isAuthenticated || isReacting) return;
 
-		const previousLiked = isLiked;
-		const previousCount = reactions[HEART_REACTION];
+		const prevReaction = myReaction;
+		const prevReactions = { ...reactions };
 
-		isLiked = !isLiked;
-		reactions = {
-			...reactions,
-			[HEART_REACTION]: isLiked ? previousCount + 1 : Math.max(0, previousCount - 1)
-		};
-
-		isLiking = true;
-		try {
-			if (isLiked) {
-				await postService.react(post.id, HEART_REACTION);
-			} else {
+		if (myReaction === type) {
+			myReaction = null;
+			reactions = { ...reactions, [type]: Math.max(0, reactions[type] - 1) };
+			isReacting = true;
+			try {
 				await postService.removeReaction(post.id);
+			} catch {
+				myReaction = prevReaction;
+				reactions = prevReactions;
+			} finally {
+				isReacting = false;
 			}
-		} catch {
-			isLiked = previousLiked;
-			reactions = { ...reactions, [HEART_REACTION]: previousCount };
-		} finally {
-			isLiking = false;
+		} else {
+			if (myReaction) {
+				reactions = { ...reactions, [myReaction]: Math.max(0, reactions[myReaction] - 1) };
+			}
+			myReaction = type;
+			reactions = { ...reactions, [type]: reactions[type] + 1 };
+			isReacting = true;
+			try {
+				await postService.react(post.id, type);
+			} catch {
+				myReaction = prevReaction;
+				reactions = prevReactions;
+			} finally {
+				isReacting = false;
+			}
 		}
 	}
 
-	function toggleComments(): void {
+	async function toggleComments(): Promise<void> {
 		isExpanded = !isExpanded;
+		if (isExpanded && !commentsLoaded) {
+			await loadComments();
+		}
 	}
 
-	function formatTimestamp(isoString: string): string {
+	async function loadComments(): Promise<void> {
+		commentsLoading = true;
+		try {
+			comments = await postService.getComments(post.id);
+			commentsLoaded = true;
+		} catch {
+			commentsLoaded = true;
+		} finally {
+			commentsLoading = false;
+		}
+	}
+
+	async function submitComment(): Promise<void> {
+		const text = newComment.trim();
+		if (!text || isSubmitting) return;
+		isSubmitting = true;
+		try {
+			const comment = await postService.addComment(post.id, { content: text });
+			comments = [...comments, comment];
+			newComment = '';
+		} catch {
+			// ignore
+		} finally {
+			isSubmitting = false;
+		}
+	}
+
+	function handleCommentKey(e: KeyboardEvent): void {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+			submitComment();
+		}
+	}
+
+	async function deleteComment(commentId: number): Promise<void> {
+		if (deletingId !== null) return;
+		deletingId = commentId;
+		try {
+			await postService.deleteComment(post.id, commentId);
+			comments = comments.filter((c) => c.id !== commentId);
+		} catch {
+			// ignore
+		} finally {
+			deletingId = null;
+		}
+	}
+
+	async function deletePost(): Promise<void> {
+		if (isDeleting) return;
+		isDeleting = true;
+		try {
+			await postService.delete(post.id);
+			onDeleted?.(post.id);
+		} catch {
+			isDeleting = false;
+		}
+	}
+
+	function formatTime(isoString: string): string {
 		const date = new Date(isoString);
 		const now = new Date();
 		const diffMs = now.getTime() - date.getTime();
@@ -78,62 +165,90 @@
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	}
 
-	function getAvatarInitial(user: Post['author']): string {
+	function getInitial(user: Post['author']): string {
 		return (user.name ?? user.username).charAt(0).toUpperCase();
 	}
 
-	const totalLikes = $derived(reactions[HEART_REACTION]);
+	function formatViews(n: number): string {
+		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+		return String(n);
+	}
+
+	const totalComments = $derived(commentsLoaded ? comments.length : 0);
 </script>
 
 <article class="post-card">
 	<div class="post-header">
-		<div class="avatar" aria-hidden="true">
-			{#if post.author.avatarUrl}
-				<img src={post.author.avatarUrl} alt={post.author.username} class="avatar-img" />
-			{:else}
-				<span class="avatar-initial">{getAvatarInitial(post.author)}</span>
-			{/if}
-		</div>
-		<div class="author-meta">
-			<span class="author-name">{post.author.name ?? post.author.username}</span>
-			<span class="author-username">@{post.author.username}</span>
-		</div>
+		<a href="/{post.author.username}" class="author-link" aria-label="View {post.author.username}'s profile">
+			<div class="avatar" aria-hidden="true">
+				{#if post.author.avatarUrl}
+					<img src={post.author.avatarUrl} alt={post.author.username} class="avatar-img" />
+				{:else}
+					<span class="avatar-initial">{getInitial(post.author)}</span>
+				{/if}
+			</div>
+			<div class="author-meta">
+				<span class="author-name">{post.author.name ?? post.author.username}</span>
+				<span class="author-username">@{post.author.username}</span>
+			</div>
+		</a>
+		{#if isOwnPost}
+			<button
+				class="delete-post-btn"
+				onclick={deletePost}
+				disabled={isDeleting}
+				aria-label="Delete post"
+				title="Delete post"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+					<polyline points="3 6 5 6 21 6" />
+					<path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+					<path d="M10 11v6M14 11v6" />
+					<path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+				</svg>
+			</button>
+		{/if}
 	</div>
 
 	<div class="post-body">
 		<p class="post-content">{post.content}</p>
-		{#if post.photoUrl}
-			<img src={post.photoUrl} alt="Post attachment" class="post-image" />
-		{/if}
 	</div>
 
 	<div class="post-footer">
+		<!-- GIGACHAD reaction -->
 		<button
-			class="action-btn reaction-btn"
-			class:liked={isLiked}
-			class:animating={isLiking}
-			onclick={handleReaction}
-			disabled={!authStore.isAuthenticated}
-			aria-label={isLiked ? 'Unlike post' : 'Like post'}
-			aria-pressed={isLiked}
+			class="reaction-btn"
+			class:active={myReaction === 'GIGACHAD'}
+			onclick={() => handleReaction('GIGACHAD')}
+			disabled={!authStore.isAuthenticated || isReacting}
+			aria-label="GIGACHAD reaction"
+			aria-pressed={myReaction === 'GIGACHAD'}
+			title={authStore.isAuthenticated ? 'GIGACHAD' : 'Sign in to react'}
 		>
-			<svg
-				class="icon heart-icon"
-				viewBox="0 0 24 24"
-				fill={isLiked ? 'currentColor' : 'none'}
-				stroke="currentColor"
-				stroke-width="2"
-				aria-hidden="true"
-			>
-				<path
-					d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-				/>
-			</svg>
-			{#if reactionsLoaded}
-				<span class="action-count">{totalLikes > 0 ? totalLikes : ''}</span>
+			<img src="/assets/reactions/GIGACHAD.png" alt="GIGACHAD" class="reaction-img" />
+			{#if reactionsLoaded && reactions.GIGACHAD > 0}
+				<span class="reaction-count">{reactions.GIGACHAD}</span>
 			{/if}
 		</button>
 
+		<!-- THE_ROCK reaction -->
+		<button
+			class="reaction-btn"
+			class:active={myReaction === 'THE_ROCK'}
+			onclick={() => handleReaction('THE_ROCK')}
+			disabled={!authStore.isAuthenticated || isReacting}
+			aria-label="THE ROCK reaction"
+			aria-pressed={myReaction === 'THE_ROCK'}
+			title={authStore.isAuthenticated ? 'THE ROCK' : 'Sign in to react'}
+		>
+			<img src="/assets/reactions/THEROCK.png" alt="THE ROCK" class="reaction-img" />
+			{#if reactionsLoaded && reactions.THE_ROCK > 0}
+				<span class="reaction-count">{reactions.THE_ROCK}</span>
+			{/if}
+		</button>
+
+		<!-- Comments toggle -->
 		<button class="action-btn comment-btn" onclick={toggleComments} aria-label="Toggle comments">
 			<svg
 				class="icon"
@@ -143,23 +258,99 @@
 				stroke-width="2"
 				aria-hidden="true"
 			>
-				<path
-					d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-				/>
+				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 			</svg>
-			{#if commentCount > 0}
-				<span class="action-count">{commentCount}</span>
+			{#if totalComments > 0}
+				<span class="action-count">{totalComments}</span>
 			{/if}
 		</button>
 
-		<time class="post-timestamp" datetime={post.createdAt}>
-			{formatTimestamp(post.createdAt)}
-		</time>
+		<div class="post-meta">
+			{#if post.viewCount > 0}
+				<span class="view-count" title="Views">
+					<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+						<circle cx="12" cy="12" r="3" />
+					</svg>
+					{formatViews(post.viewCount)}
+				</span>
+			{/if}
+			<time class="post-timestamp" datetime={post.createdAt}>
+				{formatTime(post.createdAt)}
+			</time>
+		</div>
 	</div>
 
 	{#if isExpanded}
 		<div class="comments-panel" role="region" aria-label="Comments">
-			<p class="comments-hint">Comments coming soon.</p>
+			{#if commentsLoading}
+				<div class="comments-loading">
+					<span class="loading-dot"></span>
+					<span class="loading-dot"></span>
+					<span class="loading-dot"></span>
+				</div>
+			{:else}
+				{#if comments.length > 0}
+					<ul class="comments-list">
+						{#each comments as comment (comment.id)}
+							<li class="comment-item">
+								<div class="comment-avatar" aria-hidden="true">
+									{#if comment.author.avatarUrl}
+										<img src={comment.author.avatarUrl} alt={comment.author.username} class="comment-avatar-img" />
+									{:else}
+										<span class="comment-avatar-initial">
+											{(comment.author.name ?? comment.author.username).charAt(0).toUpperCase()}
+										</span>
+									{/if}
+								</div>
+								<div class="comment-body">
+									<div class="comment-header">
+										<span class="comment-author">{comment.author.name ?? comment.author.username}</span>
+										<time class="comment-time" datetime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
+										{#if authStore.user?.id === comment.author.id}
+											<button
+												class="comment-delete-btn"
+												onclick={() => deleteComment(comment.id)}
+												disabled={deletingId === comment.id}
+												aria-label="Delete comment"
+											>
+												<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+													<line x1="18" y1="6" x2="6" y2="18" />
+													<line x1="6" y1="6" x2="18" y2="18" />
+												</svg>
+											</button>
+										{/if}
+									</div>
+									<p class="comment-content">{comment.content}</p>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="no-comments">No comments yet.</p>
+				{/if}
+
+				{#if authStore.isAuthenticated}
+					<div class="comment-compose">
+						<textarea
+							class="comment-input"
+							bind:value={newComment}
+							onkeydown={handleCommentKey}
+							placeholder="Write a comment… (Ctrl+Enter to send)"
+							rows={2}
+							disabled={isSubmitting}
+							aria-label="Write a comment"
+						></textarea>
+						<button
+							class="comment-submit-btn"
+							onclick={submitComment}
+							disabled={!newComment.trim() || isSubmitting}
+						>
+							{isSubmitting ? '...' : 'Reply'}
+						</button>
+					</div>
+				{/if}
+			{/if}
 		</div>
 	{/if}
 </article>
@@ -168,18 +359,31 @@
 	.post-card {
 		padding: 1.25rem 0;
 		border-bottom: 1px solid var(--color-border);
-		transition: background-color 0.15s ease;
 	}
 
 	.post-card:last-child {
 		border-bottom: none;
 	}
 
+	/* Header */
 	.post-header {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		margin-bottom: 0.75rem;
+	}
+
+	.author-link {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		text-decoration: none;
+		border-radius: 0.375rem;
+		transition: opacity 0.15s ease;
+	}
+
+	.author-link:hover {
+		opacity: 0.75;
 	}
 
 	.avatar {
@@ -211,6 +415,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
+		flex: 1;
 	}
 
 	.author-name {
@@ -226,6 +431,33 @@
 		line-height: 1.2;
 	}
 
+	.delete-post-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--color-text-muted);
+		padding: 0.25rem;
+		border-radius: 0.25rem;
+		display: flex;
+		align-items: center;
+		opacity: 0;
+		transition: opacity 0.15s ease, color 0.15s ease;
+	}
+
+	.delete-post-btn svg {
+		width: 0.9375rem;
+		height: 0.9375rem;
+	}
+
+	.post-card:hover .delete-post-btn {
+		opacity: 1;
+	}
+
+	.delete-post-btn:hover {
+		color: var(--color-accent);
+	}
+
+	/* Body */
 	.post-body {
 		padding-left: 3.25rem;
 		margin-bottom: 0.875rem;
@@ -240,22 +472,67 @@
 		word-break: break-word;
 	}
 
-	.post-image {
-		margin-top: 0.75rem;
-		width: 100%;
-		border-radius: 0.5rem;
-		max-height: 28rem;
-		object-fit: cover;
-		display: block;
-	}
-
+	/* Footer */
 	.post-footer {
 		display: flex;
 		align-items: center;
-		gap: 1.25rem;
+		gap: 0.75rem;
 		padding-left: 3.25rem;
 	}
 
+	/* Reaction buttons */
+	.reaction-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0.25rem 0.375rem;
+		border-radius: 0.375rem;
+		transition: background-color 0.15s ease, transform 0.1s ease;
+	}
+
+	.reaction-btn:disabled {
+		cursor: default;
+	}
+
+	.reaction-btn:not(:disabled):hover {
+		background-color: var(--color-surface-raised);
+	}
+
+	.reaction-btn:not(:disabled):active {
+		transform: scale(0.9);
+	}
+
+	.reaction-img {
+		width: 1.375rem;
+		height: 1.375rem;
+		border-radius: 50%;
+		object-fit: cover;
+		display: block;
+		filter: grayscale(30%);
+		transition: filter 0.15s ease, transform 0.15s ease;
+	}
+
+	.reaction-btn.active .reaction-img,
+	.reaction-btn:not(:disabled):hover .reaction-img {
+		filter: grayscale(0%);
+		transform: scale(1.15);
+	}
+
+	.reaction-count {
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+		min-width: 0.75rem;
+	}
+
+	.reaction-btn.active .reaction-count {
+		color: var(--color-text-primary);
+		font-weight: 600;
+	}
+
+	/* Action buttons (comments) */
 	.action-btn {
 		display: flex;
 		align-items: center;
@@ -265,76 +542,248 @@
 		cursor: pointer;
 		color: var(--color-text-muted);
 		font-size: 0.8125rem;
-		padding: 0.25rem;
-		border-radius: 0.25rem;
-		transition:
-			color 0.15s ease,
-			transform 0.1s ease;
+		padding: 0.25rem 0.375rem;
+		border-radius: 0.375rem;
+		transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
 	}
 
-	.action-btn:hover:not(:disabled) {
+	.action-btn:hover {
 		color: var(--color-text-primary);
+		background-color: var(--color-surface-raised);
 	}
 
-	.action-btn:disabled {
-		cursor: default;
-	}
-
-	.action-btn:active:not(:disabled) {
+	.action-btn:active {
 		transform: scale(0.92);
-	}
-
-	.reaction-btn.liked {
-		color: var(--color-accent);
-	}
-
-	.reaction-btn:hover:not(:disabled):not(.liked) {
-		color: var(--color-accent);
-	}
-
-	@keyframes heartPop {
-		0% {
-			transform: scale(1);
-		}
-		40% {
-			transform: scale(1.35);
-		}
-		100% {
-			transform: scale(1);
-		}
-	}
-
-	.reaction-btn.animating .heart-icon {
-		animation: heartPop 0.25s ease-out;
 	}
 
 	.icon {
 		width: 1rem;
 		height: 1rem;
 		flex-shrink: 0;
-		transition: transform 0.15s ease;
 	}
 
 	.action-count {
 		min-width: 0.75rem;
-		text-align: left;
+	}
+
+	/* Meta (views + timestamp) */
+	.post-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.625rem;
+		margin-left: auto;
+	}
+
+	.view-count {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+	}
+
+	.icon-sm {
+		width: 0.875rem;
+		height: 0.875rem;
+		flex-shrink: 0;
 	}
 
 	.post-timestamp {
 		font-size: 0.8125rem;
 		color: var(--color-text-muted);
-		margin-left: auto;
 	}
 
+	/* Comments panel */
 	.comments-panel {
-		padding: 0.75rem 0 0 3.25rem;
+		padding: 0.875rem 0 0 3.25rem;
 		animation: fadeSlideDown 0.18s ease-out;
 	}
 
-	.comments-hint {
+	.comments-loading {
+		display: flex;
+		gap: 0.25rem;
+		align-items: center;
+		padding: 0.5rem 0;
+	}
+
+	.loading-dot {
+		width: 0.3125rem;
+		height: 0.3125rem;
+		border-radius: 50%;
+		background: var(--color-text-muted);
+		animation: blink 1.2s ease-in-out infinite;
+	}
+
+	.loading-dot:nth-child(2) {
+		animation-delay: 0.2s;
+	}
+
+	.loading-dot:nth-child(3) {
+		animation-delay: 0.4s;
+	}
+
+	.comments-list {
+		list-style: none;
+		padding: 0;
+		margin: 0 0 0.875rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.comment-item {
+		display: flex;
+		gap: 0.625rem;
+	}
+
+	.comment-avatar {
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 50%;
+		background: var(--color-surface-raised);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		overflow: hidden;
+	}
+
+	.comment-avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.comment-avatar-initial {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: var(--color-text-muted);
+		user-select: none;
+	}
+
+	.comment-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.comment-header {
+		display: flex;
+		align-items: baseline;
+		gap: 0.375rem;
+		margin-bottom: 0.1875rem;
+	}
+
+	.comment-author {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+	}
+
+	.comment-time {
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+	}
+
+	.comment-delete-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: var(--color-text-muted);
+		padding: 0;
+		display: flex;
+		align-items: center;
+		margin-left: auto;
+		opacity: 0;
+		transition: opacity 0.15s ease, color 0.15s ease;
+	}
+
+	.comment-delete-btn svg {
+		width: 0.75rem;
+		height: 0.75rem;
+	}
+
+	.comment-item:hover .comment-delete-btn {
+		opacity: 1;
+	}
+
+	.comment-delete-btn:hover {
+		color: var(--color-accent);
+	}
+
+	.comment-content {
+		font-size: 0.875rem;
+		line-height: 1.5;
+		color: var(--color-text-primary);
+		margin: 0;
+		word-break: break-word;
+	}
+
+	.no-comments {
 		font-size: 0.875rem;
 		color: var(--color-text-muted);
-		margin: 0;
+		margin: 0 0 0.875rem;
+	}
+
+	/* Comment compose */
+	.comment-compose {
+		display: flex;
+		gap: 0.5rem;
+		align-items: flex-end;
+	}
+
+	.comment-input {
+		flex: 1;
+		background: var(--color-surface-raised);
+		border: 1px solid transparent;
+		border-radius: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.875rem;
+		color: var(--color-text-primary);
+		font-family: inherit;
+		outline: none;
+		resize: none;
+		line-height: 1.5;
+		transition: border-color 0.15s ease;
+	}
+
+	.comment-input::placeholder {
+		color: var(--color-text-muted);
+		opacity: 0.5;
+	}
+
+	.comment-input:focus {
+		border-color: var(--color-border);
+	}
+
+	.comment-input:disabled {
+		opacity: 0.6;
+	}
+
+	.comment-submit-btn {
+		background: var(--color-text-primary);
+		color: var(--color-bg);
+		border: none;
+		border-radius: 0.5rem;
+		padding: 0.5rem 0.875rem;
+		font-size: 0.8125rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		white-space: nowrap;
+		transition: opacity 0.15s ease, transform 0.1s ease;
+	}
+
+	.comment-submit-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.comment-submit-btn:not(:disabled):hover {
+		opacity: 0.85;
+	}
+
+	.comment-submit-btn:not(:disabled):active {
+		transform: scale(0.96);
 	}
 
 	@keyframes fadeSlideDown {
@@ -346,5 +795,10 @@
 			opacity: 1;
 			transform: translateY(0);
 		}
+	}
+
+	@keyframes blink {
+		0%, 100% { opacity: 0.3; }
+		50% { opacity: 1; }
 	}
 </style>

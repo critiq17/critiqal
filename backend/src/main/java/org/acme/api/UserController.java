@@ -7,9 +7,11 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.acme.api.dtos.PostDTO;
 import org.acme.api.dtos.UpdateProfileRequest;
 import org.acme.api.dtos.UserDTO;
 import org.acme.domain.follow.FollowService;
+import org.acme.domain.post.PostService;
 import org.acme.domain.user.UserService;
 
 import java.util.List;
@@ -24,6 +26,9 @@ public class UserController {
 
     @Inject
     FollowService followService;
+
+    @Inject
+    PostService postService;
 
     @GET
     @Path("/{username}")
@@ -80,6 +85,15 @@ public class UserController {
     public List<UserDTO> getFollowing(@PathParam("id") Long userId) {
         return followService.getFollowing(userId).stream()
                 .map(UserDTO::from)
+                .toList();
+    }
+
+    @GET
+    @Path("/{username}/posts")
+    public List<PostDTO> getUserPosts(@PathParam("username") String username) {
+        var user = userService.getByUsername(username);
+        return postService.getUserPost(user.id).stream()
+                .map(PostDTO::from)
                 .toList();
     }
 

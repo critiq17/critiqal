@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Post } from '$lib/types';
 	import { postService } from '$lib/services';
+	import { authStore } from '$lib/stores/auth.store.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import PostCard from '$lib/components/PostCard.svelte';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
@@ -11,6 +12,9 @@
 	let posts = $state<Post[]>([]);
 	let feedState = $state<FeedState>('loading');
 	let errorMessage = $state('');
+
+	let composeText = $state('');
+	let isPosting = $state(false);
 
 	const SKELETON_COUNT = 5;
 
@@ -30,6 +34,33 @@
 			feedState = 'error';
 		}
 	}
+
+	async function submitPost(): Promise<void> {
+		const content = composeText.trim();
+		if (!content || isPosting) return;
+		isPosting = true;
+		try {
+			const newPost = await postService.create({ content });
+			posts = [newPost, ...posts];
+			composeText = '';
+			feedState = 'loaded';
+		} catch {
+			// ignore
+		} finally {
+			isPosting = false;
+		}
+	}
+
+	function handleComposeKey(e: KeyboardEvent): void {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+			submitPost();
+		}
+	}
+
+	function handlePostDeleted(postId: number): void {
+		posts = posts.filter((p) => p.id !== postId);
+		if (posts.length === 0) feedState = 'empty';
+	}
 </script>
 
 <svelte:head>
@@ -46,6 +77,41 @@
 		<header class="feed-header">
 			<h1 class="feed-title">Feed</h1>
 		</header>
+
+		{#if authStore.isAuthenticated}
+			<div class="compose-box">
+				<div class="compose-avatar" aria-hidden="true">
+					{#if authStore.user?.avatarUrl}
+						<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="compose-avatar-img" />
+					{:else}
+						<span class="compose-avatar-initial">
+							{(authStore.user?.name ?? authStore.user?.username ?? '?').charAt(0).toUpperCase()}
+						</span>
+					{/if}
+				</div>
+				<div class="compose-right">
+					<textarea
+						class="compose-input"
+						bind:value={composeText}
+						onkeydown={handleComposeKey}
+						placeholder="What's on your mind?"
+						rows={3}
+						disabled={isPosting}
+						aria-label="Write a post"
+					></textarea>
+					<div class="compose-actions">
+						<span class="compose-hint">Ctrl+Enter to post</span>
+						<button
+							class="compose-submit"
+							onclick={submitPost}
+							disabled={!composeText.trim() || isPosting}
+						>
+							{isPosting ? 'Posting…' : 'Post'}
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		{#if feedState === 'loading'}
 			<div aria-busy="true" aria-label="Loading feed">
@@ -67,7 +133,7 @@
 		{:else}
 			<div class="post-list">
 				{#each posts as post (post.id)}
-					<PostCard {post} />
+					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
 			</div>
 		{/if}
@@ -121,6 +187,106 @@
 		font-weight: 700;
 		color: var(--color-text-primary);
 		letter-spacing: -0.01em;
+	}
+
+	/* Compose box */
+	.compose-box {
+		display: flex;
+		gap: 0.75rem;
+		padding: 1.25rem 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.compose-avatar {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		background: var(--color-surface-raised);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		overflow: hidden;
+	}
+
+	.compose-avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.compose-avatar-initial {
+		font-size: 0.875rem;
+		font-weight: 600;
+		color: var(--color-text-muted);
+		user-select: none;
+	}
+
+	.compose-right {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.625rem;
+	}
+
+	.compose-input {
+		width: 100%;
+		background: none;
+		border: none;
+		outline: none;
+		font-size: 1rem;
+		color: var(--color-text-primary);
+		font-family: inherit;
+		resize: none;
+		line-height: 1.5;
+		padding: 0;
+	}
+
+	.compose-input::placeholder {
+		color: var(--color-text-muted);
+		opacity: 0.5;
+	}
+
+	.compose-input:disabled {
+		opacity: 0.6;
+	}
+
+	.compose-actions {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.compose-hint {
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		opacity: 0.6;
+	}
+
+	.compose-submit {
+		background: var(--color-text-primary);
+		color: var(--color-bg);
+		border: none;
+		border-radius: 9999px;
+		padding: 0.4375rem 1.125rem;
+		font-size: 0.875rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s ease, transform 0.1s ease;
+	}
+
+	.compose-submit:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+
+	.compose-submit:not(:disabled):hover {
+		opacity: 0.85;
+	}
+
+	.compose-submit:not(:disabled):active {
+		transform: scale(0.96);
 	}
 
 	.post-list {

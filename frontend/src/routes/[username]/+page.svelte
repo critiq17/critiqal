@@ -78,6 +78,11 @@
 		}
 	}
 
+	function handlePostDeleted(postId: number): void {
+		posts = posts.filter((p) => p.id !== postId);
+		if (posts.length === 0) postsState = 'empty';
+	}
+
 	async function handleFollow(): Promise<void> {
 		if (!authStore.isAuthenticated || !profile || isFollowLoading) return;
 
@@ -297,7 +302,7 @@
 		{:else}
 			<div class="post-list">
 				{#each posts as post (post.id)}
-					<PostCard {post} />
+					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
 			</div>
 		{/if}
