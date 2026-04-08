@@ -20,6 +20,8 @@ public class Post extends PanacheEntity {
     public String content;
 
     public String photoUrl;
+    public String photoThumbnailUrl;
+
     public long viewCount = 0;
 
     @Enumerated(EnumType.STRING)

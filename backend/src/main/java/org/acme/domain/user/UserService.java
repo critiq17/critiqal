@@ -48,6 +48,12 @@ public class UserService {
         return user;
     }
 
+    @Transactional
+    public void updateAvatar(Long userId, String avatarUrl) {
+        var user = getById(userId);
+        user.avatarUrl = avatarUrl;
+    }
+
     public boolean checkPassword(String username, String rawPassword) {
         var user = getByUsername(username);
         return passwordHash.verify(rawPassword, user.passwordHash);
