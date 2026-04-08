@@ -1,10 +1,7 @@
 import { ApiError } from '$lib/types';
 
-const BASE_URL: string = import.meta.env.VITE_API_URL;
-
-if (!BASE_URL) {
-	throw new Error('VITE_API_URL is not set. Add it to your .env file.');
-}
+// Empty string = relative URLs (proxied via Vite dev server or same-origin in prod)
+const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
 
 function getStoredToken(): string | null {
 	if (typeof window === 'undefined') return null;

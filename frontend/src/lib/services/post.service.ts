@@ -50,6 +50,10 @@ export const postService = {
 		return apiClient.get<ReactionsMap>(API.posts.reactions(postId));
 	},
 
+	getMyReaction(postId: number): Promise<ReactionType | undefined> {
+		return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`, true);
+	},
+
 	react(postId: number, type: ReactionType): Promise<void> {
 		return apiClient.post<void>(API.posts.reactions(postId), { type }, true);
 	},

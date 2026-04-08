@@ -106,6 +106,16 @@ public class PostController {
         return reactionService.getReactions(postId);
     }
 
+    @GET
+    @Path("/{id}/reactions/mine")
+    @Authenticated
+    public Response getMyReaction(@Context SecurityContext ctx, @PathParam("id") Long postId) {
+        Long userId = extractUserId(ctx);
+        return reactionService.getMyReaction(postId, userId)
+                .map(type -> Response.ok(type).build())
+                .orElse(Response.noContent().build());
+    }
+
     @POST
     @Path("/{id}/reactions")
     @Authenticated
