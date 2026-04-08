@@ -138,7 +138,7 @@
 					></textarea>
 					{#if photoPreviewUrl}
 						<div class="photo-preview-wrap">
-							<img src={photoPreviewUrl} alt="Photo preview" class="photo-preview-img" />
+							<img src={photoPreviewUrl} alt="Selected photo preview" class="photo-preview-img" />
 							<button
 								class="photo-remove-btn"
 								onclick={removePhoto}

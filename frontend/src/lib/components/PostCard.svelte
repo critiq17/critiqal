@@ -219,7 +219,7 @@
 		<div class="post-photo-wrap">
 			<img
 				src={post.photoThumbnailUrl ?? post.photoUrl}
-				alt="Post photo"
+				alt=""
 				class="post-photo"
 				loading="lazy"
 				decoding="async"
