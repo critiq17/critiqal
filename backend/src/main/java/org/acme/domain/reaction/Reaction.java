@@ -6,7 +6,10 @@ import org.acme.domain.post.Post;
 import org.acme.domain.user.User;
 
 @Entity
-@Table(uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"}))
+@Table(
+        name = "reactions",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "user_id"})
+)
 public class Reaction extends PanacheEntity {
 
     @ManyToOne public Post post;
