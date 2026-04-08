@@ -1,0 +1,33 @@
+import { apiClient } from '$lib/api/client';
+import { API } from '$lib/api/endpoints';
+import type { User, UpdateProfileRequest } from '$lib/types';
+
+export const userService = {
+	getProfile(username: string): Promise<User> {
+		return apiClient.get<User>(API.users.profile(username));
+	},
+
+	search(query: string): Promise<User[]> {
+		return apiClient.get<User[]>(`${API.users.search}?q=${encodeURIComponent(query)}`);
+	},
+
+	updateProfile(req: UpdateProfileRequest): Promise<User> {
+		return apiClient.put<User>(API.users.me, req, true);
+	},
+
+	follow(targetId: number): Promise<void> {
+		return apiClient.post<void>(API.users.follow(targetId), {}, true);
+	},
+
+	unfollow(targetId: number): Promise<void> {
+		return apiClient.delete(API.users.follow(targetId), true);
+	},
+
+	getFollowers(userId: number): Promise<User[]> {
+		return apiClient.get<User[]>(API.users.followers(userId), true);
+	},
+
+	getFollowing(userId: number): Promise<User[]> {
+		return apiClient.get<User[]>(API.users.following(userId));
+	}
+};
