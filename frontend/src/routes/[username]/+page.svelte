@@ -127,7 +127,8 @@
 		try {
 			const updated = await userService.updateProfile({
 				name: editName.trim() || undefined,
-				bio: editBio.trim() || undefined
+				bio: editBio.trim() || undefined,
+				avatarUrl: profile?.avatarUrl ?? undefined
 			});
 			profile = updated;
 			authStore.updateUser(updated);
