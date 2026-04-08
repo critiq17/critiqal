@@ -1,8 +1,7 @@
-package org.acme.utils;
+package org.acme.infra.storage.s3;
 
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.persistence.CheckConstraint;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
