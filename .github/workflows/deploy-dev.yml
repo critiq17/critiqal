@@ -93,11 +93,11 @@ jobs:
 
             echo "Waiting for backend"
             for i in $(seq 1 60);do
-              if curl -sf http://localhost:8083/q/health/ready > /dev/null 2>&1; then
+              if curl -sf http://localhost:8083/ > /dev/null 2>&1; then
                 echo "Dev backend is ready"
                 break
               fi
-              if [ $i -eq 60 ]; then
+              if [ "$i" -eq 60 ]; then
                 echo "Dev backend failed to start"
                 docker compose -f docker-compose.dev.yml logs --tail=50 backend
                 exit 1
@@ -112,7 +112,7 @@ jobs:
             fi
 
             echo "Restarting frontend..."
-            PORT=3001 pm2 reload critiqal-dev 2>/dev/null || \
+            PORT=3001 pm2 reload critiqal-dev --update-env 2>/dev/null || \
               PORT=3001 pm2 start build/index.js --name critiqal-dev
             pm2 save
 

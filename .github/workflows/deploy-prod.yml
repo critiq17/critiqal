@@ -95,7 +95,7 @@ jobs:
 
             echo "Waiting for Backend to be ready"
             for i in $(seq 1 60); do
-              if curl -sf http://localhost:8082/q/health/ready > /dev/null 2>&1; then
+              if curl -sf http://localhost:8082/ > /dev/null 2>&1; then
             
               echo "Backend is ready"
               break
