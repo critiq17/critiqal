@@ -26,7 +26,7 @@ jobs:
           cache: maven
       
       - name: Build backend JAR
-        working-directory: backend 
+        working-directory: backend
         run: ./mvnw package -DskipTests -q
 
       - name: Set up Node.js 20
@@ -37,7 +37,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend
-        working-directory: frontend 
+        working-directory: frontend
         env:
           VITE_API_URL: ""
         run: |
@@ -50,7 +50,19 @@ jobs:
           authKey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
       - name: Copy backend build to server
-        uses: appleboy/scp-action@0.1.7
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "backend/target/quarkus-app/,backend/docker-compose.prod.yml,backend/Dockerfile"
+          target: "/opt/critiqal/prod/backend/"
+          strip_components: 1
+          overwrite: true
+
+      - name: Copy frontend build to server
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -59,10 +71,11 @@ jobs:
           source: "frontend/build/"
           target: "/opt/critiqal/prod/frontend/"
           strip_components: 1
+          # frontend/build/ → /opt/critiqal/prod/frontend/build/
           overwrite: true
 
       - name: Deploy on server
-        uses: appleboy/ssh-action@1.0.3
+        uses: appleboy/ssh-action@v1.0.3
         with: 
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -84,17 +97,17 @@ jobs:
             for i in $(seq 1 60); do
               if curl -sf http://localhost:8082/q/health/ready > /dev/null 2>&1; then
             
-            echo "Backend is ready"
-            break
+              echo "Backend is ready"
+              break
 
             fi
-            if [ $i -eq 60 ]; then
+            if [ "$i" -eq 60 ]; then
               echo "Backend failed to start in 120 seconds"
               docker compose -f docker-compose.prod.yml logs --tail=50 backend
               exit 1
               
-              fi 
-              sleep 2
+            fi 
+            sleep 2
             done
 
             cd /opt/critiqal/prod/frontend
@@ -104,7 +117,7 @@ jobs:
             fi
 
             echo "Restarting frontend"
-            PORT=3000 pm2 reload critiqal-prod 2>/dev/null || \
+            PORT=3000 pm2 reload critiqal-prod --update-env 2>/dev/null || \
               PORT=3000 pm2 start build/index.js --name critiqal-prod
             pm2 save
 
