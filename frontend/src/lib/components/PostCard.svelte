@@ -25,6 +25,42 @@
 	let isSubmitting = $state(false);
 	let deletingId = $state<number | null>(null);
 
+	// --- Reply state — keyed by root comment id ---
+	interface ReplyState {
+		replies: Comment[];
+		loaded: boolean;
+		loading: boolean;
+		expanded: boolean;
+		composerOpen: boolean;
+		draft: string;
+		submitting: boolean;
+	}
+
+	function emptyReplyState(): ReplyState {
+		return {
+			replies: [],
+			loaded: false,
+			loading: false,
+			expanded: false,
+			composerOpen: false,
+			draft: '',
+			submitting: false
+		};
+	}
+
+	let replyStates = $state<Map<number, ReplyState>>(new Map());
+
+	function getReplyState(commentId: number): ReplyState {
+		return replyStates.get(commentId) ?? emptyReplyState();
+	}
+
+	function setReplyState(commentId: number, patch: Partial<ReplyState>): void {
+		const prev = getReplyState(commentId);
+		const next = new Map(replyStates);
+		next.set(commentId, { ...prev, ...patch });
+		replyStates = next;
+	}
+
 	// --- Post delete ---
 	let isDeleting = $state(false);
 
@@ -132,10 +168,74 @@
 		try {
 			await postService.deleteComment(post.id, commentId);
 			comments = comments.filter((c) => c.id !== commentId);
+			// also drop its reply state
+			const next = new Map(replyStates);
+			next.delete(commentId);
+			replyStates = next;
 		} catch {
 			// ignore
 		} finally {
 			deletingId = null;
+		}
+	}
+
+	async function toggleReplies(commentId: number): Promise<void> {
+		const state = getReplyState(commentId);
+
+		if (!state.loaded) {
+			setReplyState(commentId, { loading: true });
+			try {
+				const replies = await postService.getReplies(post.id, commentId);
+				// auto-expand: always show after load
+				setReplyState(commentId, { replies, loaded: true, loading: false, expanded: true });
+			} catch {
+				setReplyState(commentId, { loading: false, loaded: true, expanded: true });
+			}
+		} else {
+			setReplyState(commentId, { expanded: !state.expanded });
+		}
+	}
+
+	function openReplyComposer(commentId: number): void {
+		setReplyState(commentId, { composerOpen: true });
+	}
+
+	function closeReplyComposer(commentId: number): void {
+		setReplyState(commentId, { composerOpen: false, draft: '' });
+	}
+
+	function handleReplyDraftChange(commentId: number, value: string): void {
+		setReplyState(commentId, { draft: value });
+	}
+
+	function handleReplyKey(e: KeyboardEvent, commentId: number): void {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+			submitReply(commentId);
+		}
+		if (e.key === 'Escape') {
+			closeReplyComposer(commentId);
+		}
+	}
+
+	async function submitReply(commentId: number): Promise<void> {
+		const state = getReplyState(commentId);
+		const text = state.draft.trim();
+		if (!text || state.submitting) return;
+
+		setReplyState(commentId, { submitting: true });
+		try {
+			const reply = await postService.addReply(post.id, commentId, { content: text });
+			const updatedReplies = [...state.replies, reply];
+			setReplyState(commentId, {
+				replies: updatedReplies,
+				loaded: true,
+				expanded: true,
+				composerOpen: false,
+				draft: '',
+				submitting: false
+			});
+		} catch {
+			setReplyState(commentId, { submitting: false });
 		}
 	}
 
@@ -312,6 +412,7 @@
 				{#if comments.length > 0}
 					<ul class="comments-list">
 						{#each comments as comment (comment.id)}
+							{@const rs = getReplyState(comment.id)}
 							<li class="comment-item">
 								<div class="comment-avatar" aria-hidden="true">
 									{#if comment.author.avatarUrl}
@@ -341,6 +442,133 @@
 										{/if}
 									</div>
 									<p class="comment-content">{comment.content}</p>
+
+									<!-- Reply actions row -->
+									<div class="comment-actions">
+										{#if authStore.isAuthenticated && !rs.composerOpen}
+											<button
+												class="reply-trigger"
+												onclick={() => openReplyComposer(comment.id)}
+												aria-label="Reply to comment"
+											>
+												reply
+											</button>
+										{/if}
+										{#if rs.loading}
+											<span class="replies-loading">
+												<span class="loading-dot"></span>
+												<span class="loading-dot"></span>
+												<span class="loading-dot"></span>
+											</span>
+										{:else if rs.loaded && rs.replies.length >= 2 && !rs.expanded}
+											<button
+												class="replies-toggle"
+												onclick={() => toggleReplies(comment.id)}
+												aria-expanded="false"
+											>
+												&#9658; {rs.replies.length} replies
+											</button>
+										{:else if !rs.loaded && !rs.loading}
+											<!-- trigger load on first click of reply-toggle area — hidden until hovered -->
+											<button
+												class="replies-toggle replies-toggle--hint"
+												onclick={() => toggleReplies(comment.id)}
+												aria-label="Load replies"
+											>
+												replies
+											</button>
+										{/if}
+										{#if rs.loaded && rs.expanded && rs.replies.length >= 2}
+											<button
+												class="replies-toggle"
+												onclick={() => setReplyState(comment.id, { expanded: false })}
+												aria-expanded="true"
+											>
+												&#9660; hide replies
+											</button>
+										{/if}
+									</div>
+
+									<!-- Inline replies (always visible when exactly 1, or when expanded) -->
+									{#if rs.loaded && rs.replies.length === 1}
+										<ul class="replies-list" aria-label="Replies">
+											{#each rs.replies as reply (reply.id)}
+												<li class="reply-item">
+													<div class="reply-avatar" aria-hidden="true">
+														{#if reply.author.avatarUrl}
+															<img src={reply.author.avatarUrl} alt={reply.author.username} class="reply-avatar-img" />
+														{:else}
+															<span class="reply-avatar-initial">
+																{(reply.author.name ?? reply.author.username).charAt(0).toUpperCase()}
+															</span>
+														{/if}
+													</div>
+													<div class="reply-body">
+														<div class="reply-header">
+															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
+															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
+														</div>
+														<p class="reply-content">{reply.content}</p>
+													</div>
+												</li>
+											{/each}
+										</ul>
+									{:else if rs.loaded && rs.expanded && rs.replies.length >= 2}
+										<ul class="replies-list" aria-label="Replies">
+											{#each rs.replies as reply (reply.id)}
+												<li class="reply-item">
+													<div class="reply-avatar" aria-hidden="true">
+														{#if reply.author.avatarUrl}
+															<img src={reply.author.avatarUrl} alt={reply.author.username} class="reply-avatar-img" />
+														{:else}
+															<span class="reply-avatar-initial">
+																{(reply.author.name ?? reply.author.username).charAt(0).toUpperCase()}
+															</span>
+														{/if}
+													</div>
+													<div class="reply-body">
+														<div class="reply-header">
+															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
+															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
+														</div>
+														<p class="reply-content">{reply.content}</p>
+													</div>
+												</li>
+											{/each}
+										</ul>
+									{/if}
+
+									<!-- Inline reply composer -->
+									{#if rs.composerOpen}
+										<div class="reply-compose">
+											<textarea
+												class="reply-input"
+												value={rs.draft}
+												oninput={(e) => handleReplyDraftChange(comment.id, (e.target as HTMLTextAreaElement).value)}
+												onkeydown={(e) => handleReplyKey(e, comment.id)}
+												placeholder="Write a reply… (Ctrl+Enter to send, Esc to cancel)"
+												rows={2}
+												disabled={rs.submitting}
+												aria-label="Write a reply"
+											></textarea>
+											<div class="reply-compose-actions">
+												<button
+													class="reply-cancel-btn"
+													onclick={() => closeReplyComposer(comment.id)}
+													disabled={rs.submitting}
+												>
+													cancel
+												</button>
+												<button
+													class="reply-submit-btn"
+													onclick={() => submitReply(comment.id)}
+													disabled={!rs.draft.trim() || rs.submitting}
+												>
+													{rs.submitting ? '...' : 'reply'}
+												</button>
+											</div>
+										</div>
+									{/if}
 								</div>
 							</li>
 						{/each}
@@ -365,7 +593,7 @@
 							onclick={submitComment}
 							disabled={!newComment.trim() || isSubmitting}
 						>
-							{isSubmitting ? '...' : 'Reply'}
+							{isSubmitting ? '...' : 'Post'}
 						</button>
 					</div>
 				{/if}
@@ -781,6 +1009,224 @@
 		color: var(--color-text-primary);
 		margin: 0;
 		word-break: break-word;
+	}
+
+	/* Comment actions row (reply trigger + replies toggle) */
+	.comment-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-top: 0.25rem;
+	}
+
+	.reply-trigger {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		padding: 0;
+		font-family: inherit;
+		transition: color 0.15s ease;
+	}
+
+	.reply-trigger:hover {
+		color: var(--color-text-primary);
+	}
+
+	.replies-toggle {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		padding: 0;
+		font-family: inherit;
+		transition: color 0.15s ease;
+	}
+
+	.replies-toggle:hover {
+		color: var(--color-text-primary);
+	}
+
+	/* The "replies" hint is invisible until comment row is hovered */
+	.replies-toggle--hint {
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 0.15s ease, color 0.15s ease;
+	}
+
+	.comment-item:hover .replies-toggle--hint {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.replies-loading {
+		display: flex;
+		gap: 0.2rem;
+		align-items: center;
+	}
+
+	/* Inline replies list */
+	.replies-list {
+		list-style: none;
+		padding: 0;
+		margin: 0.5rem 0 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		border-left: 2px solid var(--color-border);
+		padding-left: 0.75rem;
+		animation: fadeSlideDown 0.15s ease-out;
+	}
+
+	.reply-item {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.reply-avatar {
+		width: 1.375rem;
+		height: 1.375rem;
+		border-radius: 50%;
+		background: var(--color-surface-raised);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		overflow: hidden;
+	}
+
+	.reply-avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.reply-avatar-initial {
+		font-size: 0.5625rem;
+		font-weight: 600;
+		color: var(--color-text-muted);
+		user-select: none;
+	}
+
+	.reply-body {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.reply-header {
+		display: flex;
+		align-items: baseline;
+		gap: 0.375rem;
+		margin-bottom: 0.125rem;
+	}
+
+	.reply-author {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+	}
+
+	.reply-time {
+		font-size: 0.6875rem;
+		color: var(--color-text-muted);
+	}
+
+	.reply-content {
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		color: var(--color-text-primary);
+		margin: 0;
+		word-break: break-word;
+	}
+
+	/* Reply composer */
+	.reply-compose {
+		margin-top: 0.5rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		border-left: 2px solid var(--color-border);
+		padding-left: 0.75rem;
+		animation: fadeSlideDown 0.15s ease-out;
+	}
+
+	.reply-input {
+		width: 100%;
+		background: var(--color-surface-raised);
+		border: 1px solid transparent;
+		border-radius: 0.5rem;
+		padding: 0.4375rem 0.625rem;
+		font-size: 0.8125rem;
+		color: var(--color-text-primary);
+		font-family: inherit;
+		outline: none;
+		resize: none;
+		line-height: 1.5;
+		box-sizing: border-box;
+		transition: border-color 0.15s ease;
+	}
+
+	.reply-input::placeholder {
+		color: var(--color-text-muted);
+		opacity: 0.5;
+	}
+
+	.reply-input:focus {
+		border-color: var(--color-border);
+	}
+
+	.reply-input:disabled {
+		opacity: 0.6;
+	}
+
+	.reply-compose-actions {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: flex-end;
+	}
+
+	.reply-cancel-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		padding: 0.25rem 0.5rem;
+		border-radius: 0.375rem;
+		font-family: inherit;
+		transition: color 0.15s ease;
+	}
+
+	.reply-cancel-btn:hover {
+		color: var(--color-text-primary);
+	}
+
+	.reply-submit-btn {
+		background: var(--color-text-primary);
+		color: var(--color-bg);
+		border: none;
+		border-radius: 0.375rem;
+		padding: 0.25rem 0.625rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s ease, transform 0.1s ease;
+	}
+
+	.reply-submit-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.reply-submit-btn:not(:disabled):hover {
+		opacity: 0.85;
+	}
+
+	.reply-submit-btn:not(:disabled):active {
+		transform: scale(0.96);
 	}
 
 	.no-comments {
