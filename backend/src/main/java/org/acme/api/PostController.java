@@ -70,6 +70,8 @@ public class PostController {
         return Response.noContent().build();
     }
 
+
+/*
     @GET
     @Path("/{id}/comments")
     public List<CommentDTO> getComments(@PathParam("id") Long postId) {
@@ -77,6 +79,7 @@ public class PostController {
                 .map(CommentDTO::from)
                 .toList();
     }
+*/
 
     @POST
     @Path("/{id}/comments")
@@ -89,6 +92,37 @@ public class PostController {
                 .entity(CommentDTO.from(comment))
                 .build();
     }
+
+    @GET
+    @Path("/{id}/comments/{commentId}/replies")
+    public List<CommentDTO> getReplies(@PathParam("id") Long postId,
+                                       @PathParam("commentId") Long commentId) {
+        return commentService.getReplies(commentId).stream()
+                .map(CommentDTO::from)
+                .toList();
+    }
+
+    @POST
+    @Path("/{id}/comments/{commentId}/replies")
+    @Authenticated
+    public Response addReply(@Context SecurityContext ctx,
+                             @PathParam("id") Long postId,
+                             @PathParam("commentId") Long commentId,
+                             AddCommentRequest req) {
+        var reply = commentService.addReply(extractUserId(ctx), postId, commentId, req.content());
+        return Response.status(Response.Status.CREATED)
+                .entity(CommentDTO.from(reply))
+                .build();
+    }
+
+    @GET
+    @Path("/{id}/comments")
+    public List<CommentDTO> getComments(@PathParam("id") Long postId) {
+        return commentService.getRootComments(postId).stream()
+                .map(CommentDTO::from)
+                .toList();
+    }
+
 
     @DELETE
     @Path("/{id}/comments/{commentId}")
