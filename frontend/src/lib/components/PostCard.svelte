@@ -25,6 +25,7 @@
 	let newComment = $state('');
 	let isSubmitting = $state(false);
 	let deletingId = $state<number | null>(null);
+	let deletingReplyId = $state<number | null>(null);
 
 	// --- Reply state — keyed by root comment id ---
 	interface ReplyState {
@@ -182,6 +183,20 @@
 			// ignore
 		} finally {
 			deletingId = null;
+		}
+	}
+
+	async function deleteReply(commentId: number, replyId: number): Promise<void> {
+		if (deletingReplyId !== null) return;
+		deletingReplyId = replyId;
+		try {
+			await postService.deleteComment(post.id, replyId);
+			const state = getReplyState(commentId);
+			setReplyState(commentId, { replies: state.replies.filter((r) => r.id !== replyId) });
+		} catch {
+			// ignore
+		} finally {
+			deletingReplyId = null;
 		}
 	}
 
@@ -515,6 +530,19 @@
 														<div class="reply-header">
 															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
 															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
+															{#if authStore.user?.id === reply.author.id}
+																<button
+																	class="comment-delete-btn"
+																	onclick={() => deleteReply(comment.id, reply.id)}
+																	disabled={deletingReplyId === reply.id}
+																	aria-label="Delete reply"
+																>
+																	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+																		<line x1="18" y1="6" x2="6" y2="18" />
+																		<line x1="6" y1="6" x2="18" y2="18" />
+																	</svg>
+																</button>
+															{/if}
 														</div>
 														<p class="reply-content">{reply.content}</p>
 													</div>
@@ -538,6 +566,19 @@
 														<div class="reply-header">
 															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
 															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
+															{#if authStore.user?.id === reply.author.id}
+																<button
+																	class="comment-delete-btn"
+																	onclick={() => deleteReply(comment.id, reply.id)}
+																	disabled={deletingReplyId === reply.id}
+																	aria-label="Delete reply"
+																>
+																	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+																		<line x1="18" y1="6" x2="6" y2="18" />
+																		<line x1="6" y1="6" x2="18" y2="18" />
+																	</svg>
+																</button>
+															{/if}
 														</div>
 														<p class="reply-content">{reply.content}</p>
 													</div>
