@@ -44,6 +44,14 @@ export const postService = {
 		return apiClient.delete(API.posts.comment(postId, commentId), true);
 	},
 
+	getReplies(postId: number, commentId: number): Promise<Comment[]> {
+		return apiClient.get<Comment[]>(API.posts.replies(postId, commentId));
+	},
+
+	addReply(postId: number, commentId: number, req: AddCommentRequest): Promise<Comment> {
+		return apiClient.post<Comment>(API.posts.replies(postId, commentId), req, true);
+	},
+
 	// --- Reactions ---
 
 	getReactions(postId: number): Promise<ReactionsMap> {
