@@ -15,6 +15,7 @@
 	let myReaction = $state<ReactionType | null>(null);
 	let reactionsLoaded = $state(false);
 	let isReacting = $state(false);
+	let reactionsLoading = $state(false);
 
 	// --- Comments ---
 	let isExpanded = $state(false);
@@ -71,6 +72,8 @@
 	});
 
 	async function loadReactions(): Promise<void> {
+		if (reactionsLoading) return;
+		reactionsLoading = true;
 		try {
 			const reactionsPromise = postService.getReactions(post.id);
 			const myReactionPromise = authStore.isAuthenticated
@@ -78,11 +81,14 @@
 				: Promise.resolve(undefined);
 
 			const [data, mine] = await Promise.all([reactionsPromise, myReactionPromise]);
-			reactions = { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0, ...data };
+			const defaults: ReactionsMap = { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0 };
+			reactions = { ...defaults, ...data };
 			myReaction = mine ?? null;
 			reactionsLoaded = true;
 		} catch {
 			reactionsLoaded = true;
+		} finally {
+			reactionsLoading = false;
 		}
 	}
 
@@ -225,7 +231,9 @@
 		setReplyState(commentId, { submitting: true });
 		try {
 			const reply = await postService.addReply(post.id, commentId, { content: text });
-			const updatedReplies = [...state.replies, reply];
+			// Re-read state after await: toggleReplies may have loaded replies concurrently.
+			const currentState = getReplyState(commentId);
+			const updatedReplies = [...currentState.replies, reply];
 			setReplyState(commentId, {
 				replies: updatedReplies,
 				loaded: true,
