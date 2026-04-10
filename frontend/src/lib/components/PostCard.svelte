@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { slide, fade } from 'svelte/transition';
 	import type { Post, Comment, ReactionsMap, ReactionType } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
@@ -68,7 +70,7 @@
 
 	const isOwnPost = $derived(authStore.user?.id === post.author.id);
 
-	$effect(() => {
+	onMount(() => {
 		loadReactions();
 	});
 
@@ -424,7 +426,7 @@
 	</div>
 
 	{#if isExpanded}
-		<div class="comments-panel" role="region" aria-label="Comments">
+		<div class="comments-panel" role="region" aria-label="Comments" transition:slide={{ duration: 200 }}>
 			{#if commentsLoading}
 				<div class="comments-loading">
 					<span class="loading-dot"></span>
@@ -448,7 +450,7 @@
 								</div>
 								<div class="comment-body">
 									<div class="comment-header">
-										<span class="comment-author">{comment.author.name ?? comment.author.username}</span>
+										<a href="/{comment.author.username}" class="comment-author">{comment.author.name ?? comment.author.username}</a>
 										<time class="comment-time" datetime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
 										{#if authStore.user?.id === comment.author.id}
 											<button
@@ -513,10 +515,10 @@
 									</div>
 
 									<!-- Inline replies (always visible when exactly 1, or when expanded) -->
-									{#if rs.loaded && rs.replies.length === 1}
-										<ul class="replies-list" aria-label="Replies">
+									{#if rs.loaded && rs.replies.length > 0 && (rs.replies.length === 1 || rs.expanded)}
+										<ul class="replies-list" aria-label="Replies" transition:slide={{ duration: 180 }}>
 											{#each rs.replies as reply (reply.id)}
-												<li class="reply-item">
+												<li class="reply-item" transition:fade={{ duration: 150 }}>
 													<div class="reply-avatar" aria-hidden="true">
 														{#if reply.author.avatarUrl}
 															<img src={reply.author.avatarUrl} alt={reply.author.username} class="reply-avatar-img" />
@@ -528,43 +530,7 @@
 													</div>
 													<div class="reply-body">
 														<div class="reply-header">
-															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
-															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
-															{#if authStore.user?.id === reply.author.id}
-																<button
-																	class="comment-delete-btn"
-																	onclick={() => deleteReply(comment.id, reply.id)}
-																	disabled={deletingReplyId === reply.id}
-																	aria-label="Delete reply"
-																>
-																	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-																		<line x1="18" y1="6" x2="6" y2="18" />
-																		<line x1="6" y1="6" x2="18" y2="18" />
-																	</svg>
-																</button>
-															{/if}
-														</div>
-														<p class="reply-content">{reply.content}</p>
-													</div>
-												</li>
-											{/each}
-										</ul>
-									{:else if rs.loaded && rs.expanded && rs.replies.length >= 2}
-										<ul class="replies-list" aria-label="Replies">
-											{#each rs.replies as reply (reply.id)}
-												<li class="reply-item">
-													<div class="reply-avatar" aria-hidden="true">
-														{#if reply.author.avatarUrl}
-															<img src={reply.author.avatarUrl} alt={reply.author.username} class="reply-avatar-img" />
-														{:else}
-															<span class="reply-avatar-initial">
-																{(reply.author.name ?? reply.author.username).charAt(0).toUpperCase()}
-															</span>
-														{/if}
-													</div>
-													<div class="reply-body">
-														<div class="reply-header">
-															<span class="reply-author">{reply.author.name ?? reply.author.username}</span>
+															<a href="/{reply.author.username}" class="reply-author">{reply.author.name ?? reply.author.username}</a>
 															<time class="reply-time" datetime={reply.createdAt}>{formatTime(reply.createdAt)}</time>
 															{#if authStore.user?.id === reply.author.id}
 																<button
@@ -589,7 +555,7 @@
 
 									<!-- Inline reply composer -->
 									{#if rs.composerOpen}
-										<div class="reply-compose">
+										<div class="reply-compose" transition:slide={{ duration: 150 }}>
 											<textarea
 												class="reply-input"
 												value={rs.draft}
@@ -938,7 +904,6 @@
 	/* Comments panel */
 	.comments-panel {
 		padding: 0.875rem 0 0 3.25rem;
-		animation: fadeSlideDown 0.18s ease-out;
 	}
 
 	.comments-loading {
@@ -1019,6 +984,12 @@
 		font-size: 0.8125rem;
 		font-weight: 600;
 		color: var(--color-text-primary);
+		text-decoration: none;
+		transition: opacity 0.15s ease;
+	}
+
+	.comment-author:hover {
+		opacity: 0.7;
 	}
 
 	.comment-time {
@@ -1126,7 +1097,6 @@
 		gap: 0.5rem;
 		border-left: 2px solid var(--color-border);
 		padding-left: 0.75rem;
-		animation: fadeSlideDown 0.15s ease-out;
 	}
 
 	.reply-item {
@@ -1175,6 +1145,12 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--color-text-primary);
+		text-decoration: none;
+		transition: opacity 0.15s ease;
+	}
+
+	.reply-author:hover {
+		opacity: 0.7;
 	}
 
 	.reply-time {
@@ -1198,7 +1174,6 @@
 		gap: 0.375rem;
 		border-left: 2px solid var(--color-border);
 		padding-left: 0.75rem;
-		animation: fadeSlideDown 0.15s ease-out;
 	}
 
 	.reply-input {
@@ -1344,17 +1319,6 @@
 
 	.comment-submit-btn:not(:disabled):active {
 		transform: scale(0.96);
-	}
-
-	@keyframes fadeSlideDown {
-		from {
-			opacity: 0;
-			transform: translateY(-0.25rem);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
 	}
 
 	@keyframes blink {

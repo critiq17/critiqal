@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { Post, User } from '$lib/types';
 	import { postService, userService } from '$lib/services';
@@ -59,17 +60,18 @@
 	const debouncedFetch = debounce(fetchResults, DEBOUNCE_MS);
 
 	// --- Reactive trigger: re-fetch when query or tab changes ---
+	// Only `query` and `activeTab` are tracked as dependencies.
+	// `loadedQuery` and `loadedTab` are read via `untrack` so their writes inside
+	// `fetchResults` do not re-trigger this effect and cause an infinite loop.
 	$effect(() => {
 		const q = query;
 		const tab = activeTab;
 
-		// Tab switches with same query are instant if already loaded; only re-fetch if data for
-		// this tab hasn't been fetched yet for this query.
-		if (loadedQuery === q && loadedTab === tab) return;
+		const alreadyLoaded = untrack(() => loadedQuery === q && loadedTab === tab);
+		if (alreadyLoaded) return;
 
-		// If only the tab changed and results are already loaded for that combo, skip network call.
-		// For a new query, debounce; for a tab switch, fetch immediately.
-		if (q !== loadedQuery) {
+		const queryChanged = untrack(() => q !== loadedQuery);
+		if (queryChanged) {
 			debouncedFetch(q, tab);
 		} else {
 			fetchResults(q, tab);

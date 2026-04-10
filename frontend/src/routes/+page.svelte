@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import type { Post } from '$lib/types';
 	import { postService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
@@ -200,7 +201,7 @@
 				<p class="state-body">Be the first to post something.</p>
 			</div>
 		{:else}
-			<div class="post-list">
+			<div class="post-list" transition:fade={{ duration: 150 }}>
 				{#each posts as post (post.id)}
 					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
@@ -423,9 +424,7 @@
 		transform: scale(0.96);
 	}
 
-	.post-list {
-		animation: fadeIn 0.2s ease-out;
-	}
+	/* .post-list: transition handled by Svelte fade directive */
 
 	.state-box {
 		display: flex;
