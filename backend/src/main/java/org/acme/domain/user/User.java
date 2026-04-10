@@ -22,9 +22,13 @@ public class User extends PanacheEntity {
 
     public String name;
     public String bio;
+
+    @Column(name = "avatar_url")
     public String avatarUrl;
 
-    @Column(updatable = false)
+    @Column(updatable = false,
+            name = "created_at"
+    )
     public Instant createdAt = Instant.now();
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL)

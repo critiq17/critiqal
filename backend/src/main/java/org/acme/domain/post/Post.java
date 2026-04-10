@@ -19,7 +19,9 @@ public class Post extends PanacheEntity {
     @Column(columnDefinition = "TEXT")
     public String content;
 
+    @Column(name = "photo_url")
     public String photoUrl;
+    @Column(name = "photo_thumbnail_url")
     public String photoThumbnailUrl;
 
     public long viewCount = 0;
