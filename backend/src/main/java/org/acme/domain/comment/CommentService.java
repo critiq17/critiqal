@@ -17,9 +17,21 @@ public class CommentService {
     PostService postService;
     @Inject UserService userService;
 
+    // all post comments
     public List<Comment> getPostComments(Long postId) {
         postService.getById(postId);
         return commentRepo.findByPost(postId);
+    }
+
+    // only root post comments
+    public List<Comment> getRootComments(Long postId) {
+        postService.getById(postId);
+        return commentRepo.findByRootPost(postId);
+    }
+
+    // replies by comment
+    public List<Comment> getReplies(Long commentId) {
+        return commentRepo.findReplies(commentId);
     }
 
     @Transactional
@@ -32,6 +44,26 @@ public class CommentService {
         return commentRepo.addComment(author, post, content);
     }
 
+    // add reply to comment
+    @Transactional
+    public Comment addReply(Long authorId, Long postId, Long parentId, String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("Reply cannot be empty");
+        }
+
+        var author = userService.getById(authorId);
+        var post = postService.getById(postId);
+        var parent = commentRepo.findByIdOptional(parentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+
+        if (parent.parent != null) {
+            throw new IllegalArgumentException("Cannot reply to a reply");
+        }
+
+        return commentRepo.addReply(author, post, parent, content);
+    }
+
+    // delete comment
     @Transactional
     public void deleteComment(Long commentId, Long requestedId) {
         var comment = commentRepo.findByIdOptional(commentId)
