@@ -9,6 +9,7 @@ export const API = {
 		byId: (id: number) => `/api/posts/${id}`,
 		comments: (postId: number) => `/api/posts/${postId}/comments`,
 		comment: (postId: number, commentId: number) => `/api/posts/${postId}/comments/${commentId}`,
+		replies: (postId: number, commentId: number) => `/api/posts/${postId}/comments/${commentId}/replies`,
 		reactions: (postId: number) => `/api/posts/${postId}/reactions`
 	},
 	users: {

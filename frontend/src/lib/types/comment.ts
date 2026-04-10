@@ -6,6 +6,8 @@ export interface Comment {
 	author: User;
 	content: string;
 	createdAt: string;
+	parentId?: number;
+	replies?: Comment[];
 }
 
 export interface AddCommentRequest {

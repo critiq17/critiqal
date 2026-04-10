@@ -1,13 +1,12 @@
 package org.acme.domain.comment;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
-import jakarta.persistence.Entity;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import org.acme.domain.post.Post;
 import org.acme.domain.user.User;
 
 import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Table(name = "comments")
@@ -17,4 +16,12 @@ public class Comment extends PanacheEntity {
     @ManyToOne public User author;
     public String content;
     public Instant createdAt = Instant.now();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id")
+    public Comment parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    public List<Comment> replies;
+
 }
