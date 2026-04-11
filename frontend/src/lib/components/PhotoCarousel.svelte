@@ -98,8 +98,11 @@
 		position: relative;
 		overflow: hidden;
 		border-radius: 0.75rem;
-		background: var(--color-surface-raised);
-		aspect-ratio: 4 / 3;
+		background: #000;
+		/* Fixed height: tall enough for portrait, not too tall for landscape.
+		   Images use object-fit: contain so the full photo is always visible. */
+		height: 480px;
+		max-height: min(70vh, 560px);
 	}
 
 	.carousel-track {
@@ -112,13 +115,17 @@
 	.carousel-slide {
 		flex: 0 0 100%;
 		height: 100%;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.carousel-img {
 		display: block;
 		width: 100%;
 		height: 100%;
-		object-fit: cover;
+		/* contain = show full image, letterbox bars fill with #000 background */
+		object-fit: contain;
 	}
 
 	.carousel-arrow {
@@ -136,7 +143,7 @@
 		justify-content: center;
 		cursor: pointer;
 		transition: background-color 0.15s ease, opacity 0.15s ease;
-		opacity: 0;
+		opacity: 0.55;
 		z-index: 2;
 	}
 
@@ -145,8 +152,15 @@
 		height: 1rem;
 	}
 
-	.carousel:hover .carousel-arrow {
-		opacity: 1;
+	/* pointer devices: hide until hover for cleaner look */
+	@media (hover: hover) {
+		.carousel-arrow {
+			opacity: 0;
+		}
+
+		.carousel:hover .carousel-arrow {
+			opacity: 1;
+		}
 	}
 
 	.carousel-arrow:hover {

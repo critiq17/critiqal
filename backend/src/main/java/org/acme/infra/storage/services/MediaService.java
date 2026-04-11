@@ -6,11 +6,13 @@ import org.acme.domain.post.Post;
 import org.acme.domain.post_photo.PostPhotoRepository;
 import org.acme.infra.storage.s3.R2StorageService;
 import org.acme.utils.ImageProcessor;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 import java.util.UUID;
 
 @ApplicationScoped

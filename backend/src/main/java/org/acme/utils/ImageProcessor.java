@@ -3,10 +3,12 @@ package org.acme.utils;
 import jakarta.enterprise.context.ApplicationScoped;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
 @ApplicationScoped
 public class ImageProcessor {

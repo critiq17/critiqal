@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import type { Post, User } from '$lib/types';
 	import { userService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
@@ -12,16 +13,40 @@
 
 	type ProfileState = 'loading' | 'loaded' | 'error';
 	type PostsState = 'loading' | 'loaded' | 'error' | 'empty';
+	type ModalTab = 'followers' | 'following';
 
 	let profile = $state<User | null>(null);
 	let posts = $state<Post[]>([]);
-	let followersCount = $state(0);
-	let followingCount = $state(0);
+	let followersList = $state<User[]>([]);
+	let followingList = $state<User[]>([]);
+	let followersCount = $derived(followersList.length);
+	let followingCount = $derived(followingList.length);
 	let profileState = $state<ProfileState>('loading');
 	let postsState = $state<PostsState>('loading');
 	let profileError = $state('');
 	let isFollowing = $state(false);
 	let isFollowLoading = $state(false);
+	let listsLoading = $state(false);
+
+	let modalOpen = $state(false);
+	let modalTab = $state<ModalTab>('followers');
+
+	function openModal(tab: ModalTab): void {
+		modalTab = tab;
+		modalOpen = true;
+	}
+
+	function closeModal(): void {
+		modalOpen = false;
+	}
+
+	function handleBackdropKeydown(e: KeyboardEvent): void {
+		if (e.key === 'Escape') closeModal();
+	}
+
+	function handleBackdropClick(e: MouseEvent): void {
+		if (e.target === e.currentTarget) closeModal();
+	}
 
 	let isUploadingAvatar = $state(false);
 	let avatarError = $state('');
@@ -55,18 +80,21 @@
 	}
 
 	async function loadCounts(userId: number): Promise<void> {
+		listsLoading = true;
 		try {
 			const [followers, following] = await Promise.all([
 				userService.getFollowers(userId),
 				userService.getFollowing(userId)
 			]);
-			followersCount = followers.length;
-			followingCount = following.length;
+			followersList = followers;
+			followingList = following;
 			if (authStore.user) {
 				isFollowing = followers.some((f) => f.id === authStore.user!.id);
 			}
 		} catch {
-			// Non-critical — counts stay at 0
+			// Non-critical — lists stay empty
+		} finally {
+			listsLoading = false;
 		}
 	}
 
@@ -89,9 +117,14 @@
 	async function handleFollow(): Promise<void> {
 		if (!authStore.isAuthenticated || !profile || isFollowLoading) return;
 
+		const currentUser = authStore.user!;
 		const wasFollowing = isFollowing;
+		const prevFollowersList = followersList;
+
 		isFollowing = !isFollowing;
-		followersCount = isFollowing ? followersCount + 1 : Math.max(0, followersCount - 1);
+		followersList = isFollowing
+			? [...followersList, currentUser]
+			: followersList.filter((f) => f.id !== currentUser.id);
 
 		isFollowLoading = true;
 		try {
@@ -102,7 +135,7 @@
 			}
 		} catch {
 			isFollowing = wasFollowing;
-			followersCount = wasFollowing ? followersCount + 1 : Math.max(0, followersCount - 1);
+			followersList = prevFollowersList;
 		} finally {
 			isFollowLoading = false;
 		}
@@ -326,14 +359,14 @@
 				{/if}
 
 				<div class="profile-stats">
-					<span class="stat-item">
+					<button class="stat-item" onclick={() => openModal('followers')}>
 						<span class="stat-value">{formatCount(followersCount)}</span>
 						<span class="stat-label">Followers</span>
-					</span>
-					<span class="stat-item">
+					</button>
+					<button class="stat-item" onclick={() => openModal('following')}>
 						<span class="stat-value">{formatCount(followingCount)}</span>
 						<span class="stat-label">Following</span>
-					</span>
+					</button>
 				</div>
 			</section>
 		{/if}
@@ -369,6 +402,65 @@
 
 	<div class="col-right" aria-hidden="true"></div>
 </div>
+
+{#if modalOpen}
+	<div
+		class="modal-backdrop"
+		role="presentation"
+		transition:fade={{ duration: 150 }}
+		onclick={handleBackdropClick}
+		onkeydown={handleBackdropKeydown}
+	>
+		<div
+			class="modal-panel"
+			role="dialog"
+			aria-modal="true"
+			aria-label={modalTab === 'followers' ? 'Followers' : 'Following'}
+		>
+			<header class="modal-header">
+				<h2 class="modal-title">{modalTab === 'followers' ? 'Followers' : 'Following'}</h2>
+				<button class="modal-close" onclick={closeModal} aria-label="Close">×</button>
+			</header>
+
+			<div class="modal-body">
+				{#if listsLoading}
+					{#each { length: 3 } as _, i (i)}
+						<div class="user-skeleton" aria-hidden="true">
+							<div class="skeleton-avatar-sm"></div>
+							<div class="skeleton-text-group">
+								<div class="skeleton-line" style="width: 7rem; height: 0.8125rem;"></div>
+								<div class="skeleton-line" style="width: 4.5rem; height: 0.75rem; margin-top: 0.25rem;"></div>
+							</div>
+						</div>
+					{/each}
+				{:else}
+					{@const list = modalTab === 'followers' ? followersList : followingList}
+					{#if list.length === 0}
+						<p class="modal-empty">
+							{modalTab === 'followers' ? 'No followers yet.' : 'No one followed yet.'}
+						</p>
+					{:else}
+						{#each list as user (user.id)}
+							<a href="/{user.username}" class="user-row" onclick={closeModal}>
+								<div class="user-avatar-sm" aria-hidden="true">
+									{#if user.avatarUrl}
+										<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
+									{:else}
+										<span class="user-avatar-initial">{getAvatarInitial(user)}</span>
+									{/if}
+								</div>
+								<div class="user-info">
+									<span class="user-name">{user.name ?? user.username}</span>
+									<span class="user-handle">@{user.username}</span>
+								</div>
+							</a>
+						{/each}
+					{/if}
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	.page-layout {
@@ -621,6 +713,22 @@
 		display: flex;
 		align-items: baseline;
 		gap: 0.3125rem;
+		background: none;
+		border: none;
+		padding: 0;
+		font-family: inherit;
+		cursor: pointer;
+		transition: opacity 0.15s ease;
+	}
+
+	.stat-item:hover .stat-label {
+		text-decoration: underline;
+	}
+
+	.stat-item:focus-visible {
+		outline: 2px solid var(--color-text-muted);
+		outline-offset: 3px;
+		border-radius: 2px;
 	}
 
 	.stat-value {
@@ -632,6 +740,163 @@
 	.stat-label {
 		font-size: 0.875rem;
 		color: var(--color-text-muted);
+	}
+
+	/* Modal */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 100;
+		background: rgba(0, 0, 0, 0.55);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.modal-panel {
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 1rem;
+		width: 90vw;
+		max-width: 420px;
+		max-height: 70vh;
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+	}
+
+	.modal-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1rem 1.25rem;
+		border-bottom: 1px solid var(--color-border);
+		flex-shrink: 0;
+	}
+
+	.modal-title {
+		font-size: 1rem;
+		font-weight: 700;
+		color: var(--color-text-primary);
+		letter-spacing: -0.01em;
+	}
+
+	.modal-close {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 1.5rem;
+		line-height: 1;
+		color: var(--color-text-muted);
+		padding: 0.125rem 0.375rem;
+		border-radius: 0.375rem;
+		font-family: inherit;
+		transition: color 0.15s ease, background-color 0.15s ease;
+	}
+
+	.modal-close:hover {
+		color: var(--color-text-primary);
+		background-color: var(--color-surface-raised);
+	}
+
+	.modal-close:focus-visible {
+		outline: 2px solid var(--color-text-muted);
+		outline-offset: 2px;
+	}
+
+	.modal-body {
+		overflow-y: auto;
+		flex: 1;
+	}
+
+	.modal-empty {
+		padding: 2.5rem 1.25rem;
+		text-align: center;
+		font-size: 0.9375rem;
+		color: var(--color-text-muted);
+	}
+
+	/* User list rows */
+	.user-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1.25rem;
+		text-decoration: none;
+		transition: background-color 0.15s ease;
+	}
+
+	.user-row:hover {
+		background-color: var(--color-surface-raised);
+	}
+
+	.user-row:focus-visible {
+		outline: 2px solid var(--color-text-muted);
+		outline-offset: -2px;
+	}
+
+	.user-avatar-sm {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		background: var(--color-surface-raised);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		flex-shrink: 0;
+	}
+
+	.user-avatar-initial {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-text-muted);
+		user-select: none;
+	}
+
+	.user-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.0625rem;
+		min-width: 0;
+	}
+
+	.user-name {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.user-handle {
+		font-size: 0.875rem;
+		color: var(--color-text-muted);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* Modal skeleton rows */
+	.user-skeleton {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem 1.25rem;
+	}
+
+	.skeleton-avatar-sm {
+		width: 2.5rem;
+		height: 2.5rem;
+		border-radius: 50%;
+		background: var(--color-skeleton);
+		animation: shimmer 1.6s ease-in-out infinite;
+		flex-shrink: 0;
+	}
+
+	.skeleton-text-group {
+		flex: 1;
 	}
 
 	/* Edit form */

@@ -480,6 +480,14 @@
 												<span class="loading-dot"></span>
 												<span class="loading-dot"></span>
 											</span>
+										{:else if !rs.loaded}
+											<button
+												class="replies-toggle"
+												onclick={() => toggleReplies(comment.id)}
+												aria-label="Load replies"
+											>
+												Replies ›
+											</button>
 										{:else if rs.loaded && rs.replies.length >= 2 && !rs.expanded}
 											<button
 												class="replies-toggle"
@@ -488,17 +496,7 @@
 											>
 												&#9658; {rs.replies.length} replies
 											</button>
-										{:else if !rs.loaded && !rs.loading}
-											<!-- trigger load on first click of reply-toggle area — hidden until hovered -->
-											<button
-												class="replies-toggle replies-toggle--hint"
-												onclick={() => toggleReplies(comment.id)}
-												aria-label="Load replies"
-											>
-												replies
-											</button>
-										{/if}
-										{#if rs.loaded && rs.expanded && rs.replies.length >= 2}
+										{:else if rs.loaded && rs.expanded && rs.replies.length >= 2}
 											<button
 												class="replies-toggle"
 												onclick={() => setReplyState(comment.id, { expanded: false })}
@@ -551,30 +549,24 @@
 									<!-- Inline reply composer -->
 									{#if rs.composerOpen}
 										<div class="reply-compose" transition:slide={{ duration: 150 }}>
-											<textarea
-												class="reply-input"
-												value={rs.draft}
-												oninput={(e) => handleReplyDraftChange(comment.id, (e.target as HTMLTextAreaElement).value)}
-												onkeydown={(e) => handleReplyKey(e, comment.id)}
-												placeholder="Write a reply… (Ctrl+Enter to send, Esc to cancel)"
-												rows={2}
-												disabled={rs.submitting}
-												aria-label="Write a reply"
-											></textarea>
-											<div class="reply-compose-actions">
-												<button
-													class="reply-cancel-btn"
-													onclick={() => closeReplyComposer(comment.id)}
+											<div class="reply-compose-inner">
+												<textarea
+													class="reply-input"
+													value={rs.draft}
+													oninput={(e) => handleReplyDraftChange(comment.id, (e.target as HTMLTextAreaElement).value)}
+													onkeydown={(e) => handleReplyKey(e, comment.id)}
+													placeholder="Reply… (Esc to cancel)"
+													rows={1}
 													disabled={rs.submitting}
-												>
-													cancel
-												</button>
+													aria-label="Write a reply"
+												></textarea>
 												<button
 													class="reply-submit-btn"
 													onclick={() => submitReply(comment.id)}
 													disabled={!rs.draft.trim() || rs.submitting}
+													aria-label="Send reply"
 												>
-													{rs.submitting ? '...' : 'reply'}
+													{rs.submitting ? '…' : 'Reply'}
 												</button>
 											</div>
 										</div>
@@ -588,23 +580,26 @@
 				{/if}
 
 				{#if authStore.isAuthenticated}
-					<div class="comment-compose">
-						<textarea
-							class="comment-input"
-							bind:value={newComment}
-							onkeydown={handleCommentKey}
-							placeholder="Write a comment… (Ctrl+Enter to send)"
-							rows={2}
-							disabled={isSubmitting}
-							aria-label="Write a comment"
-						></textarea>
-						<button
-							class="comment-submit-btn"
-							onclick={submitComment}
-							disabled={!newComment.trim() || isSubmitting}
-						>
-							{isSubmitting ? '...' : 'Post'}
-						</button>
+					<div class="comment-compose" transition:slide={{ duration: 200 }}>
+						<div class="comment-compose-inner">
+							<textarea
+								class="comment-input"
+								bind:value={newComment}
+								onkeydown={handleCommentKey}
+								placeholder="Add a comment…"
+								rows={1}
+								disabled={isSubmitting}
+								aria-label="Write a comment"
+							></textarea>
+							<button
+								class="comment-submit-btn"
+								onclick={submitComment}
+								disabled={!newComment.trim() || isSubmitting}
+								aria-label="Post comment"
+							>
+								{isSubmitting ? '…' : 'Post'}
+							</button>
+						</div>
 					</div>
 				{/if}
 			{/if}
@@ -614,8 +609,15 @@
 
 <style>
 	.post-card {
-		padding: 1.25rem 0;
+		padding: 1.25rem 0.5rem;
+		margin: 0 -0.5rem;
 		border-bottom: 1px solid var(--color-border);
+		border-radius: 0.5rem;
+		transition: background-color 0.15s ease;
+	}
+
+	.post-card:hover {
+		background-color: var(--color-surface-raised);
 	}
 
 	.post-card:last-child {
@@ -800,19 +802,19 @@
 	}
 
 	.reaction-img {
-		width: 1.65rem;
-		height: 1.65rem;
+		width: 2rem;
+		height: 2rem;
 		border-radius: 50%;
 		object-fit: cover;
 		display: block;
-		filter: grayscale(30%);
-		transition: filter 0.15s ease, transform 0.15s ease;
+		opacity: 0.75;
+		transition: opacity 0.15s ease, transform 0.15s ease;
 	}
 
 	.reaction-btn.active .reaction-img,
 	.reaction-btn:not(:disabled):hover .reaction-img {
-		filter: grayscale(0%);
-		transform: scale(1.15);
+		opacity: 1;
+		transform: scale(1.1);
 	}
 
 	.reaction-count {
@@ -890,6 +892,7 @@
 	/* Comments panel */
 	.comments-panel {
 		padding: 0.875rem 0 0 3.25rem;
+		overflow: hidden;
 	}
 
 	.comments-loading {
@@ -1055,17 +1058,6 @@
 		color: var(--color-text-primary);
 	}
 
-	/* The "replies" hint is invisible until comment row is hovered */
-	.replies-toggle--hint {
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 0.15s ease, color 0.15s ease;
-	}
-
-	.comment-item:hover .replies-toggle--hint {
-		opacity: 1;
-		pointer-events: auto;
-	}
 
 	.replies-loading {
 		display: flex;
@@ -1152,30 +1144,39 @@
 		word-break: break-word;
 	}
 
-	/* Reply composer */
+	/* Reply composer — pill style */
 	.reply-compose {
 		margin-top: 0.5rem;
+	}
+
+	.reply-compose-inner {
 		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-		border-left: 2px solid var(--color-border);
-		padding-left: 0.75rem;
+		align-items: center;
+		gap: 0.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: 1.5rem;
+		padding: 0.3125rem 0.375rem 0.3125rem 0.75rem;
+		background: var(--color-surface-raised);
+		transition: border-color 0.15s ease;
+	}
+
+	.reply-compose-inner:focus-within {
+		border-color: var(--color-text-muted);
 	}
 
 	.reply-input {
-		width: 100%;
-		background: var(--color-surface-raised);
-		border: 1px solid transparent;
-		border-radius: 0.5rem;
-		padding: 0.4375rem 0.625rem;
+		flex: 1;
+		background: none;
+		border: none;
+		outline: none;
 		font-size: 0.8125rem;
 		color: var(--color-text-primary);
 		font-family: inherit;
-		outline: none;
 		resize: none;
 		line-height: 1.5;
+		min-height: 1.5em;
+		padding: 0;
 		box-sizing: border-box;
-		transition: border-color 0.15s ease;
 	}
 
 	.reply-input::placeholder {
@@ -1183,51 +1184,27 @@
 		opacity: 0.5;
 	}
 
-	.reply-input:focus {
-		border-color: var(--color-border);
-	}
-
 	.reply-input:disabled {
 		opacity: 0.6;
-	}
-
-	.reply-compose-actions {
-		display: flex;
-		gap: 0.5rem;
-		justify-content: flex-end;
-	}
-
-	.reply-cancel-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 0.75rem;
-		color: var(--color-text-muted);
-		padding: 0.25rem 0.5rem;
-		border-radius: 0.375rem;
-		font-family: inherit;
-		transition: color 0.15s ease;
-	}
-
-	.reply-cancel-btn:hover {
-		color: var(--color-text-primary);
 	}
 
 	.reply-submit-btn {
 		background: var(--color-text-primary);
 		color: var(--color-bg);
 		border: none;
-		border-radius: 0.375rem;
+		border-radius: 9999px;
 		padding: 0.25rem 0.625rem;
 		font-size: 0.75rem;
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
+		white-space: nowrap;
+		flex-shrink: 0;
 		transition: opacity 0.15s ease, transform 0.1s ease;
 	}
 
 	.reply-submit-btn:disabled {
-		opacity: 0.4;
+		opacity: 0.35;
 		cursor: not-allowed;
 	}
 
@@ -1245,35 +1222,43 @@
 		margin: 0 0 0.875rem;
 	}
 
-	/* Comment compose */
+	/* Comment compose — pill style */
 	.comment-compose {
+		padding-top: 0.5rem;
+	}
+
+	.comment-compose-inner {
 		display: flex;
+		align-items: center;
 		gap: 0.5rem;
-		align-items: flex-end;
+		border: 1px solid var(--color-border);
+		border-radius: 1.5rem;
+		padding: 0.4375rem 0.5rem 0.4375rem 1rem;
+		background: var(--color-surface-raised);
+		transition: border-color 0.15s ease;
+	}
+
+	.comment-compose-inner:focus-within {
+		border-color: var(--color-text-muted);
 	}
 
 	.comment-input {
 		flex: 1;
-		background: var(--color-surface-raised);
-		border: 1px solid transparent;
-		border-radius: 0.5rem;
-		padding: 0.5rem 0.75rem;
+		background: none;
+		border: none;
+		outline: none;
 		font-size: 0.875rem;
 		color: var(--color-text-primary);
 		font-family: inherit;
-		outline: none;
 		resize: none;
 		line-height: 1.5;
-		transition: border-color 0.15s ease;
+		min-height: 1.5em;
+		padding: 0;
 	}
 
 	.comment-input::placeholder {
 		color: var(--color-text-muted);
 		opacity: 0.5;
-	}
-
-	.comment-input:focus {
-		border-color: var(--color-border);
 	}
 
 	.comment-input:disabled {
@@ -1284,18 +1269,19 @@
 		background: var(--color-text-primary);
 		color: var(--color-bg);
 		border: none;
-		border-radius: 0.5rem;
-		padding: 0.5rem 0.875rem;
+		border-radius: 9999px;
+		padding: 0.3125rem 0.75rem;
 		font-size: 0.8125rem;
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
 		white-space: nowrap;
+		flex-shrink: 0;
 		transition: opacity 0.15s ease, transform 0.1s ease;
 	}
 
 	.comment-submit-btn:disabled {
-		opacity: 0.4;
+		opacity: 0.35;
 		cursor: not-allowed;
 	}
 

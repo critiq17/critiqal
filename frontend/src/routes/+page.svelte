@@ -84,15 +84,18 @@
 			if (photosToUpload.length > 0) {
 				isUploadingPhotos = true;
 				try {
-					const results = await Promise.allSettled(
-						photosToUpload.map((p) => mediaService.uploadPostPhoto(newPost.id, p.file))
-					);
-					const photos = results
-						.filter((r) => r.status === 'fulfilled')
-						.map((r) => (r as PromiseFulfilledResult<import('$lib/types').PostPhoto>).value);
+					// Sequential uploads: each waits for the previous so the backend
+					// countByPost() returns an accurate value for position assignment.
+					const photos: import('$lib/types').PostPhoto[] = [];
+					for (const p of photosToUpload) {
+						try {
+							const photo = await mediaService.uploadPostPhoto(newPost.id, p.file);
+							photos.push(photo);
+						} catch {
+							// skip failed photo, continue with the rest
+						}
+					}
 					posts = [{ ...newPost, photos }, ...posts];
-				} catch {
-					posts = [newPost, ...posts];
 				} finally {
 					isUploadingPhotos = false;
 				}
@@ -159,10 +162,10 @@
 						aria-label="Write a post"
 					></textarea>
 					{#if pendingPhotos.length > 0}
-						<div class="photo-preview-grid" class:photo-preview-grid--single={pendingPhotos.length === 1}>
+						<div class="photo-thumbnail-row">
 							{#each pendingPhotos as photo, i (photo.previewUrl)}
-								<div class="photo-preview-wrap">
-									<img src={photo.previewUrl} alt="Selected photo {i + 1}" class="photo-preview-img" />
+								<div class="photo-thumbnail-wrap">
+									<img src={photo.previewUrl} alt="Selected photo {i + 1}" class="photo-thumbnail-img" />
 									<button
 										class="photo-remove-btn"
 										onclick={() => removePhoto(i)}
@@ -268,7 +271,7 @@
 	}
 
 	.col-center {
-		padding: 0 2rem;
+		padding: 0 2rem 4rem;
 		min-height: 100vh;
 	}
 
@@ -393,30 +396,23 @@
 		display: none;
 	}
 
-	.photo-preview-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 0.375rem;
+	.photo-thumbnail-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
 		margin-bottom: 0.5rem;
-		border-radius: 0.75rem;
-		overflow: hidden;
 	}
 
-	.photo-preview-grid--single {
-		grid-template-columns: 1fr;
-	}
-
-	.photo-preview-wrap {
+	.photo-thumbnail-wrap {
 		position: relative;
-		aspect-ratio: 1;
+		width: 72px;
+		height: 72px;
+		flex-shrink: 0;
+		border-radius: 0.5rem;
 		overflow: hidden;
 	}
 
-	.photo-preview-grid--single .photo-preview-wrap {
-		aspect-ratio: 16 / 9;
-	}
-
-	.photo-preview-img {
+	.photo-thumbnail-img {
 		display: block;
 		width: 100%;
 		height: 100%;
@@ -425,25 +421,26 @@
 
 	.photo-remove-btn {
 		position: absolute;
-		top: 0.375rem;
-		right: 0.375rem;
-		background: rgba(0, 0, 0, 0.6);
+		top: 3px;
+		right: 3px;
+		background: rgba(0, 0, 0, 0.7);
 		color: #fff;
 		border: none;
 		border-radius: 50%;
-		width: 1.5rem;
-		height: 1.5rem;
-		font-size: 1rem;
+		width: 16px;
+		height: 16px;
+		font-size: 0.6875rem;
 		line-height: 1;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: background-color 0.15s ease;
+		padding: 0;
 	}
 
 	.photo-remove-btn:hover {
-		background: rgba(0, 0, 0, 0.8);
+		background: rgba(0, 0, 0, 0.9);
 	}
 
 	.compose-submit {
@@ -570,7 +567,7 @@
 		}
 
 		.col-center {
-			padding: 0 1rem;
+			padding: 0 1rem 4rem;
 		}
 	}
 </style>
