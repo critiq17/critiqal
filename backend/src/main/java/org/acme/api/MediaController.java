@@ -2,6 +2,8 @@ package org.acme.api;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
+import org.acme.domain.post_photo.PostPhoto;
+import org.acme.domain.post_photo.PostPhotoRepository;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Context;
@@ -13,7 +15,6 @@ import org.acme.domain.user.UserService;
 import org.acme.infra.storage.services.MediaService;
 import org.jboss.resteasy.reactive.RestForm;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
@@ -28,6 +29,8 @@ public class MediaController {
     UserService userService;
     @Inject
     PostService postService;
+    @Inject
+    PostPhotoRepository postPhotoRepo;
 
     @POST
     @Path("/avatar")
@@ -69,17 +72,47 @@ public class MediaController {
     }
 
     @POST
-    @Path("/posts/{postId}/photo")
+    @Path("/posts/{postId}/photos")
     @Authenticated
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
-    public Response uploadPostPhoto(
+    public Response addPostPhoto(
             @Context SecurityContext ctx,
             @PathParam("postId") Long postId,
             @RestForm("file") FileUpload file
     ) throws IOException {
         validateImage(file);
+        Long userId = extractUserId(ctx);
+        var post = postService.getById(postId);
 
+        if (!post.author.id.equals(userId)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        var result = mediaService.uploadPostPhoto(post, Files.newInputStream(file.uploadedFile()));
+
+        var photo = new PostPhoto();
+        photo.post = post;
+        photo.url = result.url();
+        photo.thumbnailUrl = result.thumbnailUrl();
+        photo.position = (int) postPhotoRepo.countByPost(postId);
+        postPhotoRepo.persist(photo);
+
+        return Response.status(Response.Status.CREATED).entity(Map.of(
+                "id", photo.id,
+                "url", photo.url,
+                "thumbnailUrl", photo.thumbnailUrl,
+                "position", photo.position
+        )).build();
+    }
+
+    @DELETE
+    @Path("/posts/{postId}/photos/{photoId}")
+    @Authenticated
+    public Response deletePostPhoto(
+            @Context SecurityContext ctx,
+            @PathParam("postId") Long postId,
+            @PathParam("photoId") Long photoId
+    ) {
         Long userId = extractUserId(ctx);
         var post = postService.getById(postId);
 
@@ -87,28 +120,20 @@ public class MediaController {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
 
-        if (post.photoUrl != null) {
-            mediaService.deletePhoto(post.photoUrl);
-            mediaService.deletePhoto(post.photoThumbnailUrl);
-        }
+        var photo = postPhotoRepo.findByIdOptional(photoId)
+                .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
 
-        var result = mediaService.uploadPostPhoto(
-                postId,
-                Files.newInputStream(file.uploadedFile())
-        );
+        mediaService.deletePhoto(photo.url);
+        mediaService.deletePhoto(photo.thumbnailUrl);
+        postPhotoRepo.delete(photo);
 
-        postService.updatePhoto(postId, result.url(), result.thumbnailUrl());
-
-        return Response.ok(Map.of(
-                "photoUrl", result.url(),
-                "thumbnailUrl", result.thumbnailUrl()
-        )).build();
+        return Response.noContent().build();
     }
 
     @DELETE
-    @Path("/posts/{postId}/photo")
+    @Path("/posts/{postId}/photos")
     @Authenticated
-    public Response deletePostPhoto(
+    public Response deleteAllPostPhotos(
             @Context SecurityContext ctx,
             @PathParam("postId") Long postId
     ) {
@@ -118,11 +143,7 @@ public class MediaController {
         if (!post.author.id.equals(userId)) {
             return Response.status(Response.Status.FORBIDDEN).build();
         }
-
-        mediaService.deletePhoto(post.photoUrl);
-        mediaService.deletePhoto(post.photoThumbnailUrl);
-        postService.updatePhoto(postId, null, null);
-
+        mediaService.deleteAllPostPhotos(postId);
         return Response.noContent().build();
     }
 
