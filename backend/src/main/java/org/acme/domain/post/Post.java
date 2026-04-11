@@ -3,6 +3,7 @@ package org.acme.domain.post;
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
 import jakarta.persistence.*;
 import org.acme.domain.comment.Comment;
+import org.acme.domain.post_photo.PostPhoto;
 import org.acme.domain.reaction.Reaction;
 import org.acme.domain.user.User;
 
@@ -19,10 +20,16 @@ public class Post extends PanacheEntity {
     @Column(columnDefinition = "TEXT")
     public String content;
 
-    @Column(name = "photo_url")
-    public String photoUrl;
-    @Column(name = "photo_thumbnail_url")
-    public String photoThumbnailUrl;
+    // remove old photo url tables
+//    @Column(name = "photo_url")
+//    public String photoUrl;
+//    @Column(name = "photo_thumbnail_url")
+//    public String photoThumbnailUrl;
+
+    // new post photo entity (post can have many photos)
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC")
+    public List<PostPhoto> photos;
 
     public long viewCount = 0;
 
