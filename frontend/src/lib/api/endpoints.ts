@@ -23,6 +23,7 @@ export const API = {
 	},
 	media: {
 		avatar: '/api/media/avatar',
-		postPhoto: (postId: number) => `/api/media/posts/${postId}/photo`
+		postPhotos: (postId: number) => `/api/media/posts/${postId}/photos`,
+		postPhoto: (postId: number, photoId: number) => `/api/media/posts/${postId}/photos/${photoId}`
 	}
 } as const;

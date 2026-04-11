@@ -2,26 +2,35 @@ package org.acme.api.dtos;
 
 import org.acme.domain.post.Post;
 import org.acme.domain.post.PostStatus;
+import org.acme.domain.post_photo.PostPhoto;
 
 import java.time.Instant;
+import java.util.List;
 
 public record PostDTO(
         Long id,
         UserDTO author,
         String content,
-        String photoUrl,
-        String photoThumbnailUrl,
+        List<PostPhotoDTO> photos,
         long viewCount,
         PostStatus status,
         Instant createdAt
 ) {
+    public record PostPhotoDTO(Long id, String url, String thumbnailUrl, int position) {
+        public static PostPhotoDTO from(PostPhoto photo) {
+            return new PostPhotoDTO(photo.id, photo.url, photo.thumbnailUrl, photo.position);
+        }
+    }
+
     public static PostDTO from(Post post) {
+        var photos = post.photos != null
+                ? post.photos.stream().map(PostPhotoDTO::from).toList()
+                : List.<PostPhotoDTO>of();
         return new PostDTO(
                 post.id,
                 UserDTO.from(post.author),
                 post.content,
-                post.photoUrl,
-                post.photoThumbnailUrl,
+                photos,
                 post.viewCount,
                 post.status,
                 post.createdAt

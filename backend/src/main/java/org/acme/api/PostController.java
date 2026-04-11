@@ -56,7 +56,7 @@ public class PostController {
     @Authenticated
     public Response createPost(@Context SecurityContext ctx, CreatePostRequest req) {
         Long authorId = extractUserId(ctx);
-        var post = postService.createPost(authorId, req.content(), req.photoUrl());
+        var post = postService.createPost(authorId, req.content());
         return Response.status(Response.Status.CREATED)
                 .entity(PostDTO.from(post))
                 .build();

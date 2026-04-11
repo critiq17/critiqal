@@ -4,6 +4,7 @@
 	import type { Post, Comment, ReactionsMap, ReactionType } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import PhotoCarousel from '$lib/components/PhotoCarousel.svelte';
 
 	interface Props {
 		post: Post;
@@ -345,15 +346,9 @@
 		<p class="post-content">{post.content}</p>
 	</div>
 
-	{#if post.photoUrl}
+	{#if post.photos && post.photos.length > 0}
 		<div class="post-photo-wrap">
-			<img
-				src={post.photoThumbnailUrl ?? post.photoUrl}
-				alt=""
-				class="post-photo"
-				loading="lazy"
-				decoding="async"
-			/>
+			<PhotoCarousel photos={post.photos} />
 		</div>
 	{/if}
 
@@ -739,15 +734,6 @@
 		border-radius: 0.75rem;
 		overflow: hidden;
 		background: var(--color-surface-raised);
-	}
-
-	.post-photo {
-		display: block;
-		width: 100%;
-		max-height: 400px;
-		object-fit: cover;
-		border-radius: 0.75rem;
-		animation: fadeIn 0.25s ease-out;
 	}
 
 	@keyframes fadeIn {
