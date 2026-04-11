@@ -3,10 +3,12 @@ package org.acme.utils;
 import jakarta.enterprise.context.ApplicationScoped;
 import net.coobird.thumbnailator.Thumbnails;
 import net.coobird.thumbnailator.geometry.Positions;
+import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Set;
 
 @ApplicationScoped
 public class ImageProcessor {
@@ -14,10 +16,10 @@ public class ImageProcessor {
     public byte[] processAvatar(InputStream input) throws IOException {
         var output = new ByteArrayOutputStream();
         Thumbnails.of(input)
-                .size(400, 400)
+                .size(500, 500)
                 .crop(Positions.CENTER)
                 .outputFormat("jpeg")
-                .outputQuality(0.85)
+                .outputQuality(0.90)
                 .toOutputStream(output);
         return output.toByteArray();
     }
@@ -25,9 +27,9 @@ public class ImageProcessor {
     public byte[] processPostPhoto(InputStream input) throws IOException {
         var output = new ByteArrayOutputStream();
         Thumbnails.of(input)
-                .width(1200)
+                .width(1600)
                 .outputFormat("jpeg")
-                .outputQuality(0.82)
+                .outputQuality(0.88)
                 .toOutputStream(output);
         return output.toByteArray();
     }
@@ -35,10 +37,10 @@ public class ImageProcessor {
     public byte[] processThumbnail(InputStream input) throws IOException {
         var output = new ByteArrayOutputStream();
         Thumbnails.of(input)
-                .size(600, 600)
+                .size(800, 800)
                 .crop(Positions.CENTER)
                 .outputFormat("jpeg")
-                .outputQuality(0.75)
+                .outputQuality(0.82)
                 .toOutputStream(output);
         return output.toByteArray();
     }

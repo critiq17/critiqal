@@ -19,12 +19,12 @@ public class PostService {
     Event<PostCreatedEvent> postCreatedEvent;
 
     @Transactional
-    public Post createPost(Long authorId, String content, String photoUrl) {
+    public Post createPost(Long authorId, String content) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Post cannot be empty");
         }
         var author = userService.getById(authorId);
-        var post = postRepo.createPost(author, content, photoUrl);
+        var post = postRepo.createPost(author, content);
 
         postCreatedEvent.fireAsync(new PostCreatedEvent(post.id, author.id));
         return post;
@@ -48,13 +48,6 @@ public class PostService {
             return List.of();
         }
         return postRepo.search(query);
-    }
-
-    @Transactional
-    public void updatePhoto(Long postId, String photoUrl, String thumbnailUrl) {
-        var post = getById(postId);
-        post.photoUrl = photoUrl;
-        post.photoThumbnailUrl = thumbnailUrl;
     }
 
     @Transactional

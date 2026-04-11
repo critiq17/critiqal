@@ -31,11 +31,10 @@ public class PostRepository implements PanacheRepository<Post> {
     }
 
     @Transactional
-    public Post createPost(User author, String content, String photoUrl) {
+    public Post createPost(User author, String content) {
         var post = new Post();
         post.author = author;
         post.content = content;
-        post.photoUrl = photoUrl;
         persist(post);
         return post;
     }

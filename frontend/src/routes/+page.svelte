@@ -14,11 +14,17 @@
 	let feedState = $state<FeedState>('loading');
 	let errorMessage = $state('');
 
+	interface PendingPhoto {
+		file: File;
+		previewUrl: string;
+	}
+
+	const MAX_PHOTOS = 3;
+
 	let composeText = $state('');
 	let isPosting = $state(false);
-	let selectedPhoto = $state<File | null>(null);
-	let photoPreviewUrl = $state<string | null>(null);
-	let isUploadingPhoto = $state(false);
+	let pendingPhotos = $state<PendingPhoto[]>([]);
+	let isUploadingPhotos = $state(false);
 
 	const SKELETON_COUNT = 5;
 
@@ -41,18 +47,30 @@
 
 	function handlePhotoSelect(e: Event): void {
 		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		selectedPhoto = file;
-		photoPreviewUrl = URL.createObjectURL(file);
+		const files = input.files;
+		if (!files || files.length === 0) return;
+
+		const remaining = MAX_PHOTOS - pendingPhotos.length;
+		const toAdd = Array.from(files).slice(0, remaining);
+
+		const newPending: PendingPhoto[] = toAdd.map((file) => ({
+			file,
+			previewUrl: URL.createObjectURL(file)
+		}));
+
+		pendingPhotos = [...pendingPhotos, ...newPending];
 		input.value = '';
 	}
 
-	function removePhoto(): void {
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		selectedPhoto = null;
-		photoPreviewUrl = null;
+	function removePhoto(index: number): void {
+		const photo = pendingPhotos[index];
+		if (photo) URL.revokeObjectURL(photo.previewUrl);
+		pendingPhotos = pendingPhotos.filter((_, i) => i !== index);
+	}
+
+	function clearPendingPhotos(): void {
+		pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+		pendingPhotos = [];
 	}
 
 	async function submitPost(): Promise<void> {
@@ -61,26 +79,32 @@
 		isPosting = true;
 		try {
 			const newPost = await postService.create({ content });
+			const photosToUpload = [...pendingPhotos];
 
-			if (selectedPhoto) {
-				isUploadingPhoto = true;
+			if (photosToUpload.length > 0) {
+				isUploadingPhotos = true;
 				try {
-					const photoResult = await mediaService.uploadPostPhoto(newPost.id, selectedPhoto);
-					posts = [
-						{ ...newPost, photoUrl: photoResult.photoUrl, photoThumbnailUrl: photoResult.thumbnailUrl },
-						...posts
-					];
-				} catch {
-					posts = [newPost, ...posts];
+					// Sequential uploads: each waits for the previous so the backend
+					// countByPost() returns an accurate value for position assignment.
+					const photos: import('$lib/types').PostPhoto[] = [];
+					for (const p of photosToUpload) {
+						try {
+							const photo = await mediaService.uploadPostPhoto(newPost.id, p.file);
+							photos.push(photo);
+						} catch {
+							// skip failed photo, continue with the rest
+						}
+					}
+					posts = [{ ...newPost, photos }, ...posts];
 				} finally {
-					isUploadingPhoto = false;
+					isUploadingPhotos = false;
 				}
 			} else {
 				posts = [newPost, ...posts];
 			}
 
 			composeText = '';
-			removePhoto();
+			clearPendingPhotos();
 			feedState = 'loaded';
 		} catch {
 			// ignore
@@ -137,40 +161,53 @@
 						disabled={isPosting}
 						aria-label="Write a post"
 					></textarea>
-					{#if photoPreviewUrl}
-						<div class="photo-preview-wrap">
-							<img src={photoPreviewUrl} alt="Selected photo preview" class="photo-preview-img" />
-							<button
-								class="photo-remove-btn"
-								onclick={removePhoto}
-								aria-label="Remove photo"
-								type="button"
-							>×</button>
+					{#if pendingPhotos.length > 0}
+						<div class="photo-thumbnail-row">
+							{#each pendingPhotos as photo, i (photo.previewUrl)}
+								<div class="photo-thumbnail-wrap">
+									<img src={photo.previewUrl} alt="Selected photo {i + 1}" class="photo-thumbnail-img" />
+									<button
+										class="photo-remove-btn"
+										onclick={() => removePhoto(i)}
+										aria-label="Remove photo {i + 1}"
+										type="button"
+									>×</button>
+								</div>
+							{/each}
 						</div>
 					{/if}
 					<div class="compose-actions">
 						<div class="compose-actions-left">
-							<label class="compose-photo-label" aria-label="Attach photo" title="Attach photo">
-								<input
-									type="file"
-									accept="image/jpeg,image/png,image/webp"
-									class="compose-photo-input"
-									onchange={handlePhotoSelect}
-									disabled={isPosting || isUploadingPhoto}
-								/>
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
-									<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-									<circle cx="12" cy="13" r="4" />
-								</svg>
-							</label>
-							<span class="compose-hint">Ctrl+Enter to post</span>
+							{#if pendingPhotos.length < MAX_PHOTOS}
+								<label class="compose-photo-label" aria-label="Attach photo" title="Attach photo (up to {MAX_PHOTOS})">
+									<input
+										type="file"
+										accept="image/jpeg,image/png,image/webp"
+										class="compose-photo-input"
+										onchange={handlePhotoSelect}
+										disabled={isPosting || isUploadingPhotos}
+										multiple
+									/>
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
+										<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+										<circle cx="12" cy="13" r="4" />
+									</svg>
+								</label>
+							{/if}
+							<span class="compose-hint">
+								{#if pendingPhotos.length > 0}
+									{pendingPhotos.length}/{MAX_PHOTOS} photos · Ctrl+Enter to post
+								{:else}
+									Ctrl+Enter to post
+								{/if}
+							</span>
 						</div>
 						<button
 							class="compose-submit"
 							onclick={submitPost}
-							disabled={!composeText.trim() || isPosting || isUploadingPhoto}
+							disabled={!composeText.trim() || isPosting || isUploadingPhotos}
 						>
-							{#if isUploadingPhoto}
+							{#if isUploadingPhotos}
 								Uploading…
 							{:else if isPosting}
 								Posting…
@@ -234,7 +271,7 @@
 	}
 
 	.col-center {
-		padding: 0 2rem;
+		padding: 0 2rem 4rem;
 		min-height: 100vh;
 	}
 
@@ -359,43 +396,51 @@
 		display: none;
 	}
 
-	.photo-preview-wrap {
-		position: relative;
-		border-radius: 0.75rem;
-		overflow: hidden;
-		max-height: 200px;
+	.photo-thumbnail-row {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
 		margin-bottom: 0.5rem;
 	}
 
-	.photo-preview-img {
+	.photo-thumbnail-wrap {
+		position: relative;
+		width: 72px;
+		height: 72px;
+		flex-shrink: 0;
+		border-radius: 0.5rem;
+		overflow: hidden;
+	}
+
+	.photo-thumbnail-img {
 		display: block;
 		width: 100%;
-		max-height: 200px;
+		height: 100%;
 		object-fit: cover;
-		border-radius: 0.75rem;
 	}
 
 	.photo-remove-btn {
 		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		background: rgba(0, 0, 0, 0.6);
+		top: 3px;
+		right: 3px;
+		background: rgba(0, 0, 0, 0.7);
 		color: #fff;
 		border: none;
 		border-radius: 50%;
-		width: 1.5rem;
-		height: 1.5rem;
-		font-size: 1rem;
+		width: 16px;
+		height: 16px;
+		font-size: 0.6875rem;
 		line-height: 1;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		transition: background-color 0.15s ease;
+		padding: 0;
 	}
 
 	.photo-remove-btn:hover {
-		background: rgba(0, 0, 0, 0.8);
+		background: rgba(0, 0, 0, 0.9);
 	}
 
 	.compose-submit {
@@ -522,7 +567,7 @@
 		}
 
 		.col-center {
-			padding: 0 1rem;
+			padding: 0 1rem 4rem;
 		}
 	}
 </style>
