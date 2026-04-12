@@ -50,7 +50,7 @@ public class PostPhotoService {
         var photo = postPhotoRepo.findByIdOptional(photoId)
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
 
-        mediaService.deletePhoto(photo.url);
+        if (photo.url != null) mediaService.deletePhoto(photo.url);
         mediaService.deletePhoto(photo.thumbnailUrl);
         postPhotoRepo.delete(photo);
     }

@@ -12,6 +12,7 @@ import org.acme.domain.comment.CommentService;
 import org.acme.domain.post.PostService;
 import org.acme.domain.reaction.ReactionService;
 import org.acme.domain.reaction.ReactionType;
+import org.acme.infra.storage.services.MediaService;
 
 import java.util.List;
 import java.util.Map;
@@ -21,14 +22,11 @@ import java.util.Map;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PostController {
 
+    @Inject PostService postService;
+    @Inject CommentService commentService;
+    @Inject ReactionService reactionService;
     @Inject
-    PostService postService;
-
-    @Inject
-    CommentService commentService;
-
-    @Inject
-    ReactionService reactionService;
+    MediaService mediaService;
 
     @GET
     public List<PostDTO> getFeed() {
@@ -67,19 +65,9 @@ public class PostController {
     @Authenticated
     public Response deletePost(@Context SecurityContext ctx, @PathParam("id") Long id) {
         postService.deletePost(id, extractUserId(ctx));
+        mediaService.deleteAllPostPhotos(id);
         return Response.noContent().build();
     }
-
-
-/*
-    @GET
-    @Path("/{id}/comments")
-    public List<CommentDTO> getComments(@PathParam("id") Long postId) {
-        return commentService.getPostComments(postId).stream()
-                .map(CommentDTO::from)
-                .toList();
-    }
-*/
 
     @POST
     @Path("/{id}/comments")
