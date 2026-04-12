@@ -45,8 +45,11 @@ public class PostController {
 
     @GET
     @Path("/{id}")
-    public PostDTO getPost(@PathParam("id") Long id) {
-        postService.view(id);
+    public PostDTO getPost(@Context SecurityContext ctx, @PathParam("id") Long id) {
+        Long userId = ctx.getUserPrincipal() != null
+                ? Long.parseLong(ctx.getUserPrincipal().getName())
+                : null;
+        postService.view(id, userId);
         return PostDTO.from(postService.getById(id));
     }
 
