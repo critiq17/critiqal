@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { slide, fade } from 'svelte/transition';
 	import type { Post, Comment, ReactionsMap, ReactionType } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import PhotoCarousel from '$lib/components/PhotoCarousel.svelte';
+	import { viewTracker } from '$lib/utils/viewTracker';
 
 	interface Props {
 		post: Post;
@@ -69,10 +70,21 @@
 	// --- Post delete ---
 	let isDeleting = $state(false);
 
+	// --- View tracking ---
+	let articleElement = $state<HTMLElement | null>(null);
+	let cleanupViewTracker: (() => void) | null = null;
+
 	const isOwnPost = $derived(authStore.user?.id === post.author.id);
 
 	onMount(() => {
 		loadReactions();
+		if (articleElement) {
+			cleanupViewTracker = viewTracker.observe(articleElement, post.id, authStore.isAuthenticated);
+		}
+	});
+
+	onDestroy(() => {
+		cleanupViewTracker?.();
 	});
 
 	async function loadReactions(): Promise<void> {
@@ -309,7 +321,7 @@
 	);
 </script>
 
-<article class="post-card">
+<article class="post-card" bind:this={articleElement}>
 	<div class="post-header">
 		<a href="/{post.author.username}" class="author-link" aria-label="View {post.author.username}'s profile">
 			<div class="avatar" aria-hidden="true">
@@ -405,15 +417,13 @@
 		</button>
 
 		<div class="post-meta">
-			{#if post.viewCount > 0}
-				<span class="view-count" title="Views">
-					<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-						<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-						<circle cx="12" cy="12" r="3" />
-					</svg>
-					{formatViews(post.viewCount)}
-				</span>
-			{/if}
+			<span class="view-count" title="Views">
+				<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+					<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+					<circle cx="12" cy="12" r="3" />
+				</svg>
+				{formatViews(post.viewCount)}
+			</span>
 			<time class="post-timestamp" datetime={post.createdAt}>
 				{formatTime(post.createdAt)}
 			</time>

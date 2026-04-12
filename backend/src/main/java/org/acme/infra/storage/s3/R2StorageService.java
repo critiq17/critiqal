@@ -60,8 +60,11 @@ public class R2StorageService {
     }
 
     public void deleteByUrl(String url) {
-        if (url == null || !url.startsWith(publicUrl)) return;
-        var key = url.replace(publicUrl + "/", "");
+        if (url == null) return;
+        var base = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
+        if (!url.startsWith(base)) return;
+        var key = url.substring(base.length());
+        if (key.isBlank()) return;
         delete(key);
     }
 }

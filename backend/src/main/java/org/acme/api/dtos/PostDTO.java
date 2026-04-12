@@ -16,9 +16,9 @@ public record PostDTO(
         PostStatus status,
         Instant createdAt
 ) {
-    public record PostPhotoDTO(Long id, String url, String thumbnailUrl, int position) {
+    public record PostPhotoDTO(Long id, String url, int position) {
         public static PostPhotoDTO from(PostPhoto photo) {
-            return new PostPhotoDTO(photo.id, photo.url, photo.thumbnailUrl, photo.position);
+            return new PostPhotoDTO(photo.id, photo.url, photo.position);
         }
     }
 

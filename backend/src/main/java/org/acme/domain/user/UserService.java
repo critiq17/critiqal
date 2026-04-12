@@ -4,7 +4,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.acme.utils.PasswordHash;
-import org.w3c.dom.stylesheets.LinkStyle;
 
 import java.util.List;
 

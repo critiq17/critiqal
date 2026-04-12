@@ -4,8 +4,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.acme.domain.post_view.PostView;
+import org.acme.domain.post_view.PostViewId;
 import org.acme.domain.user.UserService;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @ApplicationScoped
@@ -48,6 +52,28 @@ public class PostService {
             return List.of();
         }
         return postRepo.search(query);
+    }
+
+    @Transactional
+    public void view(Long postId, Long userId) {
+        if (userId == null) return;
+
+        var viewId = new PostViewId(postId, userId);
+        var existing = PostView.findById(viewId);
+
+        if (existing == null) {
+            var view = new PostView();
+            view.id = viewId;
+            view.persist();
+            postRepo.incrementViews(postId);
+        } else {
+            var view = (PostView) existing;
+            var oneHourAgo = Instant.now().minus(1, ChronoUnit.HOURS);
+            if (view.lastViewedAt.isBefore(oneHourAgo)) {
+                view.lastViewedAt = Instant.now();
+                postRepo.incrementViews(postId);
+            }
+        }
     }
 
     @Transactional
