@@ -18,7 +18,6 @@ public class PostPhotoService {
     @Inject PostPhotoRepository postPhotoRepo;
     @Inject PostService postService;
     @Inject MediaService mediaService;
-    @Inject ImageProcessor imageProcessor;
 
     @Transactional
     public PostPhoto addPhoto(Long postId, Long userId, FileUpload file) throws IOException {
@@ -27,12 +26,11 @@ public class PostPhotoService {
         if (!post.author.id.equals(userId)) {
             throw new IllegalArgumentException("You not author");
         }
-        var result = mediaService.uploadPostPhoto(post, Files.newInputStream(file.uploadedFile()));
+        var url = mediaService.uploadPostPhoto(post, Files.newInputStream(file.uploadedFile()), file.contentType());
 
         var photo = new PostPhoto();
         photo.post = post;
-        photo.url = result.url();
-        photo.thumbnailUrl = result.thumbnailUrl();
+        photo.url = url;
         photo.position = (int) postPhotoRepo.countByPost(postId);
         postPhotoRepo.persist(photo);
 
@@ -51,7 +49,6 @@ public class PostPhotoService {
                 .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
 
         if (photo.url != null) mediaService.deletePhoto(photo.url);
-        mediaService.deletePhoto(photo.thumbnailUrl);
         postPhotoRepo.delete(photo);
     }
 }

@@ -22,7 +22,6 @@ public class MediaService {
     @Inject ImageProcessor imageProcessor;
     @Inject PostPhotoRepository postPhotoRepo;
 
-    public record UploadResult(String url, String thumbnailUrl) {}
 
     public String uploadAvatar(Long userId, InputStream imageStream) throws IOException {
         var processed = imageProcessor.processAvatar(imageStream);
@@ -30,30 +29,19 @@ public class MediaService {
         return r2.upload(key, processed, "image/jpeg");
     }
 
-    public UploadResult uploadPostPhoto(Post post, InputStream imageStream) throws IOException {
-
+    public String uploadPostPhoto(Post post, InputStream imageStream, String contentType) throws IOException {
         if (postPhotoRepo.countByPost(post.id) >= 3) {
             throw new IllegalArgumentException("Max 3 photos per post");
         }
-        var rawBytes = imageStream.readAllBytes();
-        var uid  = UUID.randomUUID().toString();
-
-        var fullProcessed = imageProcessor.processPostPhoto(new ByteArrayInputStream(rawBytes));
-        var thumbProcessed = imageProcessor.processThumbnail(new ByteArrayInputStream(rawBytes));
-
-        var fullKey = "posts/" + post.id + "/" + uid + ".jpg";
-        var thumbKey = "posts/" + post.id + "/" + uid + "_thumb.jpg";
-
-        return new UploadResult(
-                r2.upload(fullKey, fullProcessed, "image/jpeg"),
-                r2.upload(thumbKey, thumbProcessed, "image/jpeg")
-        );
+        var bytes = imageStream.readAllBytes();
+        var ext = contentType.split("/")[1];
+        var key = "posts/" + post.id + "/" + UUID.randomUUID() + "." + ext;
+        return r2.upload(key, bytes, contentType);
     }
 
     public void deleteAllPostPhotos(Long postId) {
         postPhotoRepo.findByPost(postId).forEach(photo -> {
             r2.deleteByUrl(photo.url);
-            r2.deleteByUrl(photo.thumbnailUrl);
         });
         postPhotoRepo.deleteByPost(postId);
     }

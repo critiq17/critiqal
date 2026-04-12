@@ -23,25 +23,4 @@ public class ImageProcessor {
                 .toOutputStream(output);
         return output.toByteArray();
     }
-
-    public byte[] processPostPhoto(InputStream input) throws IOException {
-        var output = new ByteArrayOutputStream();
-        Thumbnails.of(input)
-                .width(1600)
-                .outputFormat("jpeg")
-                .outputQuality(0.88)
-                .toOutputStream(output);
-        return output.toByteArray();
-    }
-
-    public byte[] processThumbnail(InputStream input) throws IOException {
-        var output = new ByteArrayOutputStream();
-        Thumbnails.of(input)
-                .size(800, 800)
-                .crop(Positions.CENTER)
-                .outputFormat("jpeg")
-                .outputQuality(0.82)
-                .toOutputStream(output);
-        return output.toByteArray();
-    }
 }

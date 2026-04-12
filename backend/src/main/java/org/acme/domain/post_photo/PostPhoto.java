@@ -17,7 +17,6 @@ public class PostPhoto extends PanacheEntity {
     public Post post;
 
     public String url;
-    public String thumbnailUrl;
     public int position;
     public Instant createdAt = Instant.now();
 }
