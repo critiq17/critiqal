@@ -49,7 +49,7 @@ public class UserController {
     @Authenticated
     public UserDTO updateProfile(@Context SecurityContext ctx, UpdateProfileRequest req) {
         Long userId = extractUserId(ctx);
-        return UserDTO.from(userService.updateProfile(userId, req.name(), req.bio(), req.avatarUrl()));
+        return UserDTO.from(userService.updateProfile(userId, req.name(), req.bio()));
     }
 
     @POST
