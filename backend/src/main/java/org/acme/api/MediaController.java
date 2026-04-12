@@ -30,7 +30,6 @@ public class MediaController {
     @Inject MediaService mediaService;
     @Inject UserService userService;
     @Inject PostService postService;
-    @Inject PostPhotoRepository postPhotoRepo;
     @Inject PostPhotoService postPhotoService;
 
     @POST

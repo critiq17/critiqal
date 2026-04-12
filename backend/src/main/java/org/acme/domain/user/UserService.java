@@ -40,11 +40,10 @@ public class UserService {
     }
 
     @Transactional
-    public User updateProfile(Long userId, String name, String bio, String avatarUrl) {
+    public User updateProfile(Long userId, String name, String bio) {
         var user = getById(userId);
         user.name = name;
         user.bio = bio;
-        user.avatarUrl = avatarUrl;
         return user;
     }
 
