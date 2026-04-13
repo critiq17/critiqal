@@ -1,12 +1,12 @@
 package org.acme.api;
 
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.SecurityContext;
 import org.acme.api.dtos.AuthResponse;
 import org.acme.api.dtos.LoginRequest;
 import org.acme.api.dtos.RegisterRequest;
@@ -47,5 +47,14 @@ public class AuthController {
         var user = userService.getByUsername(req.username());
         var token = jwtTokenService.generate(user);
         return Response.ok(new AuthResponse(token, UserDTO.from(user))).build();
+    }
+
+    @GET
+    @Path("/me")
+    @Authenticated
+    public Response me(@Context SecurityContext ctx) {
+        Long userId = Long.parseLong(ctx.getUserPrincipal().getName());
+        var user = userService.getById(userId);
+        return Response.ok(UserDTO.from(user)).build();
     }
 }
