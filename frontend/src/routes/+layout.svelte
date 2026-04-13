@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { isTelegramMiniApp } from '$lib/telegram';
+	import MobileLayout from '$lib/components/mobile/MobileLayout.svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -8,12 +10,19 @@
 
 	let { children }: Props = $props();
 
+	let isMobile = $state(false);
+
 	onMount(() => {
 		authStore.init();
+		isMobile = isTelegramMiniApp();
 	});
 </script>
 
-{@render children()}
+{#if isMobile}
+	<MobileLayout>{@render children()}</MobileLayout>
+{:else}
+	{@render children()}
+{/if}
 
 <style>
 	:global(*),

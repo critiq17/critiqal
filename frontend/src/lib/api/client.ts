@@ -3,7 +3,14 @@ import { ApiError } from '$lib/types';
 // Empty string = relative URLs (proxied via Vite dev server or same-origin in prod)
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
 
+let memoryToken: string | null = null;
+
+export function setInMemoryToken(token: string | null): void {
+	memoryToken = token;
+}
+
 function getStoredToken(): string | null {
+	if (memoryToken !== null) return memoryToken;
 	if (typeof window === 'undefined') return null;
 	return localStorage.getItem('auth_token');
 }
