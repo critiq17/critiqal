@@ -1,24 +1,38 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Snippet } from 'svelte';
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { activeTab } from '$lib/stores/mobile-tab.store';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
-
-	interface Props {
-		children: Snippet;
-	}
-
-	let { children }: Props = $props();
+	import MobileFeed from './MobileFeed.svelte';
+	import MobileExplore from './MobileExplore.svelte';
+	import MobileProfile from './MobileProfile.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
+	let currentTab = $state('feed');
+
+	const unsubscribe = activeTab.subscribe((tab) => {
+		currentTab = tab;
+	});
 
 	onMount(() => {
 		if (isTelegramMiniApp()) {
 			initTelegram();
-			colorScheme = getTelegramWebApp()?.colorScheme ?? null;
+			const tg = getTelegramWebApp();
+			colorScheme = tg?.colorScheme ?? null;
+			if (tg) {
+				const update = () => {
+					document.documentElement.style.setProperty(
+						'--tg-viewport-height',
+						(tg.viewportHeight || window.innerHeight) + 'px'
+					);
+				};
+				tg.onEvent('viewportChanged', update);
+				update();
+			}
 		}
+		return unsubscribe;
 	});
 </script>
 
@@ -31,11 +45,22 @@
 	class:dark={colorScheme === 'dark'}
 	class:light={colorScheme === 'light'}
 >
-	{#if !authStore.isAuthenticated && !authStore.isLoading}
+	{#if authStore.isLoading}
+		<div class="loading-screen"></div>
+	{:else if !authStore.isAuthenticated}
 		<MobileAuthScreen />
 	{:else}
 		<div class="mobile-content">
-			{@render children()}
+			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
+			<div class="tab-panel" class:active={currentTab === 'feed'}>
+				<MobileFeed />
+			</div>
+			<div class="tab-panel" class:active={currentTab === 'explore'}>
+				<MobileExplore isActive={currentTab === 'explore'} />
+			</div>
+			<div class="tab-panel" class:active={currentTab === 'profile'}>
+				<MobileProfile />
+			</div>
 		</div>
 		<BottomNav />
 	{/if}
@@ -49,17 +74,19 @@
 		--content-bottom-padding: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px);
 	}
 
-	.mobile-scroll-container {
+	.loading-screen {
 		height: 100dvh;
-		overflow-y: auto;
-		overflow-x: hidden;
-		-webkit-overflow-scrolling: touch;
-		overscroll-behavior-y: contain;
-		padding-bottom: var(--content-bottom-padding);
+		background: var(--tg-bg, var(--color-bg, #0a0a0a));
+	}
+
+	:global(body) {
+		height: var(--tg-viewport-height, 100dvh);
+		overflow: hidden;
 	}
 
 	.mobile-layout {
-		height: 100dvh;
+		height: var(--tg-viewport-height, 100dvh);
+		min-height: var(--tg-viewport-height, 100dvh);
 		overflow: hidden;
 		position: relative;
 		background: var(--tg-bg, var(--color-bg, #0f0f0f));
@@ -70,5 +97,24 @@
 		height: 100%;
 		overflow: hidden;
 		position: relative;
+	}
+
+	.tab-panel {
+		display: none;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	.tab-panel.active {
+		display: block;
+	}
+
+	:global(.mobile-scroll-container) {
+		height: 100dvh;
+		overflow-y: auto;
+		overflow-x: hidden;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
+		padding-bottom: var(--content-bottom-padding);
 	}
 </style>

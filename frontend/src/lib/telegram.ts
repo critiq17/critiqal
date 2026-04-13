@@ -2,6 +2,8 @@ interface TelegramWebApp {
   ready(): void;
   expand(): void;
   requestFullscreen?(): void;
+  viewportHeight: number;
+  onEvent(event: string, handler: () => void): void;
   colorScheme: 'light' | 'dark';
   backgroundColor: string;
   themeParams: {
@@ -36,7 +38,12 @@ declare global {
 }
 
 export function isTelegramMiniApp(): boolean {
-  return typeof window !== 'undefined' && !!window.Telegram?.WebApp;
+  if (typeof window === 'undefined') return false;
+  // Primary: Telegram injects WebApp object into window
+  if (window.Telegram?.WebApp) return true;
+  // Fallback: Telegram always appends #tgWebAppData= to the URL when opening as Mini App
+  if (window.location.hash.includes('tgWebApp')) return true;
+  return false;
 }
 
 export function getTelegramWebApp(): TelegramWebApp | null {

@@ -3,6 +3,7 @@
 	import type { Post, ReactionType, ReactionsMap } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import CommentSheet from './CommentSheet.svelte';
 
@@ -52,10 +53,10 @@
 	// Refresh indicator
 	let isRefreshing = $state(false);
 
-	const REACTION_EMOJIS: Record<ReactionType, string> = {
-		GIGACHAD: '💪',
-		THE_ROCK: '🪨',
-		DAVID: '🗿'
+	const REACTION_IMGS: Record<ReactionType, string> = {
+		GIGACHAD: '/assets/reactions/GIGACHAD.png',
+		THE_ROCK: '/assets/reactions/THEROCK.png',
+		DAVID: '/assets/reactions/DAVID.png'
 	};
 
 	const REACTION_TYPES: ReactionType[] = ['GIGACHAD', 'THE_ROCK', 'DAVID'];
@@ -335,6 +336,25 @@
 			<button class="retry-btn" onclick={() => fetchFeed()}>Retry</button>
 		</div>
 	{:else}
+		<!-- Compose prompt row -->
+		<div class="compose-prompt" onclick={openComposer} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openComposer(); }}>
+			<div class="compose-avatar">
+				{#if authStore.user?.avatarUrl}
+					<img src={authStore.user.avatarUrl} alt="" class="compose-avatar-img" />
+				{:else}
+					<div class="compose-avatar-fallback">
+						{(authStore.user?.name ?? authStore.user?.username ?? '?').charAt(0).toUpperCase()}
+					</div>
+				{/if}
+			</div>
+			<span class="compose-placeholder">What's on your mind?</span>
+			<div class="compose-icon">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+					<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+				</svg>
+			</div>
+		</div>
+
 		{#each posts as post (post.id)}
 			<article class="post-card">
 				<div class="post-card-inner">
@@ -404,12 +424,16 @@
 							class="reaction-btn"
 							class:active={isActive}
 							onclick={() => handleReaction(post, type)}
-							aria-label="{REACTION_EMOJIS[type]} reaction, count {rs.reactions[type]}"
+							aria-label="{type} reaction, count {rs.reactions[type]}"
 							onmouseenter={() => { if (!rs.loaded) loadReactionsForPost(post.id); }}
 						>
-							<span class="reaction-emoji" class:reaction-popping={isPopping}>
-								{REACTION_EMOJIS[type]}
-							</span>
+							<img
+								src={REACTION_IMGS[type]}
+								alt={type}
+								class="reaction-img"
+								class:reaction-popping={isPopping}
+								loading="lazy"
+							/>
 							{#if rs.reactions[type] > 0}
 								<span class="reaction-count">{rs.reactions[type]}</span>
 							{/if}
@@ -456,14 +480,6 @@
 	open={openCommentSheetPostId !== null}
 	onClose={() => (openCommentSheetPostId = null)}
 />
-
-<!-- FAB -->
-<button class="fab" onclick={openComposer} aria-label="Create new post">
-	<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-		<line x1="12" y1="5" x2="12" y2="19"></line>
-		<line x1="5" y1="12" x2="19" y2="12"></line>
-	</svg>
-</button>
 
 <!-- Post composer (lazy-loaded) -->
 {#if MobilePostComposer && composerOpen}
@@ -686,34 +702,93 @@
 		padding-top: 4px;
 	}
 
+	/* Compose prompt */
+	.compose-prompt {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 16px;
+		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		cursor: pointer;
+		background: var(--color-surface, #111);
+	}
+
+	.compose-avatar {
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.compose-avatar-img {
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.compose-avatar-fallback {
+		width: 34px;
+		height: 34px;
+		border-radius: 50%;
+		background: var(--color-surface-raised, #242424);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 13px;
+		font-weight: 600;
+		color: rgba(240, 240, 240, 0.6);
+	}
+
+	.compose-placeholder {
+		flex: 1;
+		font-size: 14px;
+		color: rgba(240, 240, 240, 0.3);
+	}
+
+	.compose-icon {
+		color: rgba(240, 240, 240, 0.3);
+		display: flex;
+		align-items: center;
+	}
+
+	/* Reactions */
 	.reaction-btn {
-		min-width: 44px;
+		min-width: 52px;
 		min-height: 44px;
 		background: none;
 		border: none;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 8px;
-		border-radius: 12px;
-		font-size: 20px;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
+		gap: 5px;
+		padding: 8px 10px;
+		border-radius: 20px;
 		transition: background 0.15s ease;
+	}
+
+	.reaction-btn.active {
+		background: rgba(224, 82, 82, 0.12);
 	}
 
 	.reaction-btn:active {
 		background: rgba(255, 255, 255, 0.06);
 	}
 
-	.reaction-btn.active .reaction-emoji {
-		filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4));
+	.reaction-img {
+		width: 22px;
+		height: 22px;
+		object-fit: contain;
 	}
 
 	.reaction-count {
 		font-size: 13px;
 		font-weight: 500;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
+		color: rgba(240, 240, 240, 0.65);
+	}
+
+	.reaction-btn.active .reaction-count {
+		color: var(--tg-accent, #e05252);
 	}
 
 	.comment-btn {
@@ -743,27 +818,4 @@
 		color: var(--color-text-secondary, rgba(240, 240, 240, 0.5));
 	}
 
-	/* FAB */
-	.fab {
-		position: fixed;
-		bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-		right: 20px;
-		width: 52px;
-		height: 52px;
-		border-radius: 50%;
-		background: var(--tg-accent, #e05252);
-		border: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 4px 16px rgba(224, 82, 82, 0.4);
-		z-index: 90;
-		color: white;
-	}
-
-	.fab:active {
-		opacity: 0.85;
-		transform: scale(0.96);
-	}
 </style>

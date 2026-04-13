@@ -12,22 +12,6 @@
 	let error = $state('');
 	let loading = $state(false);
 
-	let tabLoginEl = $state<HTMLButtonElement | null>(null);
-	let tabRegisterEl = $state<HTMLButtonElement | null>(null);
-
-	let indicatorLeft = $derived(
-		activeMode === 'login'
-			? '0px'
-			: tabLoginEl
-				? `${tabLoginEl.offsetWidth + 16}px`
-				: '50%'
-	);
-	let indicatorWidth = $derived(
-		activeMode === 'login'
-			? (tabLoginEl ? `${tabLoginEl.offsetWidth}px` : '50%')
-			: (tabRegisterEl ? `${tabRegisterEl.offsetWidth}px` : '50%')
-	);
-
 	function switchMode(mode: AuthMode): void {
 		if (mode === activeMode) return;
 		activeMode = mode;
@@ -78,11 +62,8 @@
 	</div>
 
 	<div class="auth-sheet">
-		<div class="tab-switcher" role="tablist">
+		<div class="tab-switcher">
 			<button
-				bind:this={tabLoginEl}
-				role="tab"
-				aria-selected={activeMode === 'login'}
 				class="tab-btn"
 				class:tab-active={activeMode === 'login'}
 				onclick={() => switchMode('login')}
@@ -90,19 +71,12 @@
 				Sign in
 			</button>
 			<button
-				bind:this={tabRegisterEl}
-				role="tab"
-				aria-selected={activeMode === 'register'}
 				class="tab-btn"
 				class:tab-active={activeMode === 'register'}
 				onclick={() => switchMode('register')}
 			>
 				Register
 			</button>
-			<div
-				class="tab-indicator"
-				style="left: {indicatorLeft}; width: {indicatorWidth};"
-			></div>
 		</div>
 
 		<form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
@@ -195,37 +169,28 @@
 
 	/* Tab switcher */
 	.tab-switcher {
-		position: relative;
 		display: flex;
-		gap: 16px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-		padding-bottom: 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+		margin-bottom: 4px;
 	}
 
 	.tab-btn {
+		flex: 1;
 		background: none;
 		border: none;
-		padding: 0 0 12px;
+		border-bottom: 2px solid transparent;
+		padding: 12px 0;
 		font-size: 15px;
 		font-weight: 500;
 		color: rgba(240, 240, 240, 0.4);
 		cursor: pointer;
-		transition: color 0.2s ease;
+		transition: color 0.2s ease, border-color 0.2s ease;
+		margin-bottom: -1px;
 	}
 
 	.tab-btn.tab-active {
 		color: #f0f0f0;
-	}
-
-	.tab-indicator {
-		position: absolute;
-		bottom: -1px;
-		height: 2px;
-		background: var(--tg-accent, #e05252);
-		border-radius: 2px 2px 0 0;
-		transition:
-			left 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-			width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+		border-bottom-color: var(--tg-accent, #e05252);
 	}
 
 	/* Form */
@@ -233,6 +198,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		min-height: 160px;
 	}
 
 	.fields {

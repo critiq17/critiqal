@@ -361,20 +361,20 @@
 		flex-shrink: 0;
 		width: 80px;
 		height: 80px;
-		border-radius: 12px;
-		overflow: hidden;
 	}
 
 	.photo-preview img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+		border-radius: 12px;
+		display: block;
 	}
 
 	.remove-btn {
 		position: absolute;
-		top: 4px;
-		right: 4px;
+		top: -6px;
+		right: -6px;
 		width: 20px;
 		height: 20px;
 		border-radius: 50%;
@@ -387,6 +387,7 @@
 		color: white;
 		font-size: 12px;
 		padding: 0;
+		z-index: 1;
 	}
 
 	.add-photo-btn {

@@ -18,6 +18,12 @@
 	let commentText = $state('');
 	let isSubmitting = $state(false);
 
+	// Reply state per comment
+	let replyDrafts = $state(new Map<number, string>());
+	let replyOpen = $state(new Map<number, boolean>());
+	let replyLoading = $state(new Map<number, boolean>());
+	let commentReplies = $state(new Map<number, Comment[]>());
+
 	// Drag-to-dismiss state
 	let dragY = $state(0);
 	let isDragging = $state(false);
@@ -107,6 +113,36 @@
 		}
 	}
 
+	function toggleReplyComposer(commentId: number): void {
+		const isOpen = replyOpen.get(commentId) ?? false;
+		replyOpen = new Map(replyOpen).set(commentId, !isOpen);
+	}
+
+	function toggleReplies(commentId: number): void {
+		const isOpen = replyOpen.get(commentId) ?? false;
+		if (!isOpen && !commentReplies.has(commentId)) {
+			const existing = comments.find((c) => c.id === commentId)?.replies ?? [];
+			commentReplies = new Map(commentReplies).set(commentId, existing);
+		}
+		replyOpen = new Map(replyOpen).set(commentId, !isOpen);
+	}
+
+	async function submitReply(commentId: number): Promise<void> {
+		const text = replyDrafts.get(commentId)?.trim();
+		if (!text) return;
+		replyLoading = new Map(replyLoading).set(commentId, true);
+		try {
+			const reply = await postService.addReply(postId, commentId, { content: text });
+			const existing = commentReplies.get(commentId) ?? [];
+			commentReplies = new Map(commentReplies).set(commentId, [...existing, reply]);
+			replyDrafts = new Map(replyDrafts).set(commentId, '');
+		} catch {
+			// Non-critical: ignore reply submission errors silently
+		} finally {
+			replyLoading = new Map(replyLoading).set(commentId, false);
+		}
+	}
+
 	// Telegram BackButton + load on open
 	$effect(() => {
 		const tg = getTelegramWebApp();
@@ -182,6 +218,46 @@
 						<p class="comment-content">{comment.content}</p>
 					</div>
 				</div>
+
+				<!-- Reply row -->
+				<div class="comment-actions">
+					<button class="reply-btn" onclick={() => toggleReplyComposer(comment.id)}>
+						Reply
+					</button>
+					{#if comment.replies && comment.replies.length > 0}
+						<button class="show-replies-btn" onclick={() => toggleReplies(comment.id)}>
+							{replyOpen.get(comment.id) ? 'Hide' : `${comment.replies.length} repl${comment.replies.length === 1 ? 'y' : 'ies'}`}
+						</button>
+					{/if}
+				</div>
+
+				{#if replyOpen.get(comment.id)}
+					<!-- Reply composer -->
+					<div class="reply-composer">
+						<input
+							class="reply-input"
+							placeholder="Reply to @{comment.author.username}…"
+							value={replyDrafts.get(comment.id) ?? ''}
+							oninput={(e) => { replyDrafts = new Map(replyDrafts).set(comment.id, (e.target as HTMLInputElement).value); }}
+						/>
+						<button
+							class="reply-send-btn"
+							disabled={!replyDrafts.get(comment.id)?.trim() || (replyLoading.get(comment.id) ?? false)}
+							onclick={() => submitReply(comment.id)}
+						>Send</button>
+					</div>
+
+					<!-- Nested replies -->
+					{#each commentReplies.get(comment.id) ?? [] as reply (reply.id)}
+						<div class="reply-item">
+							<div class="reply-avatar">{reply.author.username.charAt(0).toUpperCase()}</div>
+							<div class="reply-content">
+								<span class="reply-author">@{reply.author.username}</span>
+								<span class="reply-text">{reply.content}</span>
+							</div>
+						</div>
+					{/each}
+				{/if}
 			{/each}
 		{/if}
 	</div>
@@ -417,5 +493,105 @@
 
 	.send-btn:not(:disabled):active {
 		opacity: 0.8;
+	}
+
+	/* Reply elements */
+	.comment-actions {
+		display: flex;
+		gap: 12px;
+		padding: 2px 0 6px 44px;
+	}
+
+	.reply-btn,
+	.show-replies-btn {
+		background: none;
+		border: none;
+		font-size: 12px;
+		color: rgba(240, 240, 240, 0.4);
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.reply-btn:active,
+	.show-replies-btn:active {
+		color: rgba(240, 240, 240, 0.7);
+	}
+
+	.reply-composer {
+		display: flex;
+		gap: 8px;
+		padding: 6px 16px 6px 44px;
+		align-items: center;
+	}
+
+	.reply-input {
+		flex: 1;
+		height: 34px;
+		border-radius: 17px;
+		background: var(--color-surface-raised, #242424);
+		border: none;
+		padding: 0 12px;
+		font-size: 13px;
+		color: var(--color-text-primary, #f0f0f0);
+		outline: none;
+	}
+
+	.reply-input::placeholder {
+		color: var(--color-text-secondary, rgba(240, 240, 240, 0.4));
+	}
+
+	.reply-send-btn {
+		background: var(--tg-accent, #e05252);
+		color: white;
+		border: none;
+		border-radius: 14px;
+		padding: 6px 12px;
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.reply-send-btn:disabled {
+		opacity: 0.4;
+		cursor: not-allowed;
+	}
+
+	.reply-item {
+		display: flex;
+		gap: 8px;
+		padding: 6px 16px 0 44px;
+		align-items: flex-start;
+	}
+
+	.reply-avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--color-surface-raised, #242424);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 10px;
+		font-weight: 600;
+		color: rgba(240, 240, 240, 0.6);
+		flex-shrink: 0;
+	}
+
+	.reply-content {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.reply-author {
+		font-size: 12px;
+		font-weight: 600;
+		color: rgba(240, 240, 240, 0.6);
+	}
+
+	.reply-text {
+		font-size: 13px;
+		color: rgba(240, 240, 240, 0.8);
+		line-height: 1.4;
 	}
 </style>

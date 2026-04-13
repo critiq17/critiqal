@@ -9,7 +9,8 @@ export default defineConfig({
 				target: 'http://localhost:8082',
 				changeOrigin: true
 			}
-		}
+		},
+		allowedHosts: true
 	},
 	test: {
 		globals: true,

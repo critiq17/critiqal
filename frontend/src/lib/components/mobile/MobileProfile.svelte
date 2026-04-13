@@ -428,49 +428,40 @@
 		<!-- Profile header -->
 		<section class="profile-header" aria-label="Profile info">
 
-			<!-- Top row: avatar + settings gear -->
-			<div class="profile-top-row">
-				<button
-					class="avatar-container"
-					onclick={triggerAvatarPicker}
-					aria-label="Change profile photo"
-					disabled={isUploadingAvatar}
-				>
-					{#if profile.avatarUrl}
-						<img
-							src={profile.avatarUrl}
-							alt={profile.username}
-							class="avatar"
-						/>
-					{:else}
-						<div class="avatar avatar-fallback">
-							{getInitial(profile)}
-						</div>
-					{/if}
-					<div class="avatar-overlay" aria-hidden="true">
-						{#if isUploadingAvatar}
-							<svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-								<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-							</svg>
-						{:else}
-							<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-								<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-								<circle cx="12" cy="13" r="4"/>
-							</svg>
-						{/if}
-					</div>
-				</button>
+			<!-- Settings gear (top-right, positioned absolutely) -->
+			<button
+				class="settings-btn-standalone"
+				onclick={openSettings}
+				aria-label="Settings"
+			>
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<circle cx="12" cy="12" r="3"/>
+					<path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+				</svg>
+			</button>
 
-				<button
-					class="settings-btn-standalone"
-					onclick={openSettings}
-					aria-label="Settings"
-				>
-					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<circle cx="12" cy="12" r="3"/>
-						<path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-					</svg>
-				</button>
+			<!-- Avatar -->
+			<div
+				class="avatar-wrap"
+				role="button"
+				tabindex="0"
+				onclick={() => fileInputEl?.click()}
+				aria-label="Change profile photo"
+			>
+				{#if profile.avatarUrl}
+					<img src={profile.avatarUrl} alt={profile.username} class="avatar" />
+				{:else}
+					<div class="avatar avatar-fallback">
+						{getInitial(profile)}
+					</div>
+				{/if}
+				{#if isUploadingAvatar}
+					<div class="avatar-overlay" aria-hidden="true">
+						<svg class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+							<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+						</svg>
+					</div>
+				{/if}
 			</div>
 
 			{#if avatarError}
@@ -515,13 +506,15 @@
 					</div>
 				</form>
 			{:else}
-				{#if profile.name}
-					<p class="display-name">{profile.name}</p>
-				{/if}
-				<p class="username">@{profile.username}</p>
-				{#if profile.bio}
-					<p class="bio">{profile.bio}</p>
-				{/if}
+				<div class="identity">
+					{#if profile.name}
+						<span class="display-name">{profile.name}</span>
+					{/if}
+					<span class="username">@{profile.username}</span>
+					{#if profile.bio}
+						<p class="bio">{profile.bio}</p>
+					{/if}
+				</div>
 			{/if}
 		</section>
 
@@ -957,25 +950,35 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 24px 16px 16px;
-		gap: 8px;
-	}
-
-	.profile-top-row {
-		width: 100%;
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		margin-bottom: 4px;
-	}
-
-	.avatar-container {
+		padding: 32px 24px 20px;
+		gap: 12px;
 		position: relative;
-		cursor: pointer;
+	}
+
+	.settings-btn-standalone {
+		position: absolute;
+		top: 16px;
+		right: 8px;
 		background: none;
 		border: none;
-		padding: 0;
-		display: block;
+		cursor: pointer;
+		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
+		padding: 8px;
+		min-width: 44px;
+		min-height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar-wrap {
+		cursor: pointer;
+		border-radius: 50%;
+		overflow: hidden;
+		width: 80px;
+		height: 80px;
+		flex-shrink: 0;
+		position: relative;
 	}
 
 	.avatar {
@@ -983,17 +986,17 @@
 		height: 80px;
 		border-radius: 50%;
 		object-fit: cover;
-		background: var(--color-surface-raised, #242424);
 		display: block;
 	}
 
 	.avatar-fallback {
+		background: var(--color-surface-raised, #242424);
+		color: rgba(240, 240, 240, 0.7);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		font-size: 28px;
 		font-weight: 600;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
 		user-select: none;
 	}
 
@@ -1006,12 +1009,6 @@
 		align-items: center;
 		justify-content: center;
 		color: #fff;
-		opacity: 0;
-		transition: opacity 0.18s ease;
-	}
-
-	.avatar-container:active .avatar-overlay {
-		opacity: 1;
 	}
 
 	.spinner {
@@ -1032,40 +1029,33 @@
 		margin: 0;
 	}
 
-	.settings-btn-standalone {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
-		padding: 8px;
-		min-width: 44px;
-		min-height: 44px;
+	.identity {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
-		justify-content: center;
+		gap: 2px;
+		text-align: center;
 	}
 
 	.display-name {
 		font-size: 18px;
 		font-weight: 600;
 		color: var(--color-text-primary, #f0f0f0);
-		margin: 0;
-		text-align: center;
+		line-height: 1.2;
 	}
 
 	.username {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.5);
-		margin: 0;
-		text-align: center;
+		color: rgba(240, 240, 240, 0.45);
 	}
 
 	.bio {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.7);
-		text-align: center;
+		color: rgba(240, 240, 240, 0.65);
 		line-height: 1.4;
-		margin: 0;
+		margin-top: 4px;
+		max-width: 260px;
+		text-align: center;
 		word-break: break-word;
 	}
 
@@ -1175,8 +1165,10 @@
 
 	.stats-row {
 		display: flex;
+		width: 100%;
 		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
 		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		margin: 0;
 	}
 
 	.stat-item {
@@ -1184,10 +1176,10 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 12px 0;
-		cursor: pointer;
-		min-height: 44px;
 		justify-content: center;
+		padding: 14px 0;
+		cursor: pointer;
+		gap: 2px;
 		background: none;
 		border: none;
 		font-family: inherit;
@@ -1198,14 +1190,16 @@
 	}
 
 	.stat-value {
-		font-size: 18px;
+		font-size: 17px;
 		font-weight: 600;
 		color: var(--color-text-primary, #f0f0f0);
 	}
 
 	.stat-label {
-		font-size: 12px;
-		color: rgba(255, 255, 255, 0.4);
+		font-size: 11px;
+		color: rgba(240, 240, 240, 0.4);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -1213,21 +1207,22 @@
 	/* ------------------------------------------------------------------ */
 
 	.edit-btn {
-		margin: 12px 16px;
+		margin: 12px 16px 0;
 		height: 36px;
 		border-radius: 10px;
 		background: none;
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
+		border: 1px solid rgba(255, 255, 255, 0.12);
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 14px;
 		font-weight: 500;
 		cursor: pointer;
 		width: calc(100% - 32px);
 		font-family: inherit;
+		transition: background 0.15s ease;
 	}
 
 	.edit-btn:active {
-		opacity: 0.7;
+		background: rgba(255, 255, 255, 0.06);
 	}
 
 	/* ------------------------------------------------------------------ */

@@ -2,8 +2,24 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<link rel="icon" type="image/png" href="/assets/critiqal-favicon.png" />
+		<script>
+			if (window.Telegram?.WebApp) {
+				var tg = window.Telegram.WebApp;
+				tg.expand();
+				try { tg.requestFullscreen?.(); } catch(e) {}
+
+				function setVH() {
+					document.documentElement.style.setProperty(
+						'--tg-viewport-height',
+						(tg.viewportHeight || window.innerHeight) + 'px'
+					);
+				}
+				tg.onEvent('viewportChanged', setVH);
+				setVH();
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
