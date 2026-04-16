@@ -6,6 +6,69 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { closeProfile } from '$lib/stores/profile-nav.store';
 
+	// ── Swipe-to-dismiss ────────────────────────────────────────────────────────
+	let swipeX = $state(0);
+	let isDragging = $state(false);
+
+	let _touchStartX = 0;
+	let _touchStartY = 0;
+	let _dirLocked: 'h' | 'v' | null = null;
+	let _lastX = 0;
+	let _lastT = 0;
+	let _velocity = 0;
+
+	const DISMISS_RATIO = 0.35;   // fraction of screen width
+	const VELOCITY_PX_MS = 0.45; // px/ms fast-flick threshold
+
+	function onSwipeTouchStart(e: TouchEvent): void {
+		const t = e.touches[0];
+		_touchStartX = t.clientX;
+		_touchStartY = t.clientY;
+		_lastX = t.clientX;
+		_lastT = Date.now();
+		_dirLocked = null;
+		_velocity = 0;
+	}
+
+	function onSwipeTouchMove(e: TouchEvent): void {
+		const t = e.touches[0];
+		const dx = t.clientX - _touchStartX;
+		const dy = t.clientY - _touchStartY;
+
+		// Lock direction on first 6px of movement
+		if (!_dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+			_dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+		}
+
+		if (_dirLocked !== 'h' || dx < 0) {
+			if (isDragging) { isDragging = false; swipeX = 0; }
+			return;
+		}
+
+		const now = Date.now();
+		const dt = now - _lastT;
+		if (dt > 0) _velocity = (t.clientX - _lastX) / dt;
+		_lastX = t.clientX;
+		_lastT = now;
+
+		isDragging = true;
+		swipeX = dx;
+	}
+
+	function onSwipeTouchEnd(): void {
+		if (!isDragging) return;
+		isDragging = false;
+
+		const threshold = window.innerWidth * DISMISS_RATIO;
+		if (swipeX > threshold || _velocity > VELOCITY_PX_MS) {
+			getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
+			swipeX = window.innerWidth;
+			setTimeout(() => closeProfile(), 290);
+		} else {
+			swipeX = 0;
+		}
+	}
+
 	interface Props {
 		username: string;
 	}
@@ -123,16 +186,19 @@
 	});
 </script>
 
-<div class="overlay" role="dialog" aria-label={`${username}'s profile`}>
-	<!-- Header bar -->
+<div
+	class="overlay"
+	role="dialog"
+	aria-label={`${username}'s profile`}
+	style:transform="translateX({swipeX}px)"
+	style:transition={isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'}
+	ontouchstart={onSwipeTouchStart}
+	ontouchmove={onSwipeTouchMove}
+	ontouchend={onSwipeTouchEnd}
+>
+	<!-- Header bar — back navigation is handled by tg.BackButton (wired in $effect below) -->
 	<div class="overlay-header">
-		<button class="back-btn" onclick={handleBack} aria-label="Go back">
-			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-				<polyline points="15 18 9 12 15 6"/>
-			</svg>
-		</button>
 		<span class="header-username">{username}</span>
-		<div class="header-spacer"></div>
 	</div>
 
 	<!-- Scrollable content -->
@@ -242,6 +308,7 @@
 		display: flex;
 		flex-direction: column;
 		animation: slideIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+		will-change: transform;
 	}
 
 	@keyframes slideIn {
@@ -249,38 +316,19 @@
 		to   { transform: translateX(0); }
 	}
 
-	/* Header */
+	/* Header — username only; back nav uses tg.BackButton */
 	.overlay-header {
 		display: flex;
 		align-items: center;
-		gap: 8px;
-		padding: calc(var(--tg-content-top, env(safe-area-inset-top, 0px)) + 12px) 16px 12px;
+		padding: calc(var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) + 14px) 16px 14px;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 		background: var(--tg-bg, #0f0f0f);
-	}
-
-	.back-btn {
-		background: none;
-		border: none;
-		padding: 4px;
-		cursor: pointer;
-		color: var(--tg-text, #f0f0f0);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		min-width: 36px;
-		min-height: 36px;
-		margin-left: -4px;
 	}
 
 	.header-username {
 		font-size: 16px;
 		font-weight: 600;
 		color: var(--tg-text, #f0f0f0);
-	}
-
-	.header-spacer {
-		flex: 1;
 	}
 
 	/* Scroll container */
