@@ -1,9 +1,23 @@
+interface SafeAreaInset {
+  readonly top: number;
+  readonly bottom: number;
+  readonly left: number;
+  readonly right: number;
+}
+
 interface TelegramWebApp {
   ready(): void;
   expand(): void;
   requestFullscreen?(): void;
+  exitFullscreen?(): void;
+  setHeaderColor(color: string): void;
+  isFullscreen: boolean;
+  isExpanded: boolean;
   viewportHeight: number;
-  onEvent(event: string, handler: () => void): void;
+  safeAreaInset: SafeAreaInset;
+  contentSafeAreaInset: SafeAreaInset;
+  onEvent(event: string, handler: (params?: unknown) => void): void;
+  offEvent(event: string, handler: (params?: unknown) => void): void;
   colorScheme: 'light' | 'dark';
   backgroundColor: string;
   themeParams: {
@@ -11,6 +25,8 @@ interface TelegramWebApp {
     hint_color: string;
     button_color: string;
     button_text_color: string;
+    bg_color?: string;
+    secondary_bg_color?: string;
   };
   BackButton: {
     show(): void;
@@ -39,9 +55,7 @@ declare global {
 
 export function isTelegramMiniApp(): boolean {
   if (typeof window === 'undefined') return false;
-  // Primary: Telegram injects WebApp object into window
   if (window.Telegram?.WebApp) return true;
-  // Fallback: Telegram always appends #tgWebAppData= to the URL when opening as Mini App
   if (window.location.hash.includes('tgWebApp')) return true;
   return false;
 }
@@ -51,25 +65,47 @@ export function getTelegramWebApp(): TelegramWebApp | null {
   return window.Telegram?.WebApp ?? null;
 }
 
-export function initTelegram(): void {
-  const tg = getTelegramWebApp();
-  if (!tg) return;
-
-  tg.ready();
-  tg.expand();
-
-  try {
-    tg.requestFullscreen?.();
-  } catch {
-    // requestFullscreen is optional and may not be supported in all clients
-  }
-
+function applyThemeVars(tg: TelegramWebApp): void {
   const root = document.documentElement;
   root.style.setProperty('--tg-bg', tg.backgroundColor);
   root.style.setProperty('--tg-text', tg.themeParams.text_color);
   root.style.setProperty('--tg-hint', tg.themeParams.hint_color);
   root.style.setProperty('--tg-accent', tg.themeParams.button_color);
   root.style.setProperty('--tg-btn-text', tg.themeParams.button_text_color);
+
+  // Keep header color in sync with app background on theme changes.
+  // Using backgroundColor (not themeParams.bg_color) ensures it matches --tg-bg exactly.
+  tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+}
+
+function applyViewportVars(tg: TelegramWebApp): void {
+  const root = document.documentElement;
+  root.style.setProperty(
+    '--tg-viewport-height',
+    (tg.viewportHeight || window.innerHeight) + 'px'
+  );
+
+  // contentSafeAreaInset is the space taken by transparent Telegram UI in fullscreen mode.
+  // Telegram SDK sets --tg-content-safe-area-inset-* CSS vars automatically (Bot API 8.0+),
+  // but we also set our own vars as fallback for older clients.
+  const content = tg.contentSafeAreaInset;
+  if (content) {
+    root.style.setProperty('--tg-content-top', content.top + 'px');
+    root.style.setProperty('--tg-content-bottom', content.bottom + 'px');
+  }
+}
+
+export function initTelegram(): void {
+  const tg = getTelegramWebApp();
+  if (!tg) return;
+
+  // app.html already calls ready(), expand(), setHeaderColor(), and requestFullscreen()
+  // before SvelteKit boots. Re-apply vars here in case SvelteKit hydration reset them,
+  // and register Svelte-managed event listeners.
+  applyThemeVars(tg);
+  applyViewportVars(tg);
+
+  const root = document.documentElement;
   root.style.setProperty('--bottom-nav-height', '72px');
   root.style.setProperty('--safe-bottom', 'env(safe-area-inset-bottom, 0px)');
   root.style.setProperty('--safe-top', 'env(safe-area-inset-top, 0px)');
@@ -77,6 +113,11 @@ export function initTelegram(): void {
     '--content-bottom-padding',
     'calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px)'
   );
+
+  tg.onEvent('viewportChanged', () => applyViewportVars(tg));
+  tg.onEvent('themeChanged', () => applyThemeVars(tg));
+  // Re-apply viewport vars when fullscreen state changes to pick up new contentSafeAreaInset
+  tg.onEvent('fullscreenChanged', () => applyViewportVars(tg));
 }
 
 export const cloudStorage = {

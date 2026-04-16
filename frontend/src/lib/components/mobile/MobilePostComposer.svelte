@@ -85,38 +85,30 @@
 		try {
 			const newPost = await postService.create({ content });
 
-			if (selectedFiles.length > 0) {
-				const uploadedPhotos: import('$lib/types').PostPhoto[] = [];
-				for (const file of selectedFiles) {
-					try {
-						const photo = await mediaService.uploadPostPhoto(newPost.id, file);
-						uploadedPhotos.push(photo);
-					} catch {
-						// skip failed uploads, continue with the rest
-					}
+			const uploadedPhotos: import('$lib/types').PostPhoto[] = [];
+			for (const file of selectedFiles) {
+				try {
+					const photo = await mediaService.uploadPostPhoto(newPost.id, file);
+					uploadedPhotos.push(photo);
+				} catch {
+					// skip failed uploads, continue with the rest
 				}
-				const postWithPhotos: Post = { ...newPost, photos: uploadedPhotos };
-				onPosted(postWithPhotos);
-			} else {
-				onPosted(newPost);
 			}
 
+			const finalPost: Post =
+				uploadedPhotos.length > 0 ? { ...newPost, photos: uploadedPhotos } : newPost;
+
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
+			// Reset state BEFORE notifying parent — parent may destroy this component
+			// synchronously via composerOpen = false, which would leave loading = true
 			resetState();
-			onClose();
+			onPosted(finalPost);
 		} catch (err: unknown) {
 			errorMessage = err instanceof Error ? err.message : 'Failed to post. Please try again.';
 		} finally {
 			loading = false;
 		}
 	}
-
-	// Reset state when sheet closes
-	$effect(() => {
-		if (!open) {
-			resetState();
-		}
-	});
 
 	// Keyboard handling via visualViewport
 	onMount(() => {

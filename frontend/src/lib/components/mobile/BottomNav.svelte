@@ -58,7 +58,9 @@
 <style>
   .nav-pill {
     position: fixed;
-    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    /* In fullscreen mode use --tg-content-bottom for Telegram UI overlap at bottom.
+       Falls back to Telegram SDK CSS var, then device safe area. */
+    bottom: calc(16px + var(--tg-content-bottom, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
     left: 50%;
     transform: translateX(-50%);
     width: fit-content;

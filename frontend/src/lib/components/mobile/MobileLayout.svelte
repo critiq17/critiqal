@@ -3,14 +3,19 @@
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { activeTab } from '$lib/stores/mobile-tab.store';
+	import { profileNav } from '$lib/stores/profile-nav.store';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
 	import MobileExplore from './MobileExplore.svelte';
 	import MobileProfile from './MobileProfile.svelte';
+	import UserProfileOverlay from './UserProfileOverlay.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 	let currentTab = $state('feed');
+	let viewedUsername = $state<string | null>(null);
+
+	profileNav.subscribe((u) => { viewedUsername = u; });
 
 	const unsubscribe = activeTab.subscribe((tab) => {
 		currentTab = tab;
@@ -21,23 +26,13 @@
 			initTelegram();
 			const tg = getTelegramWebApp();
 			colorScheme = tg?.colorScheme ?? null;
-			if (tg) {
-				const update = () => {
-					document.documentElement.style.setProperty(
-						'--tg-viewport-height',
-						(tg.viewportHeight || window.innerHeight) + 'px'
-					);
-				};
-				tg.onEvent('viewportChanged', update);
-				update();
-			}
 		}
 		return unsubscribe;
 	});
 </script>
 
 <svelte:head>
-	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 </svelte:head>
 
 <div
@@ -65,6 +60,10 @@
 		<BottomNav />
 	{/if}
 </div>
+
+{#if viewedUsername}
+	<UserProfileOverlay username={viewedUsername} />
+{/if}
 
 <style>
 	:global(:root) {
@@ -115,6 +114,9 @@
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
+		/* In fullscreen mode --tg-content-top = transparent Telegram header height.
+		   Falls back to Telegram SDK CSS var, then device safe area, then 0. */
+		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 		padding-bottom: var(--content-bottom-padding);
 	}
 </style>

@@ -3,6 +3,7 @@
 	import type { Comment } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { openProfile } from '$lib/stores/profile-nav.store';
 
 	interface Props {
 		postId: number;
@@ -201,7 +202,11 @@
 		{:else}
 			{#each comments as comment (comment.id)}
 				<div class="comment-item">
-					<div class="comment-avatar">
+					<button
+						class="comment-avatar-btn"
+						onclick={() => openProfile(comment.author.username)}
+						aria-label="View {comment.author.username}'s profile"
+					>
 						{#if comment.author.avatarUrl}
 							<img src={comment.author.avatarUrl} alt={comment.author.username} class="avatar-img" />
 						{:else}
@@ -209,10 +214,14 @@
 								{getInitials(comment.author.name, comment.author.username)}
 							</div>
 						{/if}
-					</div>
+					</button>
 					<div class="comment-body">
 						<div class="comment-meta">
-							<span class="comment-username">@{comment.author.username}</span>
+							<button
+								class="comment-username-btn"
+								onclick={() => openProfile(comment.author.username)}
+								aria-label="View {comment.author.username}'s profile"
+							>@{comment.author.username}</button>
 							<span class="comment-time">{formatRelativeTime(comment.createdAt)}</span>
 						</div>
 						<p class="comment-content">{comment.content}</p>
@@ -250,9 +259,17 @@
 					<!-- Nested replies -->
 					{#each commentReplies.get(comment.id) ?? [] as reply (reply.id)}
 						<div class="reply-item">
-							<div class="reply-avatar">{reply.author.username.charAt(0).toUpperCase()}</div>
+							<button
+								class="reply-avatar-btn"
+								onclick={() => openProfile(reply.author.username)}
+								aria-label="View {reply.author.username}'s profile"
+							>{reply.author.username.charAt(0).toUpperCase()}</button>
 							<div class="reply-content">
-								<span class="reply-author">@{reply.author.username}</span>
+								<button
+									class="reply-author-btn"
+									onclick={() => openProfile(reply.author.username)}
+									aria-label="View {reply.author.username}'s profile"
+								>@{reply.author.username}</button>
 								<span class="reply-text">{reply.content}</span>
 							</div>
 						</div>
@@ -385,8 +402,24 @@
 		padding: 10px 16px;
 	}
 
-	.comment-avatar {
+	.comment-avatar-btn {
 		flex-shrink: 0;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.comment-username-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--tg-text, #f0f0f0);
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.avatar-img {
@@ -563,19 +596,6 @@
 		align-items: flex-start;
 	}
 
-	.reply-avatar {
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--color-surface-raised, #242424);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 10px;
-		font-weight: 600;
-		color: rgba(240, 240, 240, 0.6);
-		flex-shrink: 0;
-	}
 
 	.reply-content {
 		display: flex;
@@ -583,10 +603,32 @@
 		gap: 2px;
 	}
 
-	.reply-author {
+	.reply-avatar-btn {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		background: var(--color-surface-raised, #242424);
+		color: rgba(240, 240, 240, 0.6);
+		font-size: 11px;
+		font-weight: 600;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.reply-author-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
 		font-size: 12px;
 		font-weight: 600;
 		color: rgba(240, 240, 240, 0.6);
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.reply-text {

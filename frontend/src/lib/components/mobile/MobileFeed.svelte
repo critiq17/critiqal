@@ -6,6 +6,7 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import CommentSheet from './CommentSheet.svelte';
+	import { openProfile } from '$lib/stores/profile-nav.store';
 
 	// Lazy-load heavy composer
 	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
@@ -174,8 +175,8 @@
 				isLoading: false
 			}));
 			if (resetPage) page = 0;
-			// Kick off reaction loading for visible posts
-			fetched.slice(0, 5).forEach((p) => loadReactionsForPost(p.id));
+			// Load reactions for all fetched posts
+			fetched.forEach((p) => loadReactionsForPost(p.id));
 		} catch (err) {
 			feedError = err instanceof Error ? err.message : 'Failed to load feed';
 		} finally {
@@ -250,8 +251,8 @@
 	}
 
 	function prependPost(post: Post): void {
+		// Update store only; subscriber will sync posts
 		mobileFeedStore.update((s) => ({ ...s, posts: [post, ...s.posts] }));
-		posts = [post, ...posts];
 	}
 
 	async function openComposer(): Promise<void> {
@@ -263,16 +264,25 @@
 	}
 
 	onMount(() => {
-		// Subscribe to store
+		// Subscriber only syncs local state — never triggers side-effects.
+		// fetchFeed is called once below, guarded by the 30-second cache.
+		let initialSync = true;
+		let shouldFetch = false;
+
 		const unsub = mobileFeedStore.subscribe((s) => {
-			if (s.loadedAt !== null && Date.now() - s.loadedAt < 30000) {
-				posts = s.posts;
-				isLoading = s.isLoading;
-				page = s.page;
-			} else {
-				fetchFeed();
+			posts = s.posts;
+			isLoading = s.isLoading;
+			page = s.page;
+
+			if (initialSync) {
+				initialSync = false;
+				shouldFetch = s.loadedAt === null || Date.now() - s.loadedAt >= 30000;
 			}
 		});
+
+		if (shouldFetch) {
+			fetchFeed();
+		}
 
 		// IntersectionObserver for infinite scroll
 		if (sentinelEl) {
@@ -360,25 +370,31 @@
 				<div class="post-card-inner">
 					<!-- Author row -->
 					<div class="author-row">
-						<div class="author-avatar">
-							{#if post.author.avatarUrl}
-								<img
-									src={post.author.avatarUrl}
-									alt={post.author.username}
-									class="avatar-img"
-								/>
-							{:else}
-								<div class="avatar-initials">
-									{getInitials(post.author.name, post.author.username)}
-								</div>
-							{/if}
-						</div>
-						<div class="author-info">
-							<span class="author-display">
-								{post.author.name ?? post.author.username}
-							</span>
-							<span class="author-username">@{post.author.username}</span>
-						</div>
+						<button
+							class="author-tap"
+							onclick={() => openProfile(post.author.username)}
+							aria-label="View {post.author.username}'s profile"
+						>
+							<div class="author-avatar">
+								{#if post.author.avatarUrl}
+									<img
+										src={post.author.avatarUrl}
+										alt={post.author.username}
+										class="avatar-img"
+									/>
+								{:else}
+									<div class="avatar-initials">
+										{getInitials(post.author.name, post.author.username)}
+									</div>
+								{/if}
+							</div>
+							<div class="author-info">
+								<span class="author-display">
+									{post.author.name ?? post.author.username}
+								</span>
+								<span class="author-username">@{post.author.username}</span>
+							</div>
+						</button>
 						<span class="post-time">{formatRelativeTime(post.createdAt)}</span>
 					</div>
 
@@ -500,6 +516,9 @@
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
+		/* In fullscreen mode --tg-content-top = transparent Telegram header height.
+		   Pushes the compose prompt and feed below the transparent header overlay. */
+		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
 	}
@@ -582,6 +601,20 @@
 		align-items: center;
 		gap: 10px;
 		margin-bottom: 4px;
+	}
+
+	.author-tap {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex: 1;
+		min-width: 0;
+		background: none;
+		border: none;
+		padding: 0;
+		cursor: pointer;
+		text-align: left;
+		-webkit-tap-highlight-color: transparent;
 	}
 
 	.author-avatar {
@@ -762,13 +795,13 @@
 		display: flex;
 		align-items: center;
 		gap: 5px;
-		padding: 8px 10px;
-		border-radius: 20px;
+		padding: 6px 10px;
+		border-radius: 8px;
 		transition: background 0.15s ease;
 	}
 
 	.reaction-btn.active {
-		background: rgba(224, 82, 82, 0.12);
+		background: rgba(224, 82, 82, 0.18);
 	}
 
 	.reaction-btn:active {

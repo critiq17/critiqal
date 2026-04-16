@@ -1,11 +1,24 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import type { User, Post } from '$lib/types';
+	import type { User, Post, ReactionType, ReactionsMap } from '$lib/types';
 	import { userService } from '$lib/services/user.service';
 	import { mediaService } from '$lib/services/media.service';
+	import { postService } from '$lib/services/post.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import CommentSheet from './CommentSheet.svelte';
+
+	// ---------------------------------------------------------------------------
+	// Constants
+	// ---------------------------------------------------------------------------
+
+	const REACTION_IMGS: Record<ReactionType, string> = {
+		GIGACHAD: '/assets/reactions/GIGACHAD.png',
+		THE_ROCK: '/assets/reactions/THEROCK.png',
+		DAVID: '/assets/reactions/DAVID.png'
+	};
+	const REACTION_TYPES: ReactionType[] = ['GIGACHAD', 'THE_ROCK', 'DAVID'];
 
 	// ---------------------------------------------------------------------------
 	// State
@@ -43,6 +56,18 @@
 	// Post detail bottom sheet
 	let selectedPost = $state<Post | null>(null);
 
+	// Comment sheet
+	let openCommentSheetPostId = $state<number | null>(null);
+
+	// Reactions
+	interface PostReactionState {
+		reactions: ReactionsMap;
+		myReaction: ReactionType | null;
+		loaded: boolean;
+		poppingType: ReactionType | null;
+	}
+	let reactionStates = $state<Map<number, PostReactionState>>(new Map());
+
 	// Settings bottom sheet
 	let settingsOpen = $state(false);
 
@@ -79,12 +104,90 @@
 		return String(n);
 	}
 
+	function formatRelativeTime(dateStr: string): string {
+		const diff = Date.now() - new Date(dateStr).getTime();
+		const minutes = Math.floor(diff / 60000);
+		if (minutes < 1) return 'just now';
+		if (minutes < 60) return `${minutes}m`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h`;
+		const days = Math.floor(hours / 24);
+		if (days < 7) return `${days}d`;
+		return new Date(dateStr).toLocaleDateString();
+	}
+
 	function getInitial(user: User): string {
 		return (user.name ?? user.username).charAt(0).toUpperCase();
 	}
 
 	function getInitialFromParts(name: string | null, username: string): string {
 		return (name ?? username).charAt(0).toUpperCase();
+	}
+
+	// ---------------------------------------------------------------------------
+	// Reaction helpers
+	// ---------------------------------------------------------------------------
+
+	function getReactionState(postId: number): PostReactionState {
+		return reactionStates.get(postId) ?? {
+			reactions: { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0 },
+			myReaction: null,
+			loaded: false,
+			poppingType: null
+		};
+	}
+
+	function setReactionState(postId: number, patch: Partial<PostReactionState>): void {
+		const prev = getReactionState(postId);
+		const next = new Map(reactionStates);
+		next.set(postId, { ...prev, ...patch });
+		reactionStates = next;
+	}
+
+	async function loadReactionsForPost(postId: number): Promise<void> {
+		if (getReactionState(postId).loaded) return;
+		try {
+			const [reactions, myReaction] = await Promise.all([
+				postService.getReactions(postId),
+				postService.getMyReaction(postId).catch(() => undefined)
+			]);
+			setReactionState(postId, { reactions, myReaction: myReaction ?? null, loaded: true });
+		} catch {
+			// Non-critical
+		}
+	}
+
+	async function handleReaction(post: Post, type: ReactionType): Promise<void> {
+		const state = getReactionState(post.id);
+		const already = state.myReaction === type;
+
+		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
+
+		setReactionState(post.id, { poppingType: type });
+		setTimeout(() => setReactionState(post.id, { poppingType: null }), 300);
+
+		const prev = { ...state.reactions };
+		const newReactions = { ...prev };
+		if (already) {
+			newReactions[type] = Math.max(0, newReactions[type] - 1);
+			setReactionState(post.id, { reactions: newReactions, myReaction: null });
+		} else {
+			if (state.myReaction) {
+				newReactions[state.myReaction] = Math.max(0, newReactions[state.myReaction] - 1);
+			}
+			newReactions[type] = newReactions[type] + 1;
+			setReactionState(post.id, { reactions: newReactions, myReaction: type });
+		}
+
+		try {
+			if (already) {
+				await postService.removeReaction(post.id);
+			} else {
+				await postService.react(post.id, type);
+			}
+		} catch {
+			setReactionState(post.id, { reactions: prev, myReaction: state.myReaction });
+		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -109,6 +212,7 @@
 			profile = user;
 			posts = userPosts;
 			loadFollowLists(user.id);
+			userPosts.forEach((p) => loadReactionsForPost(p.id));
 		} catch (err: unknown) {
 			profileError = err instanceof Error ? err.message : 'Failed to load profile';
 		} finally {
@@ -507,9 +611,17 @@
 				</form>
 			{:else}
 				<div class="identity">
-					{#if profile.name}
-						<span class="display-name">{profile.name}</span>
-					{/if}
+					<div class="name-row">
+						{#if profile.name}
+							<span class="display-name">{profile.name}</span>
+						{/if}
+						<button class="edit-icon-btn" onclick={startEdit} aria-label="Edit profile">
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+								<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+							</svg>
+						</button>
+					</div>
 					<span class="username">@{profile.username}</span>
 					{#if profile.bio}
 						<p class="bio">{profile.bio}</p>
@@ -545,11 +657,6 @@
 			</button>
 		</div>
 
-		<!-- Edit profile button -->
-		{#if !isEditing}
-			<button class="edit-btn" onclick={startEdit}>Edit profile</button>
-		{/if}
-
 		<!-- Posts section -->
 		{#if postsError}
 			<div class="posts-error" role="alert">
@@ -563,56 +670,72 @@
 				<p class="posts-empty-text">No posts yet.</p>
 			</div>
 		{:else}
-			{@const hasPhotoPosts = posts.some(p => p.photos.length > 0)}
-			{#if hasPhotoPosts}
-				<!-- Photo grid -->
-				<div class="posts-grid" role="list" aria-label="Posts">
-					{#each posts as post (post.id)}
-						{#if post.photos.length > 0}
-							<button
-								class="grid-cell"
-								onclick={() => openPostSheet(post)}
-								aria-label="View post"
-								role="listitem"
-							>
-								<img
-									src={post.photos[0].thumbnailUrl || post.photos[0].url}
-									alt=""
-									loading="lazy"
-								/>
-							</button>
-						{:else}
-							<button
-								class="grid-cell grid-cell-text"
-								onclick={() => openPostSheet(post)}
-								aria-label="View post"
-								role="listitem"
-							>
-								<span class="grid-text-preview">{post.content.slice(0, 80)}</span>
-							</button>
+			<div class="profile-feed" role="list" aria-label="Posts">
+				{#each posts as post (post.id)}
+					<article class="profile-post-card" role="listitem">
+						<p class="profile-post-content">{post.content}</p>
+
+						{#if post.photos && post.photos.length > 0}
+							<div class="profile-photo-strip">
+								{#each post.photos.slice().sort((a, b) => a.position - b.position) as photo (photo.id)}
+									<div class="profile-photo-item">
+										<img src={photo.url} alt="" loading="lazy" />
+									</div>
+								{/each}
+							</div>
 						{/if}
-					{/each}
-				</div>
-			{:else}
-				<!-- Text post list -->
-				<div class="text-posts-list" role="list" aria-label="Posts">
-					{#each posts as post (post.id)}
-						<button
-							class="text-post-card"
-							onclick={() => openPostSheet(post)}
-							aria-label="View post"
-							role="listitem"
-						>
-							<p class="text-post-content">{post.content}</p>
-							<span class="text-post-time">{new Date(post.createdAt).toLocaleDateString()}</span>
-						</button>
-					{/each}
-				</div>
-			{/if}
+
+						<!-- Reactions + comment -->
+						<div class="profile-action-row">
+							{#each REACTION_TYPES as type (type)}
+								{@const rs = getReactionState(post.id)}
+								{@const isActive = rs.myReaction === type}
+								{@const isPopping = rs.poppingType === type}
+								<button
+									class="p-reaction-btn"
+									class:active={isActive}
+									onclick={() => handleReaction(post, type)}
+									aria-label="{type} reaction, count {rs.reactions[type]}"
+								>
+									<img
+										src={REACTION_IMGS[type]}
+										alt={type}
+										class="p-reaction-img"
+										class:p-reaction-popping={isPopping}
+										loading="lazy"
+									/>
+									{#if rs.reactions[type] > 0}
+										<span class="p-reaction-count">{rs.reactions[type]}</span>
+									{/if}
+								</button>
+							{/each}
+
+							<button
+								class="p-reaction-btn p-comment-btn"
+								onclick={() => (openCommentSheetPostId = post.id)}
+								aria-label="Comments"
+							>
+								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+									<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+								</svg>
+							</button>
+
+							<span class="profile-post-time">{formatRelativeTime(post.createdAt)}</span>
+						</div>
+					</article>
+				{/each}
+			</div>
 		{/if}
 
 	{/if}
 </div>
+
+<!-- Comment sheet -->
+<CommentSheet
+	postId={openCommentSheetPostId ?? 0}
+	open={openCommentSheetPostId !== null}
+	onClose={() => (openCommentSheetPostId = null)}
+/>
 
 <!-- ============================================================
      Stats bottom sheet (followers / following)
@@ -817,6 +940,7 @@
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
+		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
 	}
@@ -950,8 +1074,8 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		padding: 32px 24px 20px;
-		gap: 12px;
+		padding: 12px 24px 16px;
+		gap: 10px;
 		position: relative;
 	}
 
@@ -1035,6 +1159,30 @@
 		align-items: center;
 		gap: 2px;
 		text-align: center;
+	}
+
+	.name-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.edit-icon-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 4px;
+		color: rgba(240, 240, 240, 0.4);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+		transition: color 0.15s ease;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.edit-icon-btn:active {
+		color: rgba(240, 240, 240, 0.9);
 	}
 
 	.display-name {
@@ -1203,121 +1351,128 @@
 	}
 
 	/* ------------------------------------------------------------------ */
-	/* Edit profile button                                                  */
+	/* Profile feed (replaces grid)                                        */
 	/* ------------------------------------------------------------------ */
 
-	.edit-btn {
-		margin: 12px 16px 0;
-		height: 36px;
-		border-radius: 10px;
-		background: none;
-		border: 1px solid rgba(255, 255, 255, 0.12);
+	.profile-feed {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.profile-post-card {
+		padding: 14px 16px 10px;
+		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.profile-post-card:active {
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.profile-post-content {
+		font-size: 15px;
+		line-height: 1.5;
 		color: var(--color-text-primary, #f0f0f0);
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		width: calc(100% - 32px);
-		font-family: inherit;
-		transition: background 0.15s ease;
+		margin: 0 0 10px;
+		word-break: break-word;
 	}
 
-	.edit-btn:active {
-		background: rgba(255, 255, 255, 0.06);
-	}
-
-	/* ------------------------------------------------------------------ */
-	/* Posts grid                                                           */
-	/* ------------------------------------------------------------------ */
-
-	.posts-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 2px;
-	}
-
-	.grid-cell {
-		aspect-ratio: 1;
+	.profile-photo-strip {
+		display: flex;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-behavior: smooth;
+		-webkit-overflow-scrolling: touch;
+		scrollbar-width: none;
+		border-radius: 12px;
 		overflow: hidden;
-		cursor: pointer;
-		background: var(--color-surface-raised, #242424);
-		display: block;
-		padding: 0;
-		border: none;
-		position: relative;
+		margin-bottom: 8px;
 	}
 
-	.grid-cell img {
+	.profile-photo-strip::-webkit-scrollbar {
+		display: none;
+	}
+
+	.profile-photo-item {
+		flex-shrink: 0;
+		width: 100%;
+		aspect-ratio: 4 / 3;
+		scroll-snap-align: start;
+	}
+
+	.profile-photo-item img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
 
-	.grid-cell:active {
-		opacity: 0.75;
-	}
-
-	.grid-cell-text {
+	.profile-action-row {
 		display: flex;
-		align-items: flex-start;
-		padding: 8px;
+		align-items: center;
+		gap: 2px;
+		margin-top: 6px;
 	}
 
-	.grid-text-preview {
-		font-size: 10px;
-		line-height: 1.35;
-		color: rgba(255, 255, 255, 0.6);
-		overflow: hidden;
-		display: -webkit-box;
-		-webkit-line-clamp: 5;
-		-webkit-box-orient: vertical;
-		text-align: left;
-	}
-
-	/* ------------------------------------------------------------------ */
-	/* Text posts list                                                      */
-	/* ------------------------------------------------------------------ */
-
-	.text-posts-list {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.text-post-card {
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		padding: 14px 16px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+	.p-reaction-btn {
+		min-width: 44px;
+		min-height: 36px;
 		background: none;
-		border-left: none;
-		border-right: none;
-		border-top: none;
+		border: none;
 		cursor: pointer;
-		text-align: left;
-		width: 100%;
-		font-family: inherit;
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		padding: 5px 8px;
+		border-radius: 8px;
+		transition: background 0.15s ease;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.text-post-card:active {
-		background: var(--color-surface-raised, #242424);
+	.p-reaction-btn.active {
+		background: rgba(224, 82, 82, 0.18);
 	}
 
-	.text-post-content {
-		font-size: 14px;
-		line-height: 1.45;
-		color: var(--color-text-primary, #f0f0f0);
-		margin: 0;
-		word-break: break-word;
-		display: -webkit-box;
-		-webkit-line-clamp: 4;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
+	.p-reaction-btn:active {
+		background: rgba(255, 255, 255, 0.06);
 	}
 
-	.text-post-time {
+	.p-reaction-img {
+		width: 20px;
+		height: 20px;
+		object-fit: contain;
+	}
+
+	.p-reaction-count {
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.35);
+		font-weight: 500;
+		color: rgba(240, 240, 240, 0.6);
+	}
+
+	.p-reaction-btn.active .p-reaction-count {
+		color: #e05252;
+	}
+
+	.p-comment-btn {
+		margin-left: auto;
+		color: rgba(240, 240, 240, 0.4);
+	}
+
+	.profile-post-time {
+		font-size: 12px;
+		color: rgba(240, 240, 240, 0.3);
+		margin-left: 4px;
+	}
+
+	@keyframes profileReactionPop {
+		0% { transform: scale(1); }
+		50% { transform: scale(1.4); }
+		100% { transform: scale(1); }
+	}
+
+	:global(.p-reaction-popping) {
+		animation: profileReactionPop 300ms ease-out;
 	}
 
 	/* ------------------------------------------------------------------ */
