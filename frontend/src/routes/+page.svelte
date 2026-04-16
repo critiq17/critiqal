@@ -257,25 +257,29 @@
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem minmax(0, 42rem) 14rem;
+		grid-template-columns: 16rem 42rem 14rem;
 		justify-content: center;
-		min-height: 100vh;
+		height: 100vh;
+		overflow: hidden;
 	}
 
 	.col-left {
-		position: sticky;
-		top: 0;
-		height: 100vh;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
 	}
 
 	.col-center {
+		overflow-y: auto;
 		padding: 0 2rem 4rem;
-		min-height: 100vh;
+		scrollbar-width: none;
+	}
+
+	.col-center::-webkit-scrollbar {
+		display: none;
 	}
 
 	.col-right {
+		overflow-y: auto;
 		padding: 1.5rem 1rem 1.5rem 1.5rem;
 	}
 

@@ -1,12 +1,14 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import type { Post, ReactionType, ReactionsMap } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
-	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { DEFAULT_REACTIONS, REACTION_TYPES, REACTION_VISUALS } from '$lib/reactions';
 	import CommentSheet from './CommentSheet.svelte';
 	import { openProfile } from '$lib/stores/profile-nav.store';
+
+	const INITIAL_REACTION_PREFETCH_COUNT = 5;
 
 	// Feed state mirrored from store
 	let posts = $state<Post[]>([]);
@@ -48,14 +50,6 @@
 	// Refresh indicator
 	let isRefreshing = $state(false);
 
-	const REACTION_IMGS: Record<ReactionType, string> = {
-		GIGACHAD: '/assets/reactions/GIGACHAD.png',
-		THE_ROCK: '/assets/reactions/THEROCK.png',
-		DAVID: '/assets/reactions/DAVID.png'
-	};
-
-	const REACTION_TYPES: ReactionType[] = ['GIGACHAD', 'THE_ROCK', 'DAVID'];
-
 	function formatRelativeTime(dateStr: string): string {
 		const diff = Date.now() - new Date(dateStr).getTime();
 		const minutes = Math.floor(diff / 60000);
@@ -75,7 +69,7 @@
 
 	function getReactionState(postId: number): PostReactionState {
 		return reactionStates.get(postId) ?? {
-			reactions: { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0 },
+			reactions: { ...DEFAULT_REACTIONS },
 			myReaction: null,
 			loaded: false,
 			poppingType: null
@@ -97,7 +91,7 @@
 				postService.getMyReaction(postId).catch(() => undefined)
 			]);
 			setReactionState(postId, {
-				reactions,
+				reactions: { ...DEFAULT_REACTIONS, ...reactions },
 				myReaction: myReaction ?? null,
 				loaded: true
 			});
@@ -155,26 +149,19 @@
 		photoIndices = next;
 	}
 
-	async function fetchFeed(resetPage = false): Promise<void> {
-		isLoading = true;
-		feedError = null;
+	function prefetchReactions(postsToPrefetch: Post[]): void {
+		postsToPrefetch.slice(0, INITIAL_REACTION_PREFETCH_COUNT).forEach((post) => {
+			loadReactionsForPost(post.id);
+		});
+	}
+
+	async function fetchFeed(options: { resetPage?: boolean; force?: boolean } = {}): Promise<void> {
+		const { resetPage = false, force = false } = options;
 		try {
-			const fetched = await postService.getFeed();
-			posts = fetched;
-			mobileFeedStore.update((s) => ({
-				...s,
-				posts: fetched,
-				loadedAt: Date.now(),
-				page: 0,
-				isLoading: false
-			}));
-			if (resetPage) page = 0;
-			// Load reactions for all fetched posts
-			fetched.forEach((p) => loadReactionsForPost(p.id));
+			const fetched = await mobileFeedStore.load({ force, resetPage });
+			prefetchReactions(fetched);
 		} catch (err) {
-			feedError = err instanceof Error ? err.message : 'Failed to load feed';
-		} finally {
-			isLoading = false;
+			console.error('[MobileFeed] fetchFeed error:', err);
 		}
 	}
 
@@ -187,7 +174,7 @@
 			// if pagination is added later, pass nextPage here.
 			// For now, simply mark as done to avoid infinite loop.
 			page = nextPage;
-			mobileFeedStore.update((s) => ({ ...s, page: nextPage }));
+			mobileFeedStore.setPage(nextPage);
 		} finally {
 			isLoadingMore = false;
 		}
@@ -235,7 +222,7 @@
 			pullThresholdMet = false;
 			isRefreshing = true;
 			try {
-				await fetchFeed(true);
+				await fetchFeed({ resetPage: true, force: true });
 			} finally {
 				isRefreshing = false;
 			}
@@ -245,25 +232,25 @@
 	}
 
 	onMount(() => {
-		// Subscriber only syncs local state — never triggers side-effects.
-		// fetchFeed is called once below, guarded by the 30-second cache.
-		let initialSync = true;
-		let shouldFetch = false;
+		let initialized = false;
 
 		const unsub = mobileFeedStore.subscribe((s) => {
 			posts = s.posts;
-			isLoading = s.isLoading;
+			isLoading = s.status === 'loading';
 			page = s.page;
+			feedError = s.error;
 
-			if (initialSync) {
-				initialSync = false;
-				shouldFetch = s.loadedAt === null || Date.now() - s.loadedAt >= 30000;
+			// Trigger fetch on first store update if posts are empty
+			if (!initialized) {
+				initialized = true;
+				if (posts.length === 0) {
+					mobileFeedStore.reset();
+					fetchFeed({ force: true });
+				} else {
+					prefetchReactions(posts);
+				}
 			}
 		});
-
-		if (shouldFetch) {
-			fetchFeed();
-		}
 
 		// IntersectionObserver for infinite scroll
 		if (sentinelEl) {
@@ -310,6 +297,8 @@
 
 <div
 	class="feed-container"
+	role="region"
+	aria-label="Feed"
 	bind:this={containerEl}
 	ontouchstart={onPullTouchStart}
 	ontouchmove={onPullTouchMove}
@@ -324,7 +313,7 @@
 	{:else if feedError && posts.length === 0}
 		<div class="feed-state error">
 			<p>{feedError}</p>
-			<button class="retry-btn" onclick={() => fetchFeed()}>Retry</button>
+			<button class="retry-btn" onclick={() => fetchFeed({ force: true, resetPage: true })}>Retry</button>
 		</div>
 	{:else}
 		{#each posts as post (post.id)}
@@ -372,9 +361,9 @@
 						aria-label="Post photos"
 						onscroll={(e) => handlePhotoScroll(post.id, e)}
 					>
-						{#each post.photos.sort((a, b) => a.position - b.position) as photo (photo.id)}
+						{#each [...post.photos].sort((a, b) => a.position - b.position) as photo (photo.id)}
 							<div class="photo-item">
-								<img src={photo.url} alt="Post photo" loading="lazy" />
+								<img src={photo.url} alt="" loading="lazy" />
 							</div>
 						{/each}
 					</div>
@@ -396,6 +385,7 @@
 					<!-- Reactions -->
 					{#each REACTION_TYPES as type (type)}
 						{@const rs = getReactionState(post.id)}
+						{@const reactionVisual = REACTION_VISUALS[type]}
 						{@const isActive = rs.myReaction === type}
 						{@const isPopping = rs.poppingType === type}
 						<button
@@ -405,13 +395,23 @@
 							aria-label="{type} reaction, count {rs.reactions[type]}"
 							onmouseenter={() => { if (!rs.loaded) loadReactionsForPost(post.id); }}
 						>
-							<img
-								src={REACTION_IMGS[type]}
-								alt={type}
-								class="reaction-img"
-								class:reaction-popping={isPopping}
-								loading="lazy"
-							/>
+							{#if reactionVisual.assetPath}
+								<img
+									src={reactionVisual.assetPath}
+									alt={reactionVisual.label}
+									class="reaction-img"
+									class:reaction-popping={isPopping}
+									loading="lazy"
+								/>
+							{:else}
+								<span
+									class="reaction-emoji"
+									class:reaction-popping={isPopping}
+									aria-hidden="true"
+								>
+									{reactionVisual.fallbackEmoji}
+								</span>
+							{/if}
 							{#if rs.reactions[type] > 0}
 								<span class="reaction-count">{rs.reactions[type]}</span>
 							{/if}
@@ -467,11 +467,16 @@
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
+		scrollbar-width: none;
 		/* In fullscreen mode --tg-content-top = transparent Telegram header height.
 		   Pushes the compose prompt and feed below the transparent header overlay. */
 		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
+	}
+
+	.feed-container::-webkit-scrollbar {
+		display: none;
 	}
 
 	/* Pull-to-refresh indicator */
@@ -538,7 +543,6 @@
 
 	/* Post card */
 	.post-card {
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
 		padding: 0;
 	}
 
@@ -713,6 +717,16 @@
 		width: 22px;
 		height: 22px;
 		object-fit: contain;
+	}
+
+	.reaction-emoji {
+		width: 22px;
+		height: 22px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 18px;
+		line-height: 1;
 	}
 
 	.reaction-count {
