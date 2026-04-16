@@ -5,11 +5,18 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { closeProfile } from '$lib/stores/profile-nav.store';
+	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
 
-	// ── Swipe-to-dismiss (direct DOM, no Svelte re-render during drag) ──────────
-	// Using a ref + direct style.transform to stay at 60 fps.
-	// $state is intentionally NOT used for position — reactive writes cause a
-	// render-cycle delay that makes the drag feel sticky.
+	// ── Swipe-to-dismiss (direct DOM, bypass Svelte reactivity for 60fps) ───────
+	//
+	// Root cause of the "sticky/delayed" feel in the previous version:
+	//   CSS `animation: slideIn ... both` has fill-mode that OVERRIDES inline
+	//   style.transform (CSS animations sit above inline styles in the cascade).
+	//   The fix: no CSS animation — we drive the slide-in imperatively in onMount.
+	//
+	// Additionally we notify MobileLayout on every drag frame so the background
+	// content can track the overlay position (iOS-style parallax).
+
 	let overlayEl: HTMLElement | null = null;
 
 	let _touchStartX = 0;
@@ -18,44 +25,40 @@
 	let _lastX = 0;
 	let _lastT = 0;
 	let _velocity = 0;
-	let _currentX = 0; // plain var — mutated directly inside touch handlers
+	let _currentX = 0;
 
 	const DISMISS_RATIO = 0.35;
 	const VELOCITY_PX_MS = 0.45;
 
-	function _setTransform(x: number, animated: boolean, spring = false): void {
+	function _applyTransform(x: number, transition: string): void {
 		if (!overlayEl) return;
-		if (animated) {
-			const curve = spring
-				? 'cubic-bezier(0.34, 1.56, 0.64, 1)' // spring overshoot → settle
-				: 'cubic-bezier(0.4, 0, 1, 1)';        // accelerate-out for dismiss
-			const duration = spring ? '0.38s' : '0.24s';
-			overlayEl.style.transition = `transform ${duration} ${curve}`;
-		} else {
-			overlayEl.style.transition = 'none';
-		}
+		overlayEl.style.transition = transition;
 		overlayEl.style.transform = `translateX(${x}px)`;
 	}
 
-	function onSwipeTouchStart(e: TouchEvent): void {
-		const t = e.touches[0];
-		_touchStartX = t.clientX;
-		_touchStartY = t.clientY;
-		_lastX = t.clientX;
-		_lastT = Date.now();
+	function onSwipeTouchStart(): void {
+		// Kill any running transition so the next touchmove sticks to finger instantly
+		_applyTransform(_currentX, 'none');
+		_touchStartX = 0; // reset — will be populated in move
 		_dirLocked = null;
 		_velocity = 0;
-		_currentX = 0;
-		// Remove transition immediately so first move is instant
-		_setTransform(0, false);
 	}
 
 	function onSwipeTouchMove(e: TouchEvent): void {
 		const t = e.touches[0];
+
+		// Capture start on first move (avoids the 1-frame lag from touchstart)
+		if (!_dirLocked && _touchStartX === 0) {
+			_touchStartX = t.clientX;
+			_touchStartY = t.clientY;
+			_lastX = t.clientX;
+			_lastT = Date.now();
+		}
+
 		const dx = t.clientX - _touchStartX;
 		const dy = t.clientY - _touchStartY;
 
-		// Lock direction on first 5px — tight window for crisp detection
+		// Direction lock: first 5px determines axis
 		if (!_dirLocked && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
 			_dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
 		}
@@ -69,20 +72,28 @@
 		_lastT = now;
 
 		_currentX = dx;
-		// Write directly to DOM — zero Svelte overhead
+
+		// Write directly — zero framework overhead
 		if (overlayEl) overlayEl.style.transform = `translateX(${dx}px)`;
+
+		// Notify background (parallax)
+		notifyOverlaySwipe(dx, window.innerWidth, 'drag');
 	}
 
 	function onSwipeTouchEnd(): void {
 		if (_currentX <= 0) return;
 
-		const threshold = window.innerWidth * DISMISS_RATIO;
+		const sw = window.innerWidth;
+		const threshold = sw * DISMISS_RATIO;
+
 		if (_currentX > threshold || _velocity > VELOCITY_PX_MS) {
 			getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
-			_setTransform(window.innerWidth, true, false);
+			_applyTransform(sw, 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)');
+			notifyOverlaySwipe(sw, sw, 'dismiss');
 			setTimeout(() => closeProfile(), 260);
 		} else {
-			_setTransform(0, true, true); // spring back
+			_applyTransform(0, 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)');
+			notifyOverlaySwipe(0, sw, 'cancel');
 		}
 		_currentX = 0;
 	}
@@ -200,6 +211,19 @@
 	});
 
 	onMount(() => {
+		// Programmatic slide-in replaces the CSS `animation: slideIn` declaration.
+		// CSS animations with fill-mode:both override inline style.transform, which
+		// breaks our direct DOM manipulation during swipe. Driving it here avoids
+		// that cascade conflict entirely.
+		if (overlayEl) {
+			overlayEl.style.transition = 'none';
+			overlayEl.style.transform = 'translateX(100%)';
+			// Force a reflow so the browser registers the starting position
+			// before we add the transition.
+			void overlayEl.offsetWidth;
+			overlayEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
+			overlayEl.style.transform = 'translateX(0)';
+		}
 		load();
 	});
 </script>
@@ -324,17 +348,15 @@
 		background: var(--tg-bg, #0f0f0f);
 		display: flex;
 		flex-direction: column;
-		animation: slideIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
+		/* No CSS animation — slide-in is driven programmatically in onMount.
+		   CSS animation fill-mode overrides style.transform, which breaks
+		   direct DOM manipulation used for the swipe gesture. */
 		will-change: transform;
-		/* pan-y: browser handles vertical scroll natively (fast path),
-		   we own horizontal — removes the ~100ms touch-start delay */
+		/* pan-y: browser handles vertical scroll natively,
+		   we own horizontal — eliminates ~100ms touch-start latency. */
 		touch-action: pan-y;
 	}
 
-	@keyframes slideIn {
-		from { transform: translateX(100%); }
-		to   { transform: translateX(0); }
-	}
 
 	/* Header — username only; back nav uses tg.BackButton */
 	.overlay-header {

@@ -4,6 +4,8 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { activeTab } from '$lib/stores/mobile-tab.store';
 	import { profileNav } from '$lib/stores/profile-nav.store';
+	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
+	import type { SwipePhase } from '$lib/overlay-swipe';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
@@ -14,6 +16,62 @@
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 	let currentTab = $state('feed');
 	let viewedUsername = $state<string | null>(null);
+
+	// Reference to the content div that gets pushed during overlay navigation
+	let contentEl: HTMLElement | null = null;
+
+	// iOS-style push ratio: background shifts left by this fraction of screen
+	// while the overlay is on top, then tracks back to 0 as overlay is swiped away.
+	const PUSH_RATIO = 0.28;
+
+	function applyContentTransform(x: number, sw: number, transition: string): void {
+		if (!contentEl) return;
+		// Interpolate: when overlay is at 0 (fully shown) → content at -PUSH.
+		//              when overlay is at sw (dismissed)  → content at 0.
+		const bgX = PUSH_RATIO * (x / sw - 1) * sw;
+		contentEl.style.transition = transition;
+		contentEl.style.transform = `translateX(${bgX}px)`;
+	}
+
+	function onOverlaySwipe(x: number, sw: number, phase: SwipePhase): void {
+		if (phase === 'drag') {
+			applyContentTransform(x, sw, 'none');
+		} else if (phase === 'dismiss') {
+			// Match overlay's dismiss curve
+			contentEl!.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
+			contentEl!.style.transform = 'translateX(0)';
+		} else {
+			// Cancel / snap-back: spring back to pushed position, match overlay curve
+			if (!contentEl) return;
+			const push = sw * PUSH_RATIO;
+			contentEl.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)';
+			contentEl.style.transform = `translateX(-${push}px)`;
+		}
+	}
+
+	// Watch overlay open/close to push/restore background.
+	// Plain variable tracks previous value so we don't animate on initial render.
+	let _prevUsername: string | null = null;
+
+	$effect(() => {
+		const username = viewedUsername;
+		if (username === _prevUsername) return;
+		_prevUsername = username;
+
+		if (!contentEl) return;
+		const sw = window.innerWidth;
+		const push = sw * PUSH_RATIO;
+
+		if (username) {
+			// Overlay opening — push content left in sync with overlay slide-in
+			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
+			contentEl.style.transform = `translateX(-${push}px)`;
+		} else {
+			// Overlay closed (e.g. tg.BackButton — no swipe was involved)
+			contentEl.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
+			contentEl.style.transform = 'translateX(0)';
+		}
+	});
 
 	profileNav.subscribe((u) => { viewedUsername = u; });
 
@@ -27,7 +85,13 @@
 			const tg = getTelegramWebApp();
 			colorScheme = tg?.colorScheme ?? null;
 		}
-		return unsubscribe;
+
+		const unregisterSwipe = registerOverlaySwipeListener(onOverlaySwipe);
+
+		return () => {
+			unsubscribe();
+			unregisterSwipe();
+		};
 	});
 </script>
 
@@ -45,7 +109,7 @@
 	{:else if !authStore.isAuthenticated}
 		<MobileAuthScreen />
 	{:else}
-		<div class="mobile-content">
+		<div class="mobile-content" bind:this={contentEl}>
 			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
 			<div class="tab-panel" class:active={currentTab === 'feed'}>
 				<MobileFeed />
@@ -96,6 +160,7 @@
 		height: 100%;
 		overflow: hidden;
 		position: relative;
+		will-change: transform;
 	}
 
 	.tab-panel {
