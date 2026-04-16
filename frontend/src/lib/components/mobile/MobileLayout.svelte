@@ -38,6 +38,7 @@
 	function handlePosted(post: Post): void {
 		mobileFeedStore.update((s) => ({ ...s, posts: [post, ...s.posts] }));
 		closeCompose();
+		activeTab.set('feed'); // Navigate to feed so user sees the new post immediately
 	}
 
 	// Reference to the content div that gets pushed during overlay navigation

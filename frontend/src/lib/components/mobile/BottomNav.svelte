@@ -132,24 +132,28 @@
   }
 
   .compose-btn {
-    background: var(--tg-accent, #e05252);
+    background: none;
     border: none;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
+    padding: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
+    gap: 4px;
+    min-width: 44px;
+    min-height: 44px;
     justify-content: center;
-    color: #fff;
     flex-shrink: 0;
+    /* Slightly brighter than inactive tabs to give it subtle prominence
+       without being the jarring accent-colour button it was before */
+    color: rgba(255, 255, 255, 0.75);
     transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-                opacity 0.15s ease;
+                color 0.15s ease;
     -webkit-tap-highlight-color: transparent;
   }
 
   .compose-btn:active {
     transform: scale(0.88);
-    opacity: 0.85;
+    color: #fff;
   }
 </style>

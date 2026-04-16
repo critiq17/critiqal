@@ -14,46 +14,48 @@
 	let { open, onClose, onPosted }: Props = $props();
 
 	const MAX_PHOTOS = 3;
+	const MAX_CHARS = 500;
 
 	let text = $state('');
 	let selectedFiles = $state<File[]>([]);
 	let previewUrls = $state<string[]>([]);
 	let loading = $state(false);
 	let errorMessage = $state('');
+	let viewingPhotoUrl = $state<string | null>(null);
 
-	let sheetEl = $state<HTMLElement | undefined>(undefined);
-	let textareaEl = $state<HTMLTextAreaElement | undefined>(undefined);
-	let fileInputEl = $state<HTMLInputElement | undefined>(undefined);
+	let textareaEl: HTMLTextAreaElement | null = null;
+	let fileInputEl: HTMLInputElement | null = null;
+	let footerEl: HTMLElement | null = null;
 
 	let hasContent = $derived(text.trim().length > 0);
+	let charsLeft = $derived(MAX_CHARS - text.length);
+	let overLimit = $derived(charsLeft < 0);
 
+	// ── textarea auto-grow ───────────────────────────────────────────────────────
 	function autoGrow(el: HTMLTextAreaElement): void {
 		el.style.height = 'auto';
 		el.style.height = el.scrollHeight + 'px';
 	}
 
 	function handleInput(e: Event): void {
-		const el = e.target as HTMLTextAreaElement;
-		autoGrow(el);
+		autoGrow(e.target as HTMLTextAreaElement);
 	}
 
+	// ── photo helpers ────────────────────────────────────────────────────────────
 	function triggerFileInput(): void {
 		fileInputEl?.click();
 	}
 
 	function handleFileChange(e: Event): void {
 		const input = e.target as HTMLInputElement;
-		const files = input.files;
-		if (!files || files.length === 0) return;
+		if (!input.files?.length) return;
 
 		const remaining = MAX_PHOTOS - selectedFiles.length;
-		const toAdd = Array.from(files).slice(0, remaining);
-
+		const toAdd = Array.from(input.files).slice(0, remaining);
 		const newUrls = toAdd.map((f) => URL.createObjectURL(f));
+
 		selectedFiles = [...selectedFiles, ...toAdd];
 		previewUrls = [...previewUrls, ...newUrls];
-
-		// Reset so the same file can be re-selected after removal
 		input.value = '';
 	}
 
@@ -61,8 +63,18 @@
 		URL.revokeObjectURL(previewUrls[index]);
 		selectedFiles = selectedFiles.filter((_, i) => i !== index);
 		previewUrls = previewUrls.filter((_, i) => i !== index);
+		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
 	}
 
+	function openPhotoViewer(url: string): void {
+		viewingPhotoUrl = url;
+	}
+
+	function closePhotoViewer(): void {
+		viewingPhotoUrl = null;
+	}
+
+	// ── state reset ──────────────────────────────────────────────────────────────
 	function resetState(): void {
 		text = '';
 		previewUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -70,14 +82,13 @@
 		previewUrls = [];
 		errorMessage = '';
 		loading = false;
-		if (textareaEl) {
-			textareaEl.style.height = 'auto';
-		}
+		if (textareaEl) textareaEl.style.height = 'auto';
 	}
 
+	// ── submit ───────────────────────────────────────────────────────────────────
 	async function submitPost(): Promise<void> {
 		const content = text.trim();
-		if (!content || loading) return;
+		if (!content || loading || overLimit) return;
 
 		loading = true;
 		errorMessage = '';
@@ -99,131 +110,146 @@
 				uploadedPhotos.length > 0 ? { ...newPost, photos: uploadedPhotos } : newPost;
 
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
-			// Reset state BEFORE notifying parent — parent may destroy this component
-			// synchronously via composerOpen = false, which would leave loading = true
 			resetState();
 			onPosted(finalPost);
 		} catch (err: unknown) {
-			errorMessage = err instanceof Error ? err.message : 'Failed to post. Please try again.';
-		} finally {
+			errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
 			loading = false;
 		}
 	}
 
-	// Keyboard handling via visualViewport
+	// ── keyboard avoidance ───────────────────────────────────────────────────────
+	// Push the footer above the software keyboard when it appears.
 	onMount(() => {
-		const handler = (): void => {
-			if (!window.visualViewport || !sheetEl) return;
-			const keyboardHeight =
-				window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-			if (keyboardHeight > 0) {
-				sheetEl.style.transform = `translateY(${-keyboardHeight}px)`;
-			} else {
-				sheetEl.style.transform = open ? 'translateY(0)' : 'translateY(100%)';
+		// Small delay so the open animation settles before keyboard appears
+		const focusTimer = setTimeout(() => {
+			if (textareaEl) {
+				textareaEl.focus();
+				autoGrow(textareaEl);
 			}
+		}, 350);
+
+		const vpHandler = (): void => {
+			if (!window.visualViewport || !footerEl) return;
+			const kbHeight =
+				window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+			footerEl.style.paddingBottom =
+				kbHeight > 0 ? `${kbHeight + 8}px` : 'calc(var(--safe-bottom, 0px) + 8px)';
 		};
 
-		window.visualViewport?.addEventListener('resize', handler);
-		return () => window.visualViewport?.removeEventListener('resize', handler);
+		window.visualViewport?.addEventListener('resize', vpHandler);
+		window.visualViewport?.addEventListener('scroll', vpHandler);
+
+		return () => {
+			clearTimeout(focusTimer);
+			window.visualViewport?.removeEventListener('resize', vpHandler);
+			window.visualViewport?.removeEventListener('scroll', vpHandler);
+		};
 	});
 </script>
 
-{#if open}
-	<div
-		class="composer-backdrop"
-		role="presentation"
-		onclick={onClose}
-	></div>
-{/if}
-
+<!-- Full-screen overlay — slides up from bottom, same pattern as UserProfileOverlay -->
 <div
-	class="composer-sheet"
+	class="composer"
 	class:open
-	bind:this={sheetEl}
 	role="dialog"
 	aria-modal="true"
-	aria-label="New post composer"
+	aria-label="New post"
 >
-	<div class="drag-handle"></div>
-
+	<!-- ── Header ── -->
 	<div class="composer-header">
-		<span class="header-label">New post</span>
+		<button class="hdr-btn cancel-btn" onclick={onClose} disabled={loading} type="button">
+			Cancel
+		</button>
+		<span class="hdr-title">New post</span>
 		<button
-			class="post-btn"
-			class:has-content={hasContent}
+			class="hdr-btn post-btn"
+			class:ready={hasContent && !overLimit}
 			onclick={submitPost}
-			disabled={!hasContent || loading}
+			disabled={!hasContent || loading || overLimit}
 			type="button"
 		>
-			{#if loading}
-				Posting…
-			{:else}
-				Post
-			{/if}
+			{loading ? 'Posting…' : 'Post'}
 		</button>
 	</div>
 
 	{#if errorMessage}
-		<p class="error-message" role="alert">{errorMessage}</p>
+		<p class="error-msg" role="alert">{errorMessage}</p>
 	{/if}
 
-	<textarea
-		class="composer-textarea"
-		bind:this={textareaEl}
-		bind:value={text}
-		oninput={handleInput}
-		placeholder="What's on your mind?"
-		disabled={loading}
-		rows={3}
-		aria-label="Post content"
-	></textarea>
+	<!-- ── Scrollable body — grows with text, user can scroll to review ── -->
+	<div class="composer-body">
+		<textarea
+			class="composer-textarea"
+			bind:this={textareaEl}
+			bind:value={text}
+			oninput={handleInput}
+			placeholder="What's on your mind?"
+			disabled={loading}
+			aria-label="Post content"
+			autocomplete="off"
+			autocorrect="on"
+			spellcheck="true"
+		></textarea>
 
-	{#if previewUrls.length > 0 || selectedFiles.length < MAX_PHOTOS}
-		<div class="attachments-row">
-			{#each previewUrls as url, i (url)}
-				<div class="photo-preview">
-					<img src={url} alt="Photo {i + 1}" />
-					<button
-						class="remove-btn"
-						onclick={() => removePhoto(i)}
-						type="button"
-						aria-label="Remove photo {i + 1}"
-					>
-						<svg viewBox="0 0 12 12" fill="none" width="10" height="10" aria-hidden="true">
-							<path
-								d="M1 1l10 10M11 1L1 11"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-							/>
-						</svg>
-					</button>
-				</div>
-			{/each}
+		<!-- Photo grid — full-width cards, tap to preview, ✕ to remove -->
+		{#if previewUrls.length > 0}
+			<div class="photo-grid" class:single={previewUrls.length === 1}>
+				{#each previewUrls as url, i (url)}
+					<div class="photo-card">
+						<button
+							class="photo-tap"
+							onclick={() => openPhotoViewer(url)}
+							aria-label="View photo {i + 1}"
+							type="button"
+						>
+							<img src={url} alt="Photo {i + 1}" />
+						</button>
+						<button
+							class="remove-btn"
+							onclick={() => removePhoto(i)}
+							type="button"
+							aria-label="Remove photo {i + 1}"
+						>
+							<svg viewBox="0 0 12 12" width="10" height="10" fill="none" aria-hidden="true">
+								<path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+							</svg>
+						</button>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
 
+	<!-- ── Footer toolbar ── -->
+	<div class="composer-footer" bind:this={footerEl}>
+		<div class="footer-left">
 			{#if selectedFiles.length < MAX_PHOTOS}
 				<button
-					class="add-photo-btn"
+					class="footer-icon-btn"
 					onclick={triggerFileInput}
-					type="button"
 					disabled={loading}
+					type="button"
 					aria-label="Add photo"
 				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="24" height="24" aria-hidden="true">
-						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-						<circle cx="12" cy="13" r="4" />
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22" aria-hidden="true">
+						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+						<circle cx="12" cy="13" r="4"/>
 					</svg>
 				</button>
 			{/if}
 		</div>
-	{/if}
+		<span class="char-counter" class:warn={charsLeft <= 20} class:over={overLimit}>
+			{charsLeft}
+		</span>
+	</div>
 
 	<input
 		bind:this={fileInputEl}
 		type="file"
 		accept="image/*"
 		multiple
-		class="hidden-file-input"
+		class="sr-only"
 		onchange={handleFileChange}
 		disabled={loading}
 		aria-hidden="true"
@@ -231,177 +257,333 @@
 	/>
 </div>
 
+<!-- Full-screen photo viewer -->
+{#if viewingPhotoUrl}
+	<div class="photo-viewer" role="dialog" aria-label="Photo preview">
+		<button
+			class="viewer-backdrop"
+			onclick={closePhotoViewer}
+			aria-label="Close photo viewer"
+			type="button"
+		></button>
+		<img src={viewingPhotoUrl} alt="Full size preview" class="viewer-img" />
+		<button
+			class="viewer-close"
+			onclick={closePhotoViewer}
+			aria-label="Close"
+			type="button"
+		>
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">
+				<line x1="18" y1="6" x2="6" y2="18"/>
+				<line x1="6" y1="6" x2="18" y2="18"/>
+			</svg>
+		</button>
+	</div>
+{/if}
+
 <style>
-	.composer-backdrop {
+	/* ── Full-screen overlay ────────────────────────────────────────────────────── */
+	.composer {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		z-index: 159;
-	}
-
-	.composer-sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 85dvh;
-		border-radius: 24px 24px 0 0;
-		background: var(--color-surface, #1a1a1a);
 		z-index: 160;
-		transform: translateY(100%);
-		transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
+		background: var(--tg-bg, #111);
 		display: flex;
 		flex-direction: column;
-		overflow: hidden;
+		transform: translateY(100%);
+		transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+		/* Prevent interaction with content behind while animating */
+		pointer-events: none;
 	}
 
-	.composer-sheet.open {
+	.composer.open {
 		transform: translateY(0);
+		pointer-events: auto;
 	}
 
-	.drag-handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 2px;
-		background: rgba(255, 255, 255, 0.2);
-		margin: 12px auto 0;
-		flex-shrink: 0;
-	}
-
+	/* ── Header ─────────────────────────────────────────────────────────────────── */
 	.composer-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 12px 16px 8px;
+		padding: calc(var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) + 12px) 16px 12px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 		flex-shrink: 0;
 	}
 
-	.header-label {
+	.hdr-title {
 		font-size: 15px;
-		font-weight: 500;
-		color: var(--tg-hint, var(--color-text-muted, rgba(255, 255, 255, 0.5)));
+		font-weight: 600;
+		color: var(--tg-text, #f0f0f0);
+	}
+
+	.hdr-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 15px;
+		font-family: inherit;
+		padding: 4px 0;
+		min-width: 64px;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.cancel-btn {
+		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
+		text-align: left;
+	}
+
+	.cancel-btn:active {
+		opacity: 0.6;
 	}
 
 	.post-btn {
-		background: var(--tg-accent, #e05252);
-		color: white;
-		border: none;
-		border-radius: 20px;
-		padding: 6px 16px;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.25));
 		font-weight: 600;
-		font-size: 14px;
-		font-family: inherit;
-		cursor: pointer;
-		opacity: 0.35;
-		transition: opacity 150ms ease;
+		text-align: right;
+		transition: color 0.15s ease;
 	}
 
-	.post-btn.has-content:not(:disabled) {
-		opacity: 1;
+	.post-btn.ready {
+		color: var(--tg-accent, #e05252);
 	}
 
 	.post-btn:disabled {
-		cursor: not-allowed;
+		cursor: default;
 	}
 
-	.error-message {
+	/* ── Error ───────────────────────────────────────────────────────────────────── */
+	.error-msg {
 		font-size: 13px;
 		color: #e05252;
-		padding: 0 16px 4px;
+		padding: 8px 16px 0;
 		flex-shrink: 0;
 	}
 
+	/* ── Scrollable body ─────────────────────────────────────────────────────────── */
+	.composer-body {
+		flex: 1;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior: contain;
+		padding: 16px;
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	/* ── Textarea ────────────────────────────────────────────────────────────────── */
 	.composer-textarea {
 		background: none;
 		border: none;
 		outline: none;
-		font-size: 16px;
-		color: var(--color-text-primary, #f0f0f0);
+		font-size: 17px;
+		line-height: 1.55;
+		color: var(--tg-text, #f0f0f0);
 		width: 100%;
 		resize: none;
-		padding: 16px 16px 0;
-		min-height: 72px;
-		line-height: 1.5;
+		/* overflow: hidden so autoGrow drives height, not internal scroll */
+		overflow-y: hidden;
+		min-height: 120px;
 		font-family: inherit;
-		flex-shrink: 0;
 		box-sizing: border-box;
+		caret-color: var(--tg-accent, #e05252);
 	}
 
 	.composer-textarea::placeholder {
-		color: var(--tg-hint, rgba(255, 255, 255, 0.35));
+		color: var(--tg-hint, rgba(255, 255, 255, 0.3));
 	}
 
 	.composer-textarea:disabled {
 		opacity: 0.6;
 	}
 
-	.attachments-row {
-		display: flex;
-		gap: 8px;
-		padding: 12px 16px;
-		overflow-x: auto;
-		scrollbar-width: none;
-		flex-shrink: 0;
+	/* ── Photo grid ──────────────────────────────────────────────────────────────── */
+	.photo-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 6px;
 	}
 
-	.attachments-row::-webkit-scrollbar {
-		display: none;
+	/* Single photo: wider aspect ratio, more prominent */
+	.photo-grid.single {
+		grid-template-columns: 1fr;
 	}
 
-	.photo-preview {
+	.photo-grid.single .photo-card {
+		aspect-ratio: 4 / 3;
+	}
+
+	.photo-card {
 		position: relative;
-		flex-shrink: 0;
-		width: 80px;
-		height: 80px;
+		aspect-ratio: 1;
+		border-radius: 12px;
+		overflow: visible;
 	}
 
-	.photo-preview img {
+	.photo-tap {
+		display: block;
+		width: 100%;
+		height: 100%;
+		padding: 0;
+		border: none;
+		background: none;
+		cursor: pointer;
+		border-radius: 12px;
+		overflow: hidden;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.photo-tap img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		border-radius: 12px;
 		display: block;
+		border-radius: 12px;
+		transition: opacity 0.15s ease;
+	}
+
+	.photo-tap:active img {
+		opacity: 0.8;
 	}
 
 	.remove-btn {
 		position: absolute;
-		top: -6px;
-		right: -6px;
-		width: 20px;
-		height: 20px;
+		top: -8px;
+		right: -8px;
+		width: 24px;
+		height: 24px;
 		border-radius: 50%;
-		background: rgba(0, 0, 0, 0.7);
+		background: rgba(20, 20, 20, 0.9);
+		border: 1.5px solid rgba(255, 255, 255, 0.15);
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255, 255, 255, 0.85);
+		padding: 0;
+		z-index: 1;
+		-webkit-tap-highlight-color: transparent;
+		transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.remove-btn:active {
+		transform: scale(0.85);
+	}
+
+	/* ── Footer toolbar ──────────────────────────────────────────────────────────── */
+	.composer-footer {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 8px 16px calc(var(--safe-bottom, 0px) + 8px);
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		transition: padding-bottom 0.1s ease;
+	}
+
+	.footer-left {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+	}
+
+	.footer-icon-btn {
+		background: none;
 		border: none;
 		cursor: pointer;
+		padding: 8px;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
+		display: flex;
+		align-items: center;
+		border-radius: 8px;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.15s ease;
+	}
+
+	.footer-icon-btn:active {
+		color: var(--tg-text, #f0f0f0);
+	}
+
+	.footer-icon-btn:disabled {
+		opacity: 0.35;
+		cursor: not-allowed;
+	}
+
+	.char-counter {
+		font-size: 13px;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.3));
+		min-width: 32px;
+		text-align: right;
+		transition: color 0.15s ease;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.char-counter.warn {
+		color: rgba(255, 165, 0, 0.8);
+	}
+
+	.char-counter.over {
+		color: #e05252;
+		font-weight: 600;
+	}
+
+	/* ── Photo viewer ─────────────────────────────────────────────────────────────── */
+	.photo-viewer {
+		position: fixed;
+		inset: 0;
+		z-index: 300;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		animation: fadeIn 0.18s ease;
+	}
+
+	.viewer-backdrop {
+		position: absolute;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.93);
+		border: none;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.viewer-img {
+		position: relative;
+		z-index: 1;
+		max-width: 100%;
+		max-height: 90dvh;
+		object-fit: contain;
+		border-radius: 8px;
+		pointer-events: none;
+	}
+
+	.viewer-close {
+		position: absolute;
+		top: calc(var(--tg-content-top, env(safe-area-inset-top, 0px)) + 12px);
+		right: 16px;
+		z-index: 2;
+		background: rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		border: 1px solid rgba(255, 255, 255, 0.15);
+		cursor: pointer;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		color: white;
-		font-size: 12px;
-		padding: 0;
-		z-index: 1;
+		-webkit-tap-highlight-color: transparent;
 	}
 
-	.add-photo-btn {
-		flex-shrink: 0;
-		width: 80px;
-		height: 80px;
-		border-radius: 12px;
-		border: 1.5px dashed rgba(255, 255, 255, 0.2);
-		background: none;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: rgba(255, 255, 255, 0.4);
+	@keyframes fadeIn {
+		from { opacity: 0; }
+		to   { opacity: 1; }
 	}
 
-	.add-photo-btn:disabled {
-		cursor: not-allowed;
-		opacity: 0.5;
-	}
-
-	.hidden-file-input {
+	.sr-only {
 		display: none;
 	}
 </style>
