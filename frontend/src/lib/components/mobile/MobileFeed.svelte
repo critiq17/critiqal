@@ -8,9 +8,6 @@
 	import CommentSheet from './CommentSheet.svelte';
 	import { openProfile } from '$lib/stores/profile-nav.store';
 
-	// Lazy-load heavy composer
-	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
-
 	// Feed state mirrored from store
 	let posts = $state<Post[]>([]);
 	let isLoading = $state(false);
@@ -33,9 +30,6 @@
 
 	// Comment sheet
 	let openCommentSheetPostId = $state<number | null>(null);
-
-	// Composer
-	let composerOpen = $state(false);
 
 	// Pull-to-refresh
 	let isPulling = $state(false);
@@ -250,19 +244,6 @@
 		}
 	}
 
-	function prependPost(post: Post): void {
-		// Update store only; subscriber will sync posts
-		mobileFeedStore.update((s) => ({ ...s, posts: [post, ...s.posts] }));
-	}
-
-	async function openComposer(): Promise<void> {
-		if (!MobilePostComposer) {
-			const mod = await import('./MobilePostComposer.svelte');
-			MobilePostComposer = mod.default;
-		}
-		composerOpen = true;
-	}
-
 	onMount(() => {
 		// Subscriber only syncs local state — never triggers side-effects.
 		// fetchFeed is called once below, guarded by the 30-second cache.
@@ -346,25 +327,6 @@
 			<button class="retry-btn" onclick={() => fetchFeed()}>Retry</button>
 		</div>
 	{:else}
-		<!-- Compose prompt row -->
-		<div class="compose-prompt" onclick={openComposer} role="button" tabindex="0" onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') openComposer(); }}>
-			<div class="compose-avatar">
-				{#if authStore.user?.avatarUrl}
-					<img src={authStore.user.avatarUrl} alt="" class="compose-avatar-img" />
-				{:else}
-					<div class="compose-avatar-fallback">
-						{(authStore.user?.name ?? authStore.user?.username ?? '?').charAt(0).toUpperCase()}
-					</div>
-				{/if}
-			</div>
-			<span class="compose-placeholder">What's on your mind?</span>
-			<div class="compose-icon">
-				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-					<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-				</svg>
-			</div>
-		</div>
-
 		{#each posts as post (post.id)}
 			<article class="post-card">
 				<div class="post-card-inner">
@@ -497,17 +459,6 @@
 	onClose={() => (openCommentSheetPostId = null)}
 />
 
-<!-- Post composer (lazy-loaded) -->
-{#if MobilePostComposer && composerOpen}
-	<MobilePostComposer
-		open={composerOpen}
-		onClose={() => (composerOpen = false)}
-		onPosted={(post: Post) => {
-			prependPost(post);
-			composerOpen = false;
-		}}
-	/>
-{/if}
 
 <style>
 	.feed-container {
@@ -733,56 +684,6 @@
 		align-items: center;
 		gap: 4px;
 		padding-top: 4px;
-	}
-
-	/* Compose prompt */
-	.compose-prompt {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		padding: 12px 16px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-		cursor: pointer;
-		background: var(--color-surface, #111);
-	}
-
-	.compose-avatar {
-		width: 34px;
-		height: 34px;
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
-
-	.compose-avatar-img {
-		width: 34px;
-		height: 34px;
-		border-radius: 50%;
-		object-fit: cover;
-	}
-
-	.compose-avatar-fallback {
-		width: 34px;
-		height: 34px;
-		border-radius: 50%;
-		background: var(--color-surface-raised, #242424);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 13px;
-		font-weight: 600;
-		color: rgba(240, 240, 240, 0.6);
-	}
-
-	.compose-placeholder {
-		flex: 1;
-		font-size: 14px;
-		color: rgba(240, 240, 240, 0.3);
-	}
-
-	.compose-icon {
-		color: rgba(240, 240, 240, 0.3);
-		display: flex;
-		align-items: center;
 	}
 
 	/* Reactions */

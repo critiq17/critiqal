@@ -1,6 +1,7 @@
 <script lang="ts">
   import { activeTab } from '$lib/stores/mobile-tab.store';
   import type { MobileTab } from '$lib/stores/mobile-tab.store';
+  import { openCompose } from '$lib/stores/compose.store';
   import { getTelegramWebApp } from '$lib/telegram';
 
   let currentTab = $derived($activeTab);
@@ -8,6 +9,11 @@
   function selectTab(tab: MobileTab): void {
     activeTab.set(tab);
     getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
+  }
+
+  function handleCompose(): void {
+    getTelegramWebApp()?.HapticFeedback.impactOccurred('medium');
+    openCompose();
   }
 </script>
 
@@ -38,6 +44,14 @@
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
     <span class="dot" class:hidden={currentTab !== 'explore'}></span>
+  </button>
+
+  <!-- Centre compose button — not a tab, an action -->
+  <button class="compose-btn" aria-label="Create post" onclick={handleCompose}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
   </button>
 
   <button
@@ -115,5 +129,27 @@
 
   .dot.hidden {
     opacity: 0;
+  }
+
+  .compose-btn {
+    background: var(--tg-accent, #e05252);
+    border: none;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    flex-shrink: 0;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .compose-btn:active {
+    transform: scale(0.88);
+    opacity: 0.85;
   }
 </style>

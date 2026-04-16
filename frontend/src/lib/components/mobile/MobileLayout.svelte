@@ -6,6 +6,9 @@
 	import { profileNav } from '$lib/stores/profile-nav.store';
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
+	import { composeOpen, closeCompose } from '$lib/stores/compose.store';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import type { Post } from '$lib/types';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
@@ -16,6 +19,26 @@
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 	let currentTab = $state('feed');
 	let viewedUsername = $state<string | null>(null);
+
+	// Composer — owned at layout level so it works from any tab
+	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
+	let isComposerOpen = $state(false);
+
+	composeOpen.subscribe((open) => {
+		if (open && !MobilePostComposer) {
+			import('./MobilePostComposer.svelte').then((m) => {
+				MobilePostComposer = m.default;
+				isComposerOpen = true;
+			});
+		} else {
+			isComposerOpen = open;
+		}
+	});
+
+	function handlePosted(post: Post): void {
+		mobileFeedStore.update((s) => ({ ...s, posts: [post, ...s.posts] }));
+		closeCompose();
+	}
 
 	// Reference to the content div that gets pushed during overlay navigation
 	let contentEl: HTMLElement | null = null;
@@ -127,6 +150,14 @@
 
 {#if viewedUsername}
 	<UserProfileOverlay username={viewedUsername} />
+{/if}
+
+{#if MobilePostComposer && isComposerOpen}
+	<MobilePostComposer
+		open={isComposerOpen}
+		onClose={closeCompose}
+		onPosted={handlePosted}
+	/>
 {/if}
 
 <style>
