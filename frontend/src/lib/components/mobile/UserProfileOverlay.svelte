@@ -6,9 +6,11 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { closeProfile } from '$lib/stores/profile-nav.store';
 
-	// ── Swipe-to-dismiss ────────────────────────────────────────────────────────
-	let swipeX = $state(0);
-	let isDragging = $state(false);
+	// ── Swipe-to-dismiss (direct DOM, no Svelte re-render during drag) ──────────
+	// Using a ref + direct style.transform to stay at 60 fps.
+	// $state is intentionally NOT used for position — reactive writes cause a
+	// render-cycle delay that makes the drag feel sticky.
+	let overlayEl: HTMLElement | null = null;
 
 	let _touchStartX = 0;
 	let _touchStartY = 0;
@@ -16,9 +18,24 @@
 	let _lastX = 0;
 	let _lastT = 0;
 	let _velocity = 0;
+	let _currentX = 0; // plain var — mutated directly inside touch handlers
 
-	const DISMISS_RATIO = 0.35;   // fraction of screen width
-	const VELOCITY_PX_MS = 0.45; // px/ms fast-flick threshold
+	const DISMISS_RATIO = 0.35;
+	const VELOCITY_PX_MS = 0.45;
+
+	function _setTransform(x: number, animated: boolean, spring = false): void {
+		if (!overlayEl) return;
+		if (animated) {
+			const curve = spring
+				? 'cubic-bezier(0.34, 1.56, 0.64, 1)' // spring overshoot → settle
+				: 'cubic-bezier(0.4, 0, 1, 1)';        // accelerate-out for dismiss
+			const duration = spring ? '0.38s' : '0.24s';
+			overlayEl.style.transition = `transform ${duration} ${curve}`;
+		} else {
+			overlayEl.style.transition = 'none';
+		}
+		overlayEl.style.transform = `translateX(${x}px)`;
+	}
 
 	function onSwipeTouchStart(e: TouchEvent): void {
 		const t = e.touches[0];
@@ -28,6 +45,9 @@
 		_lastT = Date.now();
 		_dirLocked = null;
 		_velocity = 0;
+		_currentX = 0;
+		// Remove transition immediately so first move is instant
+		_setTransform(0, false);
 	}
 
 	function onSwipeTouchMove(e: TouchEvent): void {
@@ -35,15 +55,12 @@
 		const dx = t.clientX - _touchStartX;
 		const dy = t.clientY - _touchStartY;
 
-		// Lock direction on first 6px of movement
-		if (!_dirLocked && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
+		// Lock direction on first 5px — tight window for crisp detection
+		if (!_dirLocked && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
 			_dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
 		}
 
-		if (_dirLocked !== 'h' || dx < 0) {
-			if (isDragging) { isDragging = false; swipeX = 0; }
-			return;
-		}
+		if (_dirLocked !== 'h' || dx < 0) return;
 
 		const now = Date.now();
 		const dt = now - _lastT;
@@ -51,22 +68,23 @@
 		_lastX = t.clientX;
 		_lastT = now;
 
-		isDragging = true;
-		swipeX = dx;
+		_currentX = dx;
+		// Write directly to DOM — zero Svelte overhead
+		if (overlayEl) overlayEl.style.transform = `translateX(${dx}px)`;
 	}
 
 	function onSwipeTouchEnd(): void {
-		if (!isDragging) return;
-		isDragging = false;
+		if (_currentX <= 0) return;
 
 		const threshold = window.innerWidth * DISMISS_RATIO;
-		if (swipeX > threshold || _velocity > VELOCITY_PX_MS) {
+		if (_currentX > threshold || _velocity > VELOCITY_PX_MS) {
 			getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
-			swipeX = window.innerWidth;
-			setTimeout(() => closeProfile(), 290);
+			_setTransform(window.innerWidth, true, false);
+			setTimeout(() => closeProfile(), 260);
 		} else {
-			swipeX = 0;
+			_setTransform(0, true, true); // spring back
 		}
+		_currentX = 0;
 	}
 
 	interface Props {
@@ -190,8 +208,7 @@
 	class="overlay"
 	role="dialog"
 	aria-label={`${username}'s profile`}
-	style:transform="translateX({swipeX}px)"
-	style:transition={isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'}
+	bind:this={overlayEl}
 	ontouchstart={onSwipeTouchStart}
 	ontouchmove={onSwipeTouchMove}
 	ontouchend={onSwipeTouchEnd}
@@ -309,6 +326,9 @@
 		flex-direction: column;
 		animation: slideIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) both;
 		will-change: transform;
+		/* pan-y: browser handles vertical scroll natively (fast path),
+		   we own horizontal — removes the ~100ms touch-start delay */
+		touch-action: pan-y;
 	}
 
 	@keyframes slideIn {
