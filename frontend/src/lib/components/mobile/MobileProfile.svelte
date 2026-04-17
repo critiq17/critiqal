@@ -7,18 +7,8 @@
 	import { postService } from '$lib/services/post.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { DEFAULT_REACTIONS, REACTION_TYPES, REACTION_VISUALS } from '$lib/reactions';
 	import CommentSheet from './CommentSheet.svelte';
-
-	// ---------------------------------------------------------------------------
-	// Constants
-	// ---------------------------------------------------------------------------
-
-	const REACTION_IMGS: Record<ReactionType, string> = {
-		GIGACHAD: '/assets/reactions/GIGACHAD.png',
-		THE_ROCK: '/assets/reactions/THEROCK.png',
-		DAVID: '/assets/reactions/DAVID.png'
-	};
-	const REACTION_TYPES: ReactionType[] = ['GIGACHAD', 'THE_ROCK', 'DAVID'];
 
 	// ---------------------------------------------------------------------------
 	// State
@@ -130,7 +120,7 @@
 
 	function getReactionState(postId: number): PostReactionState {
 		return reactionStates.get(postId) ?? {
-			reactions: { GIGACHAD: 0, THE_ROCK: 0, DAVID: 0 },
+			reactions: { ...DEFAULT_REACTIONS },
 			myReaction: null,
 			loaded: false,
 			poppingType: null
@@ -151,7 +141,11 @@
 				postService.getReactions(postId),
 				postService.getMyReaction(postId).catch(() => undefined)
 			]);
-			setReactionState(postId, { reactions, myReaction: myReaction ?? null, loaded: true });
+			setReactionState(postId, {
+				reactions: { ...DEFAULT_REACTIONS, ...reactions },
+				myReaction: myReaction ?? null,
+				loaded: true
+			});
 		} catch {
 			// Non-critical
 		}
@@ -689,6 +683,7 @@
 						<div class="profile-action-row">
 							{#each REACTION_TYPES as type (type)}
 								{@const rs = getReactionState(post.id)}
+								{@const reactionVisual = REACTION_VISUALS[type]}
 								{@const isActive = rs.myReaction === type}
 								{@const isPopping = rs.poppingType === type}
 								<button
@@ -697,13 +692,23 @@
 									onclick={() => handleReaction(post, type)}
 									aria-label="{type} reaction, count {rs.reactions[type]}"
 								>
-									<img
-										src={REACTION_IMGS[type]}
-										alt={type}
-										class="p-reaction-img"
-										class:p-reaction-popping={isPopping}
-										loading="lazy"
-									/>
+									{#if reactionVisual.assetPath}
+										<img
+											src={reactionVisual.assetPath}
+											alt={reactionVisual.label}
+											class="p-reaction-img"
+											class:p-reaction-popping={isPopping}
+											loading="lazy"
+										/>
+									{:else}
+										<span
+											class="p-reaction-emoji"
+											class:p-reaction-popping={isPopping}
+											aria-hidden="true"
+										>
+											{reactionVisual.fallbackEmoji}
+										</span>
+									{/if}
 									{#if rs.reactions[type] > 0}
 										<span class="p-reaction-count">{rs.reactions[type]}</span>
 									{/if}
@@ -1442,6 +1447,16 @@
 		width: 20px;
 		height: 20px;
 		object-fit: contain;
+	}
+
+	.p-reaction-emoji {
+		width: 20px;
+		height: 20px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 17px;
+		line-height: 1;
 	}
 
 	.p-reaction-count {

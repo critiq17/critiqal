@@ -465,9 +465,25 @@
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem minmax(0, 42rem) 14rem;
+		grid-template-columns: 16rem 42rem 14rem;
 		justify-content: center;
-		min-height: 100vh;
+		height: 100vh;
+		overflow: hidden;
+	}
+
+	.col-left {
+		overflow-y: auto;
+		padding: 0 1.5rem 0 1rem;
+	}
+
+	.col-center {
+		overflow-y: auto;
+		padding: 0 2rem;
+	}
+
+	.col-right {
+		overflow-y: auto;
+		padding: 1.5rem 1rem 1.5rem 1.5rem;
 	}
 
 	.col-left {
@@ -480,7 +496,13 @@
 
 	.col-center {
 		padding: 0 2rem;
-		min-height: 100vh;
+		overflow-y: auto;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+
+	.col-center::-webkit-scrollbar {
+		display: none;
 	}
 
 	.col-right {

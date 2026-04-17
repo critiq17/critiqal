@@ -35,6 +35,21 @@ interface TelegramWebApp {
     onClick(fn: () => void): void;
     offClick(fn: () => void): void;
   };
+  MainButton: {
+    text: string;
+    isVisible: boolean;
+    isActive: boolean;
+    isProgressVisible: boolean;
+    setText(text: string): void;
+    show(): void;
+    hide(): void;
+    enable(): void;
+    disable(): void;
+    showProgress(leaveActive: boolean): void;
+    hideProgress(): void;
+    onClick(fn: () => void): void;
+    offClick(fn: () => void): void;
+  };
   HapticFeedback: {
     impactOccurred(style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft'): void;
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;

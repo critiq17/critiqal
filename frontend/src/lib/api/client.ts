@@ -2,6 +2,7 @@ import { ApiError } from '$lib/types';
 
 // Empty string = relative URLs (proxied via Vite dev server or same-origin in prod)
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
+const REQUEST_TIMEOUT_MS = 15000;
 
 let memoryToken: string | null = null;
 
@@ -15,10 +16,45 @@ function getStoredToken(): string | null {
 	return localStorage.getItem('auth_token');
 }
 
-function buildHeaders(authenticated: boolean): Record<string, string> {
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json'
-	};
+function isTunnelHost(hostname: string): boolean {
+	return (
+		hostname.includes('ngrok-free.app') ||
+		hostname.includes('ngrok.app') ||
+		hostname.includes('ngrok.io')
+	);
+}
+
+function shouldBypassTunnelWarning(): boolean {
+	if (import.meta.env.DEV) {
+		return true;
+	}
+
+	if (typeof window !== 'undefined' && isTunnelHost(window.location.hostname)) {
+		return true;
+	}
+
+	if (!BASE_URL) {
+		return false;
+	}
+
+	try {
+		return isTunnelHost(new URL(BASE_URL, 'http://localhost').hostname);
+	} catch {
+		return false;
+	}
+}
+
+function buildHeaders(
+	authenticated: boolean,
+	options: { json?: boolean } = {}
+): Record<string, string> {
+	const { json = true } = options;
+	const headers: Record<string, string> = {};
+
+	if (json) {
+		headers['Accept'] = 'application/json';
+		headers['Content-Type'] = 'application/json';
+	}
 
 	if (authenticated) {
 		const token = getStoredToken();
@@ -27,7 +63,36 @@ function buildHeaders(authenticated: boolean): Record<string, string> {
 		}
 	}
 
+	// Skip ngrok browser warning in Telegram WebView/tunnel environments.
+	if (shouldBypassTunnelWarning()) {
+		headers['ngrok-skip-browser-warning'] = 'true';
+	}
+
 	return headers;
+}
+
+function isAbortError(error: unknown): boolean {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'name' in error &&
+		error.name === 'AbortError'
+	);
+}
+
+function getUnexpectedResponseMessage(response: Response, text: string): string {
+	const trimmed = text.trim();
+	const contentType = response.headers.get('content-type') ?? '';
+
+	if (trimmed.startsWith('<!DOCTYPE html') || trimmed.startsWith('<html') || contentType.includes('text/html')) {
+		return 'Unexpected HTML response from API';
+	}
+
+	if (!response.ok) {
+		return response.statusText || `Request failed with status ${response.status}`;
+	}
+
+	return 'Unexpected non-JSON response from API';
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
@@ -45,7 +110,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 	try {
 		data = JSON.parse(text);
 	} catch {
-		throw new ApiError(response.status, text);
+		throw new ApiError(response.status, getUnexpectedResponseMessage(response, text));
 	}
 
 	if (!response.ok) {
@@ -67,34 +132,51 @@ interface RequestOptions {
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
 	const { body, authenticated = false } = options;
 
-	const response = await fetch(`${BASE_URL}${path}`, {
-		method,
-		headers: buildHeaders(authenticated),
-		body: body !== undefined ? JSON.stringify(body) : undefined,
-		credentials: 'include' // cookie-ready for future auth migration
-	});
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-	return parseResponse<T>(response);
+	try {
+		const response = await fetch(`${BASE_URL}${path}`, {
+			method,
+			headers: buildHeaders(authenticated),
+			body: body !== undefined ? JSON.stringify(body) : undefined,
+			credentials: 'include',
+			signal: controller.signal
+		});
+
+		return parseResponse<T>(response);
+	} catch (error) {
+		if (isAbortError(error)) {
+			throw new ApiError(408, 'Request timed out. Please try again.');
+		}
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
+	}
 }
 
 async function upload<T>(path: string, formData: FormData, authenticated = true): Promise<T> {
-	const headers: Record<string, string> = {};
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-	if (authenticated) {
-		const token = getStoredToken();
-		if (token) {
-			headers['Authorization'] = `Bearer ${token}`;
+	try {
+		const response = await fetch(`${BASE_URL}${path}`, {
+			method: 'POST',
+			headers: buildHeaders(authenticated, { json: false }),
+			body: formData,
+			credentials: 'include',
+			signal: controller.signal
+		});
+
+		return parseResponse<T>(response);
+	} catch (error) {
+		if (isAbortError(error)) {
+			throw new ApiError(408, 'Upload timed out. Please try again.');
 		}
+		throw error;
+	} finally {
+		clearTimeout(timeoutId);
 	}
-
-	const response = await fetch(`${BASE_URL}${path}`, {
-		method: 'POST',
-		headers,
-		body: formData,
-		credentials: 'include'
-	});
-
-	return parseResponse<T>(response);
 }
 
 export const apiClient = {

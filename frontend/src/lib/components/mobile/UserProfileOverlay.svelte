@@ -323,7 +323,7 @@
 								<p class="post-content">{post.content}</p>
 								{#if post.photos && post.photos.length > 0}
 									<div class="post-photos">
-										{#each post.photos.sort((a, b) => a.position - b.position).slice(0, 1) as photo (photo.id)}
+										{#each [...post.photos].sort((a, b) => a.position - b.position).slice(0, 1) as photo (photo.id)}
 											<img src={photo.url} alt="Post photo" class="post-photo" loading="lazy" />
 										{/each}
 										{#if post.photos.length > 1}

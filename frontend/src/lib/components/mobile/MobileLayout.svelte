@@ -36,7 +36,7 @@
 	});
 
 	function handlePosted(post: Post): void {
-		mobileFeedStore.update((s) => ({ ...s, posts: [post, ...s.posts] }));
+		mobileFeedStore.prependPost(post);
 		closeCompose();
 		activeTab.set('feed'); // Navigate to feed so user sees the new post immediately
 	}

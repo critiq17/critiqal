@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { Post } from '$lib/types';
 	import { postService } from '$lib/services/post.service';
 	import { mediaService } from '$lib/services/media.service';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { showBackButton, showMainButton, setMainButtonLoading, setMainButtonEnabled } from '$lib/tma/buttons';
 
 	interface Props {
 		open: boolean;
@@ -30,6 +31,11 @@
 	let hasContent = $derived(text.trim().length > 0);
 	let charsLeft = $derived(MAX_CHARS - text.length);
 	let overLimit = $derived(charsLeft < 0);
+
+	// Keep MainButton enabled/disabled in sync with form validity
+	$effect(() => {
+		setMainButtonEnabled(hasContent && !overLimit && !loading);
+	});
 
 	// ── textarea auto-grow ───────────────────────────────────────────────────────
 	function autoGrow(el: HTMLTextAreaElement): void {
@@ -92,6 +98,7 @@
 
 		loading = true;
 		errorMessage = '';
+		setMainButtonLoading(true);
 
 		try {
 			const newPost = await postService.create({ content });
@@ -115,12 +122,20 @@
 		} catch (err: unknown) {
 			errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
 			loading = false;
+			setMainButtonLoading(false);
 		}
 	}
 
-	// ── keyboard avoidance ───────────────────────────────────────────────────────
-	// Push the footer above the software keyboard when it appears.
+	// ── native TG buttons ───────────────────────────────────────────────────────
+	let cleanupBackButton: (() => void) | null = null;
+	let cleanupMainButton: (() => void) | null = null;
+
 	onMount(() => {
+		cleanupBackButton = showBackButton(onClose);
+		cleanupMainButton = showMainButton('Post', submitPost);
+		// Start disabled — $effect will enable when content is valid
+		setMainButtonEnabled(false);
+
 		// Small delay so the open animation settles before keyboard appears
 		const focusTimer = setTimeout(() => {
 			if (textareaEl) {
@@ -146,6 +161,11 @@
 			window.visualViewport?.removeEventListener('scroll', vpHandler);
 		};
 	});
+
+	onDestroy(() => {
+		cleanupBackButton?.();
+		cleanupMainButton?.();
+	});
 </script>
 
 <!-- Full-screen overlay — slides up from bottom, same pattern as UserProfileOverlay -->
@@ -156,23 +176,6 @@
 	aria-modal="true"
 	aria-label="New post"
 >
-	<!-- ── Header ── -->
-	<div class="composer-header">
-		<button class="hdr-btn cancel-btn" onclick={onClose} disabled={loading} type="button">
-			Cancel
-		</button>
-		<span class="hdr-title">New post</span>
-		<button
-			class="hdr-btn post-btn"
-			class:ready={hasContent && !overLimit}
-			onclick={submitPost}
-			disabled={!hasContent || loading || overLimit}
-			type="button"
-		>
-			{loading ? 'Posting…' : 'Post'}
-		</button>
-	</div>
-
 	{#if errorMessage}
 		<p class="error-msg" role="alert">{errorMessage}</p>
 	{/if}
@@ -188,7 +191,6 @@
 			disabled={loading}
 			aria-label="Post content"
 			autocomplete="off"
-			autocorrect="on"
 			spellcheck="true"
 		></textarea>
 
@@ -301,57 +303,6 @@
 		pointer-events: auto;
 	}
 
-	/* ── Header ─────────────────────────────────────────────────────────────────── */
-	.composer-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: calc(var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) + 12px) 16px 12px;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-		flex-shrink: 0;
-	}
-
-	.hdr-title {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--tg-text, #f0f0f0);
-	}
-
-	.hdr-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 15px;
-		font-family: inherit;
-		padding: 4px 0;
-		min-width: 64px;
-		-webkit-tap-highlight-color: transparent;
-	}
-
-	.cancel-btn {
-		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
-		text-align: left;
-	}
-
-	.cancel-btn:active {
-		opacity: 0.6;
-	}
-
-	.post-btn {
-		color: var(--tg-hint, rgba(255, 255, 255, 0.25));
-		font-weight: 600;
-		text-align: right;
-		transition: color 0.15s ease;
-	}
-
-	.post-btn.ready {
-		color: var(--tg-accent, #e05252);
-	}
-
-	.post-btn:disabled {
-		cursor: default;
-	}
-
 	/* ── Error ───────────────────────────────────────────────────────────────────── */
 	.error-msg {
 		font-size: 13px;
@@ -366,7 +317,7 @@
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior: contain;
-		padding: 16px;
+		padding: calc(var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) + 16px) 16px 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 16px;

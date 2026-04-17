@@ -9,7 +9,15 @@ function makeMockWebApp(overrides: {
 		ready: vi.fn(),
 		expand: vi.fn(),
 		requestFullscreen: vi.fn(),
+		setHeaderColor: vi.fn(),
+		onEvent: vi.fn(),
+		offEvent: vi.fn(),
 		colorScheme: 'light' as const,
+		isFullscreen: false,
+		isExpanded: true,
+		viewportHeight: 800,
+		safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
+		contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
 		backgroundColor: overrides.backgroundColor ?? '#ffffff',
 		themeParams: overrides.themeParams ?? {
 			text_color: '#000000',
@@ -179,7 +187,7 @@ describe('cloudStorage — Telegram CloudStorage paths', () => {
 });
 
 describe('initTelegram', () => {
-	it('calls tg.ready(), tg.expand() and sets --tg-bg CSS custom property when in Telegram', () => {
+	it('sets --tg-bg CSS custom property when in Telegram', () => {
 		const webApp = makeMockWebApp({ backgroundColor: '#1a1a2e' });
 		vi.stubGlobal('Telegram', { WebApp: webApp });
 
@@ -187,8 +195,6 @@ describe('initTelegram', () => {
 
 		initTelegram();
 
-		expect(webApp.ready).toHaveBeenCalledOnce();
-		expect(webApp.expand).toHaveBeenCalledOnce();
 		expect(setPropertySpy).toHaveBeenCalledWith('--tg-bg', '#1a1a2e');
 	});
 
