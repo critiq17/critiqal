@@ -33,8 +33,6 @@
 	let overLimit = $derived(charsLeft < 0);
 	let canPost = $derived(hasContent && !overLimit && !loading);
 
-	// JS-driven safe area top offset — CSS vars may not be set in time on mount
-	let safeTop = $state(0);
 	// True when TG native MainButton is confirmed active → hides in-page Post btn
 	let hasTgMainButton = $state(false);
 
@@ -135,33 +133,16 @@
 	// ── native TG buttons (platform-guarded) ────────────────────────────────────
 	let cleanupBackButton: (() => void) | null = null;
 	let cleanupMainButton: (() => void) | null = null;
-	let safeAreaCleanup: (() => void) | null = null;
 
 	onMount(() => {
 		const tg = getTelegramWebApp();
 
-		if (tg) {
-			// JS-driven safe area — CSS vars may not be ready at mount time
-			const readSafeTop = (): void => {
-				safeTop = (tg.safeAreaInset?.top ?? 0) + (tg.contentSafeAreaInset?.top ?? 0);
-			};
-			readSafeTop();
-			tg.onEvent('safeAreaChanged', readSafeTop);
-			tg.onEvent('contentSafeAreaChanged', readSafeTop);
-			safeAreaCleanup = () => {
-				tg.offEvent('safeAreaChanged', readSafeTop);
-				tg.offEvent('contentSafeAreaChanged', readSafeTop);
-			};
-
-			// Native buttons only on a real TMA client (not browser dev shell)
-			if (tg.platform && tg.platform !== 'unknown') {
-				cleanupBackButton = showBackButton(onClose);
-				cleanupMainButton = showMainButton('Post', submitPost);
-				setMainButtonEnabled(false);
-				hasTgMainButton = true;
-			}
-		} else {
-			safeTop = 48; // browser dev-mode fallback
+		// Native buttons only on a real TMA client (not browser dev shell)
+		if (tg?.platform && tg.platform !== 'unknown') {
+			cleanupBackButton = showBackButton(onClose);
+			cleanupMainButton = showMainButton('Post', submitPost);
+			setMainButtonEnabled(false);
+			hasTgMainButton = true;
 		}
 
 		// Small delay so the open animation settles before keyboard appears
@@ -191,7 +172,6 @@
 	});
 
 	onDestroy(() => {
-		safeAreaCleanup?.();
 		cleanupBackButton?.();
 		cleanupMainButton?.();
 	});
@@ -206,7 +186,7 @@
 	aria-label="New post"
 >
 	<!-- ── Header — always rendered; Post btn hidden when native MainButton is active ── -->
-	<div class="composer-header" style="padding-top: {safeTop + 8}px">
+	<div class="composer-header">
 		<button class="cancel-btn" onclick={onClose} disabled={loading} type="button">
 			Cancel
 		</button>
@@ -358,12 +338,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		padding-top: max(
+			var(--tg-content-safe-area-inset-top, 0px),
+			calc(env(safe-area-inset-top, 20px) + 44px)
+		);
 		padding-left: 16px;
 		padding-right: 16px;
 		padding-bottom: 10px;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 		flex-shrink: 0;
-		/* padding-top is set inline via JS-driven safeTop */
 	}
 
 	.hdr-title {

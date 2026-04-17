@@ -304,6 +304,11 @@
 	ontouchmove={onPullTouchMove}
 	ontouchend={onPullTouchEnd}
 >
+	<!-- Sticky brand bar — top padding clears TG chrome; sticks while scrolling -->
+	<div class="feed-brand-bar">
+		<span class="feed-brand-text">critiqal</span>
+	</div>
+
 	{#if isLoading && posts.length === 0}
 		<div class="feed-state">
 			<div class="skeleton-card"></div>
@@ -468,11 +473,36 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 		scrollbar-width: none;
-		/* In fullscreen mode --tg-content-top = transparent Telegram header height.
-		   Pushes the compose prompt and feed below the transparent header overlay. */
-		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
+		padding-top: 0;
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
+	}
+
+	/* ── Brand bar ─────────────────────────────────────────────────────────────── */
+	/* sticky + padding-top = TG chrome height keeps "critiqal" anchored just below
+	   the transparent header at all scroll positions. CSS max() ensures the offset
+	   is correct even when TG SDK CSS vars return 0 (older clients). */
+	.feed-brand-bar {
+		position: sticky;
+		top: 0;
+		z-index: 10;
+		background: var(--tg-bg, #111);
+		padding-top: max(
+			var(--tg-content-safe-area-inset-top, 0px),
+			calc(env(safe-area-inset-top, 20px) + 44px)
+		);
+		padding-left: 16px;
+		padding-right: 16px;
+		padding-bottom: 10px;
+	}
+
+	.feed-brand-text {
+		font-size: 12px;
+		font-weight: 300;
+		letter-spacing: 0.1em;
+		color: rgba(240, 240, 240, 0.35);
+		text-transform: lowercase;
+		display: block;
 	}
 
 	.feed-container::-webkit-scrollbar {
@@ -482,7 +512,10 @@
 	/* Pull-to-refresh indicator */
 	.refresh-indicator {
 		position: absolute;
-		top: 12px;
+		top: max(
+			calc(var(--tg-content-safe-area-inset-top, 0px) + 12px),
+			calc(env(safe-area-inset-top, 20px) + 44px + 12px)
+		);
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 10;
