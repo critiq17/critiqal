@@ -13,6 +13,7 @@ interface TelegramWebApp {
   setHeaderColor(color: string): void;
   isFullscreen: boolean;
   isExpanded: boolean;
+  platform: string;
   viewportHeight: number;
   safeAreaInset: SafeAreaInset;
   contentSafeAreaInset: SafeAreaInset;

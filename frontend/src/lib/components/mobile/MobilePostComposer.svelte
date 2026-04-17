@@ -31,10 +31,16 @@
 	let hasContent = $derived(text.trim().length > 0);
 	let charsLeft = $derived(MAX_CHARS - text.length);
 	let overLimit = $derived(charsLeft < 0);
+	let canPost = $derived(hasContent && !overLimit && !loading);
 
-	// Keep MainButton enabled/disabled in sync with form validity
+	// JS-driven safe area top offset — CSS vars may not be set in time on mount
+	let safeTop = $state(0);
+	// True when TG native MainButton is confirmed active → hides in-page Post btn
+	let hasTgMainButton = $state(false);
+
+	// Sync native MainButton enabled state when it's active
 	$effect(() => {
-		setMainButtonEnabled(hasContent && !overLimit && !loading);
+		if (hasTgMainButton) setMainButtonEnabled(canPost);
 	});
 
 	// ── textarea auto-grow ───────────────────────────────────────────────────────
@@ -98,7 +104,7 @@
 
 		loading = true;
 		errorMessage = '';
-		setMainButtonLoading(true);
+		if (hasTgMainButton) setMainButtonLoading(true);
 
 		try {
 			const newPost = await postService.create({ content });
@@ -122,19 +128,41 @@
 		} catch (err: unknown) {
 			errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
 			loading = false;
-			setMainButtonLoading(false);
+			if (hasTgMainButton) setMainButtonLoading(false);
 		}
 	}
 
-	// ── native TG buttons ───────────────────────────────────────────────────────
+	// ── native TG buttons (platform-guarded) ────────────────────────────────────
 	let cleanupBackButton: (() => void) | null = null;
 	let cleanupMainButton: (() => void) | null = null;
+	let safeAreaCleanup: (() => void) | null = null;
 
 	onMount(() => {
-		cleanupBackButton = showBackButton(onClose);
-		cleanupMainButton = showMainButton('Post', submitPost);
-		// Start disabled — $effect will enable when content is valid
-		setMainButtonEnabled(false);
+		const tg = getTelegramWebApp();
+
+		if (tg) {
+			// JS-driven safe area — CSS vars may not be ready at mount time
+			const readSafeTop = (): void => {
+				safeTop = (tg.safeAreaInset?.top ?? 0) + (tg.contentSafeAreaInset?.top ?? 0);
+			};
+			readSafeTop();
+			tg.onEvent('safeAreaChanged', readSafeTop);
+			tg.onEvent('contentSafeAreaChanged', readSafeTop);
+			safeAreaCleanup = () => {
+				tg.offEvent('safeAreaChanged', readSafeTop);
+				tg.offEvent('contentSafeAreaChanged', readSafeTop);
+			};
+
+			// Native buttons only on a real TMA client (not browser dev shell)
+			if (tg.platform && tg.platform !== 'unknown') {
+				cleanupBackButton = showBackButton(onClose);
+				cleanupMainButton = showMainButton('Post', submitPost);
+				setMainButtonEnabled(false);
+				hasTgMainButton = true;
+			}
+		} else {
+			safeTop = 48; // browser dev-mode fallback
+		}
 
 		// Small delay so the open animation settles before keyboard appears
 		const focusTimer = setTimeout(() => {
@@ -163,6 +191,7 @@
 	});
 
 	onDestroy(() => {
+		safeAreaCleanup?.();
 		cleanupBackButton?.();
 		cleanupMainButton?.();
 	});
@@ -176,6 +205,27 @@
 	aria-modal="true"
 	aria-label="New post"
 >
+	<!-- ── Header — always rendered; Post btn hidden when native MainButton is active ── -->
+	<div class="composer-header" style="padding-top: {safeTop + 8}px">
+		<button class="cancel-btn" onclick={onClose} disabled={loading} type="button">
+			Cancel
+		</button>
+		<span class="hdr-title">New post</span>
+		{#if !hasTgMainButton}
+			<button
+				class="post-btn"
+				class:ready={canPost}
+				onclick={submitPost}
+				disabled={!canPost}
+				type="button"
+			>
+				{loading ? '…' : 'Post'}
+			</button>
+		{:else}
+			<span class="hdr-space" aria-hidden="true"></span>
+		{/if}
+	</div>
+
 	{#if errorMessage}
 		<p class="error-msg" role="alert">{errorMessage}</p>
 	{/if}
@@ -303,6 +353,73 @@
 		pointer-events: auto;
 	}
 
+	/* ── Header ─────────────────────────────────────────────────────────────────── */
+	.composer-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding-left: 16px;
+		padding-right: 16px;
+		padding-bottom: 10px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		flex-shrink: 0;
+		/* padding-top is set inline via JS-driven safeTop */
+	}
+
+	.hdr-title {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--tg-text, #f0f0f0);
+	}
+
+	.cancel-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 15px;
+		font-family: inherit;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
+		padding: 6px 0;
+		min-width: 64px;
+		text-align: left;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.cancel-btn:active {
+		opacity: 0.6;
+	}
+
+	.cancel-btn:disabled {
+		cursor: default;
+	}
+
+	.post-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 15px;
+		font-weight: 600;
+		font-family: inherit;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.25));
+		padding: 6px 0;
+		min-width: 64px;
+		text-align: right;
+		transition: color 0.15s ease;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.post-btn.ready {
+		color: var(--tg-accent, #e05252);
+	}
+
+	.post-btn:disabled {
+		cursor: default;
+	}
+
+	.hdr-space {
+		min-width: 64px;
+	}
+
 	/* ── Error ───────────────────────────────────────────────────────────────────── */
 	.error-msg {
 		font-size: 13px;
@@ -317,7 +434,7 @@
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior: contain;
-		padding: calc(var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))) + 16px) 16px 16px;
+		padding: 16px;
 		display: flex;
 		flex-direction: column;
 		gap: 16px;
