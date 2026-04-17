@@ -20,6 +20,7 @@
 				// requestFullscreen (Bot API 8.0+) makes the header fully transparent
 				// and extends the app to the full device screen including status bar.
 				try { tg.requestFullscreen && tg.requestFullscreen(); } catch(e) {}
+				try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e) {}
 
 				function applyViewport() {
 					var h = tg.viewportHeight || window.innerHeight;
@@ -27,15 +28,22 @@
 
 					// contentSafeAreaInset = space taken by transparent Telegram UI (header/footer)
 					// in fullscreen mode. Also set by Telegram SDK as --tg-content-safe-area-inset-*.
+					// Only set when > 0: setting 0px explicitly would block the CSS fallback chain
+					// that relies on --tg-content-safe-area-inset-top (auto-set by TG SDK).
 					var ci = tg.contentSafeAreaInset;
-					if (ci) {
+					if (ci && ci.top > 0) {
 						document.documentElement.style.setProperty('--tg-content-top', ci.top + 'px');
+					}
+					if (ci && ci.bottom > 0) {
 						document.documentElement.style.setProperty('--tg-content-bottom', ci.bottom + 'px');
 					}
 				}
 
 				tg.onEvent('viewportChanged', applyViewport);
 				tg.onEvent('fullscreenChanged', applyViewport);
+				// safeAreaChanged fires when safe area insets update (can lag behind fullscreenChanged)
+				tg.onEvent('safeAreaChanged', applyViewport);
+				tg.onEvent('contentSafeAreaChanged', applyViewport);
 				tg.onEvent('themeChanged', function() {
 					tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
 				});

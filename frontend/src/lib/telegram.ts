@@ -28,6 +28,7 @@ interface TelegramWebApp {
     bg_color?: string;
     secondary_bg_color?: string;
   };
+  disableVerticalSwipes?(): void;
   BackButton: {
     show(): void;
     hide(): void;
@@ -89,8 +90,10 @@ function applyViewportVars(tg: TelegramWebApp): void {
   // Telegram SDK sets --tg-content-safe-area-inset-* CSS vars automatically (Bot API 8.0+),
   // but we also set our own vars as fallback for older clients.
   const content = tg.contentSafeAreaInset;
-  if (content) {
+  if (content && content.top > 0) {
     root.style.setProperty('--tg-content-top', content.top + 'px');
+  }
+  if (content && content.bottom > 0) {
     root.style.setProperty('--tg-content-bottom', content.bottom + 'px');
   }
 }
@@ -116,8 +119,13 @@ export function initTelegram(): void {
 
   tg.onEvent('viewportChanged', () => applyViewportVars(tg));
   tg.onEvent('themeChanged', () => applyThemeVars(tg));
-  // Re-apply viewport vars when fullscreen state changes to pick up new contentSafeAreaInset
   tg.onEvent('fullscreenChanged', () => applyViewportVars(tg));
+  // safeAreaChanged / contentSafeAreaChanged can fire after fullscreenChanged
+  // with the actual non-zero inset values — must listen to both.
+  tg.onEvent('safeAreaChanged', () => applyViewportVars(tg));
+  tg.onEvent('contentSafeAreaChanged', () => applyViewportVars(tg));
+
+  tg.disableVerticalSwipes?.();
 }
 
 export const cloudStorage = {
