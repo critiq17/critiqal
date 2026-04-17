@@ -7,6 +7,7 @@
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
 	import { composeOpen, closeCompose } from '$lib/stores/compose.store';
+	import { anySheetOpen } from '$lib/stores/sheet.store';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
 	import type { Post } from '$lib/types';
 	import BottomNav from './BottomNav.svelte';
@@ -145,7 +146,9 @@
 				<MobileProfile />
 			</div>
 		</div>
-		<BottomNav />
+		{#if !$anySheetOpen}
+			<BottomNav />
+		{/if}
 	{/if}
 </div>
 

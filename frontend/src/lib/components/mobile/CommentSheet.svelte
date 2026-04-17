@@ -4,6 +4,7 @@
 	import { postService } from '$lib/services';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openProfile } from '$lib/stores/profile-nav.store';
+	import { openSheet } from '$lib/stores/sheet.store';
 
 	interface Props {
 		postId: number;
@@ -144,16 +145,20 @@
 		}
 	}
 
-	// Telegram BackButton + load on open
+	// Telegram BackButton + load on open + hide bottom nav
+	let _closeSheet: (() => void) | null = null;
 	$effect(() => {
 		const tg = getTelegramWebApp();
 		if (open) {
 			loadComments();
+			_closeSheet = openSheet();
 			if (tg) {
 				tg.BackButton.show();
 				tg.BackButton.onClick(onClose);
 			}
 		} else {
+			_closeSheet?.();
+			_closeSheet = null;
 			if (tg) {
 				tg.BackButton.hide();
 				tg.BackButton.offClick(onClose);
