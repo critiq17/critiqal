@@ -29,18 +29,18 @@ public class PostController {
     MediaService mediaService;
 
     @GET
-    public List<PostDTO> getFeed() {
-        return postService.getLatestFeed().stream()
-                .map(PostDTO::from)
-                .toList();
+    public PageResponse<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {
+        return postService.getLatestFeed(pageRequest.page(), pageRequest.size())
+                .map(PostDTO::from);
     }
 
     @GET
     @Path("/search")
-    public List<PostDTO> search(@QueryParam("q") String query) {
-        return postService.search(query).stream()
-                .map(PostDTO::from)
-                .toList();
+    public PageResponse<PostDTO> search(
+            @QueryParam("q") String query,
+            @BeanParam PageRequest pageRequest) {
+        return postService.search(query, pageRequest.page(), pageRequest.size())
+                .map(PostDTO::from);
     }
 
     @GET

@@ -7,6 +7,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
+import org.acme.api.dtos.PageRequest;
+import org.acme.api.dtos.PageResponse;
 import org.acme.api.dtos.PostDTO;
 import org.acme.api.dtos.UpdateProfileRequest;
 import org.acme.api.dtos.UserDTO;
@@ -90,11 +92,12 @@ public class UserController {
 
     @GET
     @Path("/{username}/posts")
-    public List<PostDTO> getUserPosts(@PathParam("username") String username) {
+    public PageResponse<PostDTO> getUserPosts(
+            @PathParam("username") String username,
+            @BeanParam PageRequest pageRequest) {
         var user = userService.getByUsername(username);
-        return postService.getUserPost(user.id).stream()
-                .map(PostDTO::from)
-                .toList();
+        return postService.getUserPost(user.id, pageRequest.page(), pageRequest.size())
+                .map(PostDTO::from);
     }
 
     private Long extractUserId(SecurityContext ctx) {

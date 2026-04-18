@@ -16,7 +16,7 @@
 	let posts = $state<Post[]>([]);
 	let isLoading = $state(false);
 	let isLoadingMore = $state(false);
-	let page = $state(0);
+	let hasNext = $state(false);
 	let feedError = $state<string | null>(null);
 
 	// Per-post reaction state
@@ -44,10 +44,6 @@
 
 	// Scroll container ref
 	let containerEl = $state<HTMLElement | null>(null);
-
-	// Sentinel for infinite scroll
-	let sentinelEl = $state<HTMLElement | null>(null);
-	let observer: IntersectionObserver | null = null;
 
 	// Refresh indicator
 	let isRefreshing = $state(false);
@@ -180,17 +176,18 @@
 
 	async function loadMorePosts(): Promise<void> {
 		if (isLoadingMore) return;
-		isLoadingMore = true;
-		try {
-			const nextPage = page + 1;
-			// postService.getFeed doesn't currently accept a page param;
-			// if pagination is added later, pass nextPage here.
-			// For now, simply mark as done to avoid infinite loop.
-			page = nextPage;
-			mobileFeedStore.setPage(nextPage);
-		} finally {
-			isLoadingMore = false;
-		}
+		await mobileFeedStore.loadMore();
+	}
+
+	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
+		const obs = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && !isLoadingMore) loadMorePosts();
+			},
+			{ threshold: 0.1 }
+		);
+		obs.observe(el);
+		return { destroy: () => obs.disconnect() };
 	}
 
 	// Pull-to-refresh touch handlers
@@ -250,7 +247,8 @@
 		const unsub = mobileFeedStore.subscribe((s) => {
 			posts = s.posts;
 			isLoading = s.status === 'loading';
-			page = s.page;
+			isLoadingMore = s.isLoadingMore;
+			hasNext = s.hasNext;
 			feedError = s.error;
 
 			// Trigger fetch on first store update if posts are empty
@@ -265,22 +263,8 @@
 			}
 		});
 
-		// IntersectionObserver for infinite scroll
-		if (sentinelEl) {
-			observer = new IntersectionObserver(
-				(entries) => {
-					if (entries[0].isIntersecting && !isLoadingMore && posts.length > 0) {
-						loadMorePosts();
-					}
-				},
-				{ threshold: 0.1 }
-			);
-			observer.observe(sentinelEl);
-		}
-
 		return () => {
 			unsub();
-			observer?.disconnect();
 		};
 	});
 </script>
@@ -470,8 +454,10 @@
 			</article>
 		{/each}
 
-		<!-- Infinite scroll sentinel -->
-		<div class="scroll-sentinel" bind:this={sentinelEl}></div>
+		<!-- Infinite scroll sentinel — only rendered when more pages exist -->
+		{#if hasNext}
+			<div class="scroll-sentinel" use:infiniteScroll></div>
+		{/if}
 
 		{#if isLoadingMore}
 			<div class="loading-more">Loading…</div>
