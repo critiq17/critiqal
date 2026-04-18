@@ -8,6 +8,8 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { DEFAULT_REACTIONS, REACTION_TYPES, REACTION_VISUALS } from '$lib/reactions';
+	import { openSheet } from '$lib/stores/sheet.store';
+	import { viewTracker } from '$lib/utils/viewTracker';
 	import CommentSheet from './CommentSheet.svelte';
 
 	// ---------------------------------------------------------------------------
@@ -61,6 +63,11 @@
 	// Settings bottom sheet
 	let settingsOpen = $state(false);
 
+	// Sheet cleanup functions (registered with global sheet store so BottomNav hides)
+	let closeStatsSheet_: (() => void) | null = null;
+	let closePostSheet_: (() => void) | null = null;
+	let closeSettings_: (() => void) | null = null;
+
 	// Drag-to-dismiss shared state (reused per sheet via a helper)
 	let statsDragY = $state(0);
 	let statsIsDragging = $state(false);
@@ -87,6 +94,17 @@
 	// ---------------------------------------------------------------------------
 	// Helpers
 	// ---------------------------------------------------------------------------
+
+	function formatViews(n: number): string {
+		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+		return String(n);
+	}
+
+	function trackView(el: HTMLElement, postId: number): { destroy: () => void } {
+		const cleanup = viewTracker.observe(el, postId, authStore.isAuthenticated);
+		return { destroy: cleanup };
+	}
 
 	function formatCount(n: number): string {
 		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -299,12 +317,15 @@
 
 	function openStatsSheet(type: 'followers' | 'following'): void {
 		statsSheetType = type;
+		closeStatsSheet_ = openSheet();
 	}
 
 	function closeStatsSheet(): void {
 		statsSheetType = null;
 		statsDragY = 0;
 		if (statsSheetEl) statsSheetEl.style.transform = '';
+		closeStatsSheet_?.();
+		closeStatsSheet_ = null;
 	}
 
 	function onStatsTouchStart(e: TouchEvent): void {
@@ -337,12 +358,15 @@
 
 	function openPostSheet(post: Post): void {
 		selectedPost = post;
+		closePostSheet_ = openSheet();
 	}
 
 	function closePostSheet(): void {
 		selectedPost = null;
 		postDragY = 0;
 		if (postSheetEl) postSheetEl.style.transform = '';
+		closePostSheet_?.();
+		closePostSheet_ = null;
 	}
 
 	function onPostTouchStart(e: TouchEvent): void {
@@ -375,12 +399,15 @@
 
 	function openSettings(): void {
 		settingsOpen = true;
+		closeSettings_ = openSheet();
 	}
 
 	function closeSettings(): void {
 		settingsOpen = false;
 		settingsDragY = 0;
 		if (settingsSheetEl) settingsSheetEl.style.transform = '';
+		closeSettings_?.();
+		closeSettings_ = null;
 	}
 
 	function onSettingsTouchStart(e: TouchEvent): void {
@@ -404,6 +431,24 @@
 		} else {
 			settingsDragY = 0;
 			if (settingsSheetEl) settingsSheetEl.style.transform = '';
+		}
+	}
+
+	function openSupport(): void {
+		const tg = getTelegramWebApp();
+		if (tg) {
+			tg.openTelegramLink('https://t.me/critiq1');
+		} else {
+			window.open('https://t.me/critiq1', '_blank');
+		}
+	}
+
+	function openDesktopVersion(): void {
+		const tg = getTelegramWebApp();
+		if (tg) {
+			tg.openLink('https://dev.critiqal.xyz');
+		} else {
+			window.open('https://dev.critiqal.xyz', '_blank');
 		}
 	}
 
@@ -666,7 +711,7 @@
 		{:else}
 			<div class="profile-feed" role="list" aria-label="Posts">
 				{#each posts as post (post.id)}
-					<article class="profile-post-card" role="listitem">
+					<article class="profile-post-card" role="listitem" use:trackView={post.id}>
 						<p class="profile-post-content">{post.content}</p>
 
 						{#if post.photos && post.photos.length > 0}
@@ -715,7 +760,15 @@
 								</button>
 							{/each}
 
-							<button
+							<span class="p-view-count" aria-label="{post.viewCount} views">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+								<circle cx="12" cy="12" r="3"/>
+							</svg>
+							{formatViews(post.viewCount)}
+						</span>
+
+						<button
 								class="p-reaction-btn p-comment-btn"
 								onclick={() => (openCommentSheetPostId = post.id)}
 								aria-label="Comments"
@@ -911,6 +964,22 @@
 	</div>
 
 	<div class="sheet-body settings-body">
+		<button class="settings-row settings-row-link" onclick={openSupport}>
+			<span>Support</span>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+				<polyline points="15 3 21 3 21 9"/>
+				<line x1="10" y1="14" x2="21" y2="3"/>
+			</svg>
+		</button>
+		<button class="settings-row settings-row-link" onclick={openDesktopVersion}>
+			<span>Desktop Version</span>
+			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+				<polyline points="15 3 21 3 21 9"/>
+				<line x1="10" y1="14" x2="21" y2="3"/>
+			</svg>
+		</button>
 		<button class="settings-row settings-row-danger" onclick={handleLogout}>
 			Log out
 		</button>
@@ -1473,8 +1542,17 @@
 		color: #e05252;
 	}
 
-	.p-comment-btn {
+	.p-view-count {
+		display: flex;
+		align-items: center;
+		gap: 4px;
 		margin-left: auto;
+		font-size: 12px;
+		color: rgba(240, 240, 240, 0.38);
+		user-select: none;
+	}
+
+	.p-comment-btn {
 		color: rgba(240, 240, 240, 0.4);
 	}
 
@@ -1834,6 +1912,15 @@
 
 	.settings-row:first-child {
 		border-top: none;
+	}
+
+	.settings-row-link {
+		color: var(--color-text-primary, #f0f0f0);
+		font-weight: 400;
+	}
+
+	.settings-row-link:active {
+		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.settings-row-danger {

@@ -5,6 +5,8 @@
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { DEFAULT_REACTIONS, REACTION_TYPES, REACTION_VISUALS } from '$lib/reactions';
+	import { viewTracker } from '$lib/utils/viewTracker';
+	import { authStore } from '$lib/stores/auth.store.svelte';
 	import CommentSheet from './CommentSheet.svelte';
 	import { openProfile } from '$lib/stores/profile-nav.store';
 
@@ -49,6 +51,17 @@
 
 	// Refresh indicator
 	let isRefreshing = $state(false);
+
+	function formatViews(n: number): string {
+		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+		return String(n);
+	}
+
+	function trackView(el: HTMLElement, postId: number): { destroy: () => void } {
+		const cleanup = viewTracker.observe(el, postId, authStore.isAuthenticated);
+		return { destroy: cleanup };
+	}
 
 	function formatRelativeTime(dateStr: string): string {
 		const diff = Date.now() - new Date(dateStr).getTime();
@@ -295,6 +308,11 @@
 	</div>
 {/if}
 
+<!-- Brand title sits inside the transparent TG header — centered between Close and action buttons -->
+<div class="feed-header-title" aria-hidden="true">
+	<span class="feed-header-brand">critiqal</span>
+</div>
+
 <div
 	class="feed-container"
 	role="region"
@@ -304,11 +322,6 @@
 	ontouchmove={onPullTouchMove}
 	ontouchend={onPullTouchEnd}
 >
-	<!-- Sticky brand bar — top padding clears TG chrome; sticks while scrolling -->
-	<div class="feed-brand-bar">
-		<span class="feed-brand-text">critiqal</span>
-	</div>
-
 	{#if isLoading && posts.length === 0}
 		<div class="feed-state">
 			<div class="skeleton-card"></div>
@@ -322,7 +335,7 @@
 		</div>
 	{:else}
 		{#each posts as post (post.id)}
-			<article class="post-card">
+			<article class="post-card" use:trackView={post.id}>
 				<div class="post-card-inner">
 					<!-- Author row -->
 					<div class="author-row">
@@ -423,6 +436,15 @@
 						</button>
 					{/each}
 
+					<!-- View count -->
+					<span class="view-count" aria-label="{post.viewCount} views">
+						<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+							<circle cx="12" cy="12" r="3"/>
+						</svg>
+						{formatViews(post.viewCount)}
+					</span>
+
 					<!-- Comment button -->
 					<button
 						class="reaction-btn comment-btn"
@@ -466,6 +488,30 @@
 
 
 <style>
+	/* ── Header brand title — lives in the transparent TG header strip ─────────── */
+	/* top = device status bar height; height = TG header bar height (~44px).
+	   pointer-events: none so TG's native Close / action buttons remain tappable. */
+	.feed-header-title {
+		position: fixed;
+		top: env(safe-area-inset-top, 0px);
+		left: 0;
+		right: 0;
+		height: 44px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		pointer-events: none;
+		z-index: 5;
+	}
+
+	.feed-header-brand {
+		font-size: 17px;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		color: var(--tg-text, #f0f0f0);
+		text-transform: lowercase;
+	}
+
 	.feed-container {
 		height: 100%;
 		overflow-y: auto;
@@ -473,36 +519,12 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 		scrollbar-width: none;
-		padding-top: 0;
-		padding-bottom: var(--content-bottom-padding, 104px);
-		position: relative;
-	}
-
-	/* ── Brand bar ─────────────────────────────────────────────────────────────── */
-	/* sticky + padding-top = TG chrome height keeps "critiqal" anchored just below
-	   the transparent header at all scroll positions. CSS max() ensures the offset
-	   is correct even when TG SDK CSS vars return 0 (older clients). */
-	.feed-brand-bar {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		background: var(--tg-bg, #111);
 		padding-top: max(
 			var(--tg-content-safe-area-inset-top, 0px),
 			calc(env(safe-area-inset-top, 20px) + 44px)
 		);
-		padding-left: 16px;
-		padding-right: 16px;
-		padding-bottom: 10px;
-	}
-
-	.feed-brand-text {
-		font-size: 12px;
-		font-weight: 300;
-		letter-spacing: 0.1em;
-		color: rgba(240, 240, 240, 0.35);
-		text-transform: lowercase;
-		display: block;
+		padding-bottom: var(--content-bottom-padding, 104px);
+		position: relative;
 	}
 
 	.feed-container::-webkit-scrollbar {
@@ -772,8 +794,17 @@
 		color: var(--tg-accent, #e05252);
 	}
 
-	.comment-btn {
+	.view-count {
+		display: flex;
+		align-items: center;
+		gap: 4px;
 		margin-left: auto;
+		font-size: 12px;
+		color: rgba(240, 240, 240, 0.38);
+		user-select: none;
+	}
+
+	.comment-btn {
 		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
 	}
 

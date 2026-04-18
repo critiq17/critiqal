@@ -29,6 +29,8 @@ interface TelegramWebApp {
     bg_color?: string;
     secondary_bg_color?: string;
   };
+  openLink(url: string): void;
+  openTelegramLink(url: string): void;
   disableVerticalSwipes?(): void;
   BackButton: {
     show(): void;
