@@ -142,7 +142,7 @@
 		isLoading = true;
 		error = null;
 		try {
-			const [user, userPosts, followers, following] = await Promise.all([
+			const [user, postsPage, followers, following] = await Promise.all([
 				userService.getProfile(username),
 				userService.getUserPosts(username),
 				userService.getFollowers(0).catch(() => [] as User[]),
@@ -150,7 +150,7 @@
 			]);
 
 			profile = user;
-			posts = userPosts;
+			posts = postsPage.content;
 
 			const [followersList, followingList] = await Promise.all([
 				userService.getFollowers(user.id).catch(() => [] as User[]),

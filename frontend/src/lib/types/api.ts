@@ -1,3 +1,11 @@
+export interface PageResponse<T> {
+	content: T[];
+	page: number;
+	size: number;
+	total: number;
+	hasNext: boolean;
+}
+
 export class ApiError extends Error {
 	readonly status: number;
 

@@ -9,20 +9,25 @@
 	import PostCard from '$lib/components/PostCard.svelte';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 
-	const username = $page.params.username;
+	const username = $page.params.username as string;
 
 	type ProfileState = 'loading' | 'loaded' | 'error';
-	type PostsState = 'loading' | 'loaded' | 'error' | 'empty';
 	type ModalTab = 'followers' | 'following';
 
-	let profile = $state<User | null>(null);
+	// --- Posts paginated state ---
 	let posts = $state<Post[]>([]);
+	let postsPage = $state(0);
+	let postsHasNext = $state(false);
+	let postsLoading = $state(false);
+	let postsLoadingMore = $state(false);
+	let postsError = $state<string | null>(null);
+
+	let profile = $state<User | null>(null);
 	let followersList = $state<User[]>([]);
 	let followingList = $state<User[]>([]);
 	let followersCount = $derived(followersList.length);
 	let followingCount = $derived(followingList.length);
 	let profileState = $state<ProfileState>('loading');
-	let postsState = $state<PostsState>('loading');
 	let profileError = $state('');
 	let isFollowing = $state(false);
 	let isFollowLoading = $state(false);
@@ -98,20 +103,52 @@
 		}
 	}
 
+	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
+		const obs = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && !postsLoadingMore) loadMorePosts();
+			},
+			{ threshold: 0.1 }
+		);
+		obs.observe(el);
+		return { destroy: () => obs.disconnect() };
+	}
+
 	async function loadPosts(): Promise<void> {
-		postsState = 'loading';
+		postsLoading = true;
+		postsError = null;
+		posts = [];
+		postsPage = 0;
+		postsHasNext = false;
 		try {
-			const data = await userService.getUserPosts(username);
-			posts = data;
-			postsState = data.length === 0 ? 'empty' : 'loaded';
+			const res = await userService.getUserPosts(username, 0);
+			posts = res.content;
+			postsHasNext = res.hasNext;
 		} catch {
-			postsState = 'error';
+			postsError = 'Could not load posts.';
+		} finally {
+			postsLoading = false;
+		}
+	}
+
+	async function loadMorePosts(): Promise<void> {
+		if (!postsHasNext || postsLoadingMore) return;
+		postsLoadingMore = true;
+		try {
+			const nextPage = postsPage + 1;
+			const res = await userService.getUserPosts(username, nextPage);
+			posts = [...posts, ...res.content];
+			postsPage = nextPage;
+			postsHasNext = res.hasNext;
+		} catch {
+			// non-fatal
+		} finally {
+			postsLoadingMore = false;
 		}
 	}
 
 	function handlePostDeleted(postId: number): void {
 		posts = posts.filter((p) => p.id !== postId);
-		if (posts.length === 0) postsState = 'empty';
 	}
 
 	async function handleFollow(): Promise<void> {
@@ -224,7 +261,7 @@
 					@{username}
 				{/if}
 			</h1>
-			{#if postsState === 'loaded'}
+			{#if !postsLoading && posts.length > 0}
 				<span class="post-count-label">{formatCount(posts.length)} posts</span>
 			{/if}
 		</header>
@@ -373,18 +410,18 @@
 
 		<div class="posts-divider" aria-hidden="true"></div>
 
-		{#if postsState === 'loading'}
+		{#if postsLoading}
 			<div aria-busy="true" aria-label="Loading posts">
 				{#each { length: SKELETON_COUNT } as _, i (i)}
 					<PostCardSkeleton />
 				{/each}
 			</div>
-		{:else if postsState === 'error'}
+		{:else if postsError}
 			<div class="state-box">
-				<p class="state-body">Could not load posts.</p>
+				<p class="state-body">{postsError}</p>
 				<button class="retry-btn" onclick={loadPosts}>Try again</button>
 			</div>
-		{:else if postsState === 'empty'}
+		{:else if posts.length === 0}
 			<div class="state-box">
 				<p class="state-title">No posts yet</p>
 				<p class="state-body">
@@ -397,6 +434,13 @@
 					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
 			</div>
+
+			{#if postsHasNext}
+				<div class="posts-sentinel" use:infiniteScroll></div>
+			{/if}
+			{#if postsLoadingMore}
+				<div class="loading-more">Loading more…</div>
+			{/if}
 		{/if}
 	</main>
 
@@ -1040,6 +1084,17 @@
 	/* Posts */
 	.post-list {
 		animation: fadeIn 0.2s ease-out;
+	}
+
+	.posts-sentinel {
+		height: 1px;
+	}
+
+	.loading-more {
+		padding: 1.5rem;
+		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
 	}
 
 	/* Skeleton */

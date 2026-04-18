@@ -8,7 +8,9 @@ export interface FeedState {
 	posts: Post[];
 	loadedAt: number | null;
 	page: number;
+	hasNext: boolean;
 	status: FeedStatus;
+	isLoadingMore: boolean;
 	error: string | null;
 	requestStartedAt: number | null;
 }
@@ -20,7 +22,9 @@ const INITIAL_STATE: FeedState = {
 	posts: [],
 	loadedAt: null,
 	page: 0,
+	hasNext: false,
 	status: 'idle',
+	isLoadingMore: false,
 	error: null,
 	requestStartedAt: null
 };
@@ -67,13 +71,8 @@ function createMobileFeedStore() {
 		}));
 	}
 
-	function setPage(page: number): void {
-		store.update((state) => ({ ...state, page }));
-	}
-
 	function markError(error: unknown): void {
 		const message = toFeedError(error);
-		console.error('[mobileFeedStore] load failed:', error);
 		store.update((state) => ({
 			...state,
 			status: 'error',
@@ -82,12 +81,13 @@ function createMobileFeedStore() {
 		}));
 	}
 
-	function markLoaded(posts: Post[], resetPage: boolean): void {
+	function markLoaded(posts: Post[], hasNext: boolean): void {
 		store.update((state) => ({
 			...state,
 			posts,
+			hasNext,
 			loadedAt: Date.now(),
-			page: resetPage ? 0 : state.page,
+			page: 0,
 			status: 'loaded',
 			error: null,
 			requestStartedAt: null
@@ -95,7 +95,7 @@ function createMobileFeedStore() {
 	}
 
 	function load(options: { force?: boolean; resetPage?: boolean } = {}): Promise<Post[]> {
-		const { force = false, resetPage = false } = options;
+		const { force = false } = options;
 		const state = get({ subscribe });
 		const staleLoading = isLoadingStale(state);
 
@@ -109,16 +109,16 @@ function createMobileFeedStore() {
 			status: 'loading',
 			error: null,
 			requestStartedAt: Date.now(),
-			page: resetPage ? 0 : current.page
+			page: 0
 		}));
 
 		const request = postService
-			.getFeed()
-			.then((posts) => {
+			.getFeed(0)
+			.then((pageResponse) => {
 				if (requestId === activeRequestId) {
-					markLoaded(posts, resetPage);
+					markLoaded(pageResponse.content, pageResponse.hasNext);
 				}
-				return posts;
+				return pageResponse.content;
 			})
 			.catch((error) => {
 				if (requestId === activeRequestId) {
@@ -134,6 +134,28 @@ function createMobileFeedStore() {
 
 		activeRequest = request;
 		return request;
+	}
+
+	async function loadMore(): Promise<void> {
+		const state = get({ subscribe });
+		if (!state.hasNext || state.isLoadingMore || state.status === 'loading') return;
+
+		store.update((current) => ({ ...current, isLoadingMore: true }));
+
+		try {
+			const nextPage = state.page + 1;
+			const pageResponse = await postService.getFeed(nextPage);
+			store.update((current) => ({
+				...current,
+				posts: [...current.posts, ...pageResponse.content],
+				page: nextPage,
+				hasNext: pageResponse.hasNext,
+				isLoadingMore: false
+			}));
+		} catch {
+			// Non-fatal: leave posts intact, just stop loading indicator
+			store.update((current) => ({ ...current, isLoadingMore: false }));
+		}
 	}
 
 	function ensureLoaded(options: { force?: boolean; resetPage?: boolean } = {}): Promise<Post[]> {
@@ -162,10 +184,10 @@ function createMobileFeedStore() {
 	return {
 		subscribe,
 		load,
+		loadMore,
 		ensureLoaded,
 		prependPost,
-		reset,
-		setPage
+		reset
 	};
 }
 

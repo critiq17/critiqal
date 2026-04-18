@@ -14,18 +14,24 @@
 	// ── Local state ──────────────────────────────────────────
 	let query = $state('');
 	let activeTab = $state<ExploreTab>('posts');
-	let posts = $state<Post[]>([]);
-	let users = $state<User[]>([]);
-	let resultState = $state<'idle' | 'loading' | 'loaded' | 'error'>('idle');
-	let errorMessage = $state('');
 
-	// Tracks what was last fetched to avoid redundant requests
 	let loadedQuery = $state<string | null>(null);
 	let loadedTab = $state<ExploreTab | null>(null);
 
-	// Follow state per user id
-	let followStates = $state(new Map<number, boolean>());
+	// Posts paginated state
+	let posts = $state<Post[]>([]);
+	let postsPage = $state(0);
+	let postsHasNext = $state(false);
+	let postsLoading = $state(false);
+	let postsLoadingMore = $state(false);
+	let postsError = $state<string | null>(null);
 
+	// Users state
+	let users = $state<User[]>([]);
+	let usersState = $state<'idle' | 'loading' | 'loaded' | 'error'>('idle');
+	let usersError = $state('');
+
+	let followStates = $state(new Map<number, boolean>());
 	let inputEl = $state<HTMLInputElement | undefined>(undefined);
 
 	const DEBOUNCE_MS = 300;
@@ -40,7 +46,46 @@
 		users = cached.users;
 		loadedQuery = cached.query;
 		loadedTab = cached.tab;
-		resultState = 'loaded';
+		usersState = 'loaded';
+	}
+
+	// ── Posts pagination ──────────────────────────────────────
+	async function loadPosts(q: string): Promise<void> {
+		postsLoading = true;
+		postsError = null;
+		posts = [];
+		postsPage = 0;
+		postsHasNext = false;
+		try {
+			const res = q.trim()
+				? await postService.search(q.trim(), 0)
+				: await postService.getFeed(0);
+			posts = res.content;
+			postsHasNext = res.hasNext;
+		} catch (err) {
+			postsError = err instanceof Error ? err.message : 'Something went wrong.';
+		} finally {
+			postsLoading = false;
+		}
+	}
+
+	async function loadMorePosts(): Promise<void> {
+		if (!postsHasNext || postsLoadingMore) return;
+		postsLoadingMore = true;
+		const q = query;
+		try {
+			const nextPage = postsPage + 1;
+			const res = q.trim()
+				? await postService.search(q.trim(), nextPage)
+				: await postService.getFeed(nextPage);
+			posts = [...posts, ...res.content];
+			postsPage = nextPage;
+			postsHasNext = res.hasNext;
+		} catch {
+			// non-fatal
+		} finally {
+			postsLoadingMore = false;
+		}
 	}
 
 	// ── Debounce ──────────────────────────────────────────────
@@ -53,36 +98,42 @@
 		};
 	}
 
+	// ── IntersectionObserver action ───────────────────────────
+	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
+		const obs = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && !postsLoadingMore) loadMorePosts();
+			},
+			{ threshold: 0.1 }
+		);
+		obs.observe(el);
+		return { destroy: () => obs.disconnect() };
+	}
+
 	// ── Search ────────────────────────────────────────────────
 	async function fetchResults(q: string, tab: ExploreTab): Promise<void> {
 		if (loadedQuery === q && loadedTab === tab) return;
 
-		resultState = 'loading';
-		errorMessage = '';
-
-		try {
-			if (tab === 'posts') {
-				posts = q.trim()
-					? await postService.search(q.trim())
-					: await postService.getFeed();
-			} else {
-				users = await userService.search(q.trim());
+		if (tab === 'posts') {
+			await loadPosts(q);
+			if (!postsError) {
+				loadedQuery = q;
+				loadedTab = tab;
+				mobileExploreStore.set({ query: q, tab, posts, users, loadedAt: Date.now() });
 			}
-
-			loadedQuery = q;
-			loadedTab = tab;
-			resultState = 'loaded';
-
-			mobileExploreStore.set({
-				query: q,
-				tab,
-				posts,
-				users,
-				loadedAt: Date.now(),
-			});
-		} catch (err: unknown) {
-			errorMessage = err instanceof Error ? err.message : 'Something went wrong.';
-			resultState = 'error';
+		} else {
+			usersState = 'loading';
+			usersError = '';
+			try {
+				users = await userService.search(q.trim());
+				loadedQuery = q;
+				loadedTab = tab;
+				usersState = 'loaded';
+				mobileExploreStore.set({ query: q, tab, posts, users, loadedAt: Date.now() });
+			} catch (err: unknown) {
+				usersError = err instanceof Error ? err.message : 'Something went wrong.';
+				usersState = 'error';
+			}
 		}
 	}
 
@@ -234,8 +285,8 @@
 		role="tabpanel"
 		aria-label={activeTab === 'posts' ? 'Posts results' : 'People results'}
 	>
-		{#if resultState === 'loading'}
-			{#if activeTab === 'posts'}
+		{#if activeTab === 'posts'}
+			{#if postsLoading}
 				<div class="skeleton-list" aria-busy="true" aria-label="Loading posts">
 					{#each { length: SKELETON_COUNT } as _, i (i)}
 						<div class="post-skeleton" style:animation-delay="{i * 60}ms">
@@ -251,7 +302,75 @@
 						</div>
 					{/each}
 				</div>
+			{:else if postsError}
+				<div class="empty-state" role="alert">
+					<div class="empty-icon-wrap">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+							<circle cx="12" cy="12" r="10" />
+							<line x1="12" y1="8" x2="12" y2="12" />
+							<line x1="12" y1="16" x2="12.01" y2="16" />
+						</svg>
+					</div>
+					<p class="empty-title">Something went wrong</p>
+					<p class="empty-subtitle">{postsError}</p>
+					<button
+						class="retry-btn"
+						type="button"
+						onclick={() => fetchResults(query, activeTab)}
+					>Try again</button>
+				</div>
+			{:else if posts.length === 0}
+				<div class="empty-state">
+					<div class="empty-icon-wrap empty-icon-dashed">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+							<circle cx="11" cy="11" r="8" />
+							<line x1="21" y1="21" x2="16.65" y2="16.65" />
+						</svg>
+					</div>
+					<p class="empty-title">Nothing found</p>
+					<p class="empty-subtitle">Try a different search</p>
+				</div>
 			{:else}
+				<ul class="results-list" aria-label="Post results">
+					{#each posts as post, i (post.id)}
+						<li
+							class="result-item post-item"
+							style:animation-delay="{i * 30}ms"
+							onclick={() => handlePostTap(post)}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePostTap(post); } }}
+							role="button"
+							tabindex="0"
+							aria-label="Post by {post.author.name ?? post.author.username}"
+						>
+							<div class="post-meta">
+								<div class="post-avatar" aria-hidden="true">
+									{#if post.author.avatarUrl}
+										<img src={post.author.avatarUrl} alt={post.author.username} class="avatar-img" />
+									{:else}
+										<span class="avatar-initial">{getInitials(post.author)}</span>
+									{/if}
+								</div>
+								<div class="post-author-info">
+									<span class="author-name">{post.author.name ?? post.author.username}</span>
+									<span class="post-time">{formatRelativeTime(post.createdAt)}</span>
+								</div>
+							</div>
+							<p class="post-excerpt">{truncateContent(post.content)}</p>
+						</li>
+					{/each}
+				</ul>
+
+				{#if postsHasNext}
+					<div class="explore-sentinel" use:infiniteScroll></div>
+				{/if}
+				{#if postsLoadingMore}
+					<div class="loading-more-indicator">Loading…</div>
+				{/if}
+			{/if}
+
+		{:else}
+			<!-- People tab -->
+			{#if usersState === 'loading'}
 				<div class="skeleton-list" aria-busy="true" aria-label="Loading people">
 					{#each { length: SKELETON_COUNT } as _, i (i)}
 						<div class="user-skeleton" style:animation-delay="{i * 60}ms">
@@ -263,113 +382,66 @@
 						</div>
 					{/each}
 				</div>
-			{/if}
-
-		{:else if resultState === 'error'}
-			<div class="empty-state" role="alert">
-				<div class="empty-icon-wrap">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-						<circle cx="12" cy="12" r="10" />
-						<line x1="12" y1="8" x2="12" y2="12" />
-						<line x1="12" y1="16" x2="12.01" y2="16" />
-					</svg>
+			{:else if usersState === 'error'}
+				<div class="empty-state" role="alert">
+					<div class="empty-icon-wrap">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+							<circle cx="12" cy="12" r="10" />
+							<line x1="12" y1="8" x2="12" y2="12" />
+							<line x1="12" y1="16" x2="12.01" y2="16" />
+						</svg>
+					</div>
+					<p class="empty-title">Something went wrong</p>
+					<p class="empty-subtitle">{usersError}</p>
+					<button
+						class="retry-btn"
+						type="button"
+						onclick={() => fetchResults(query, activeTab)}
+					>Try again</button>
 				</div>
-				<p class="empty-title">Something went wrong</p>
-				<p class="empty-subtitle">{errorMessage}</p>
-				<button
-					class="retry-btn"
-					type="button"
-					onclick={() => fetchResults(query, activeTab)}
-				>Try again</button>
-			</div>
-
-		{:else if resultState === 'loaded'}
-			{#if activeTab === 'posts'}
-				{#if posts.length === 0}
-					<div class="empty-state">
-						<div class="empty-icon-wrap empty-icon-dashed">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-								<circle cx="11" cy="11" r="8" />
-								<line x1="21" y1="21" x2="16.65" y2="16.65" />
-							</svg>
-						</div>
-						<p class="empty-title">Nothing found</p>
-						<p class="empty-subtitle">Try a different search</p>
+			{:else if users.length === 0 && usersState === 'loaded'}
+				<div class="empty-state">
+					<div class="empty-icon-wrap empty-icon-dashed">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+							<circle cx="11" cy="11" r="8" />
+							<line x1="21" y1="21" x2="16.65" y2="16.65" />
+						</svg>
 					</div>
-				{:else}
-					<ul class="results-list" aria-label="Post results">
-						{#each posts as post, i (post.id)}
-							<li
-								class="result-item post-item"
-								style:animation-delay="{i * 30}ms"
-								onclick={() => handlePostTap(post)}
-								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlePostTap(post); } }}
-								role="button"
-								tabindex="0"
-								aria-label="Post by {post.author.name ?? post.author.username}"
-							>
-								<div class="post-meta">
-									<div class="post-avatar" aria-hidden="true">
-										{#if post.author.avatarUrl}
-											<img src={post.author.avatarUrl} alt={post.author.username} class="avatar-img" />
-										{:else}
-											<span class="avatar-initial">{getInitials(post.author)}</span>
-										{/if}
-									</div>
-									<div class="post-author-info">
-										<span class="author-name">{post.author.name ?? post.author.username}</span>
-										<span class="post-time">{formatRelativeTime(post.createdAt)}</span>
-									</div>
-								</div>
-								<p class="post-excerpt">{truncateContent(post.content)}</p>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-
+					<p class="empty-title">Nothing found</p>
+					<p class="empty-subtitle">Try a different search</p>
+				</div>
+			{:else if users.length === 0}
+				<!-- idle state: no search triggered yet -->
 			{:else}
-				{#if users.length === 0}
-					<div class="empty-state">
-						<div class="empty-icon-wrap empty-icon-dashed">
-							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-								<circle cx="11" cy="11" r="8" />
-								<line x1="21" y1="21" x2="16.65" y2="16.65" />
-							</svg>
-						</div>
-						<p class="empty-title">Nothing found</p>
-						<p class="empty-subtitle">Try a different search</p>
-					</div>
-				{:else}
-					<ul class="results-list" aria-label="People results">
-						{#each users as user, i (user.id)}
-							<li
-								class="result-item user-item"
-								style:animation-delay="{i * 30}ms"
+				<ul class="results-list" aria-label="People results">
+					{#each users as user, i (user.id)}
+						<li
+							class="result-item user-item"
+							style:animation-delay="{i * 30}ms"
+						>
+							<div class="user-avatar-wrap" aria-hidden="true">
+								{#if user.avatarUrl}
+									<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
+								{:else}
+									<span class="avatar-initial">{getInitials(user)}</span>
+								{/if}
+							</div>
+							<div class="user-info">
+								<span class="user-display-name">{user.name ?? user.username}</span>
+								<span class="user-handle">@{user.username}</span>
+							</div>
+							<button
+								class="follow-btn"
+								class:following={followStates.get(user.id) ?? false}
+								type="button"
+								onclick={() => toggleFollow(user)}
+								aria-label="{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'} {user.name ?? user.username}"
 							>
-								<div class="user-avatar-wrap" aria-hidden="true">
-									{#if user.avatarUrl}
-										<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
-									{:else}
-										<span class="avatar-initial">{getInitials(user)}</span>
-									{/if}
-								</div>
-								<div class="user-info">
-									<span class="user-display-name">{user.name ?? user.username}</span>
-									<span class="user-handle">@{user.username}</span>
-								</div>
-								<button
-									class="follow-btn"
-									class:following={followStates.get(user.id) ?? false}
-									type="button"
-									onclick={() => toggleFollow(user)}
-									aria-label="{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'} {user.name ?? user.username}"
-								>
-									{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'}
-								</button>
-							</li>
-						{/each}
-					</ul>
-				{/if}
+								{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'}
+							</button>
+						</li>
+					{/each}
+				</ul>
 			{/if}
 		{/if}
 	</div>
@@ -835,6 +907,18 @@
 
 	.retry-btn:active {
 		transform: scale(0.97);
+	}
+
+	/* ── Infinite scroll ─────────────────────────────────────── */
+	.explore-sentinel {
+		height: 1px;
+	}
+
+	.loading-more-indicator {
+		padding: 16px;
+		text-align: center;
+		font-size: 13px;
+		color: rgba(255, 255, 255, 0.5);
 	}
 
 	/* ── Animations ──────────────────────────────────────────── */

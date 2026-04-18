@@ -217,14 +217,14 @@
 		profileError = null;
 
 		try {
-			const [user, userPosts] = await Promise.all([
+			const [user, postsPage] = await Promise.all([
 				userService.getProfile(username),
 				userService.getUserPosts(username)
 			]);
 			profile = user;
-			posts = userPosts;
+			posts = postsPage.content;
 			loadFollowLists(user.id);
-			userPosts.forEach((p) => loadReactionsForPost(p.id));
+			postsPage.content.forEach((p) => loadReactionsForPost(p.id));
 		} catch (err: unknown) {
 			profileError = err instanceof Error ? err.message : 'Failed to load profile';
 		} finally {
@@ -700,7 +700,7 @@
 		{#if postsError}
 			<div class="posts-error" role="alert">
 				<p class="error-text">{postsError}</p>
-				<button class="retry-btn" onclick={() => { if (profile) userService.getUserPosts(profile.username).then(p => { posts = p; postsError = null; }).catch(err => { postsError = err instanceof Error ? err.message : 'Failed to load posts'; }); }}>
+				<button class="retry-btn" onclick={() => { if (profile) userService.getUserPosts(profile.username).then(r => { posts = r.content; postsError = null; }).catch(err => { postsError = err instanceof Error ? err.message : 'Failed to load posts'; }); }}>
 					Try again
 				</button>
 			</div>

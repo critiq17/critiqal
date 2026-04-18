@@ -6,16 +6,19 @@ import type {
 	Comment,
 	AddCommentRequest,
 	ReactionsMap,
-	ReactionType
+	ReactionType,
+	PageResponse
 } from '$lib/types';
 
 export const postService = {
-	getFeed(): Promise<Post[]> {
-		return apiClient.get<Post[]>(API.posts.feed);
+	getFeed(page = 0, size = 20): Promise<PageResponse<Post>> {
+		return apiClient.get<PageResponse<Post>>(`${API.posts.feed}?page=${page}&size=${size}`);
 	},
 
-	search(query: string): Promise<Post[]> {
-		return apiClient.get<Post[]>(`${API.posts.search}?q=${encodeURIComponent(query)}`);
+	search(query: string, page = 0, size = 20): Promise<PageResponse<Post>> {
+		return apiClient.get<PageResponse<Post>>(
+			`${API.posts.search}?q=${encodeURIComponent(query)}&page=${page}&size=${size}`
+		);
 	},
 
 	getById(id: number): Promise<Post> {

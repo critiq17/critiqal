@@ -8,41 +8,72 @@
 	import PostCard from '$lib/components/PostCard.svelte';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 
-	type FeedState = 'loading' | 'loaded' | 'error' | 'empty';
-
-	let posts = $state<Post[]>([]);
-	let feedState = $state<FeedState>('loading');
-	let errorMessage = $state('');
-
 	interface PendingPhoto {
 		file: File;
 		previewUrl: string;
 	}
 
 	const MAX_PHOTOS = 3;
+	const SKELETON_COUNT = 5;
+
+	let posts = $state<Post[]>([]);
+	let isLoading = $state(false);
+	let isLoadingMore = $state(false);
+	let hasNext = $state(false);
+	let currentPage = $state(0);
+	let error = $state<string | null>(null);
 
 	let composeText = $state('');
 	let isPosting = $state(false);
 	let pendingPhotos = $state<PendingPhoto[]>([]);
 	let isUploadingPhotos = $state(false);
 
-	const SKELETON_COUNT = 5;
-
 	onMount(() => {
 		loadFeed();
 	});
 
 	async function loadFeed(): Promise<void> {
-		feedState = 'loading';
-		errorMessage = '';
+		isLoading = true;
+		error = null;
+		posts = [];
+		hasNext = false;
+		currentPage = 0;
 		try {
-			const data = await postService.getFeed();
-			posts = data;
-			feedState = data.length === 0 ? 'empty' : 'loaded';
-		} catch (err: unknown) {
-			errorMessage = err instanceof Error ? err.message : 'Failed to load feed.';
-			feedState = 'error';
+			const res = await postService.getFeed(0);
+			posts = res.content;
+			hasNext = res.hasNext;
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Failed to load feed.';
+		} finally {
+			isLoading = false;
 		}
+	}
+
+	async function loadMore(): Promise<void> {
+		if (!hasNext || isLoadingMore) return;
+		isLoadingMore = true;
+		try {
+			const nextPage = currentPage + 1;
+			const res = await postService.getFeed(nextPage);
+			posts = [...posts, ...res.content];
+			currentPage = nextPage;
+			hasNext = res.hasNext;
+		} catch {
+			// non-fatal
+		} finally {
+			isLoadingMore = false;
+		}
+	}
+
+	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
+		const obs = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting && !isLoadingMore) loadMore();
+			},
+			{ threshold: 0.1 }
+		);
+		obs.observe(el);
+		return { destroy: () => obs.disconnect() };
 	}
 
 	function handlePhotoSelect(e: Event): void {
@@ -84,8 +115,6 @@
 			if (photosToUpload.length > 0) {
 				isUploadingPhotos = true;
 				try {
-					// Sequential uploads: each waits for the previous so the backend
-					// countByPost() returns an accurate value for position assignment.
 					const photos: import('$lib/types').PostPhoto[] = [];
 					for (const p of photosToUpload) {
 						try {
@@ -105,7 +134,6 @@
 
 			composeText = '';
 			clearPendingPhotos();
-			feedState = 'loaded';
 		} catch {
 			// ignore
 		} finally {
@@ -121,7 +149,6 @@
 
 	function handlePostDeleted(postId: number): void {
 		posts = posts.filter((p) => p.id !== postId);
-		if (posts.length === 0) feedState = 'empty';
 	}
 </script>
 
@@ -220,19 +247,19 @@
 			</div>
 		{/if}
 
-		{#if feedState === 'loading'}
+		{#if isLoading}
 			<div aria-busy="true" aria-label="Loading feed">
 				{#each { length: SKELETON_COUNT } as _, i (i)}
 					<PostCardSkeleton />
 				{/each}
 			</div>
-		{:else if feedState === 'error'}
+		{:else if error}
 			<div class="state-box" role="alert">
 				<p class="state-title">Something went wrong</p>
-				<p class="state-body">{errorMessage}</p>
+				<p class="state-body">{error}</p>
 				<button class="retry-btn" onclick={loadFeed}>Try again</button>
 			</div>
-		{:else if feedState === 'empty'}
+		{:else if posts.length === 0}
 			<div class="state-box">
 				<p class="state-title">Nothing here yet</p>
 				<p class="state-body">Be the first to post something.</p>
@@ -243,6 +270,13 @@
 					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
 			</div>
+
+			{#if hasNext}
+				<div class="feed-sentinel" use:infiniteScroll></div>
+			{/if}
+			{#if isLoadingMore}
+				<div class="loading-more">Loading more…</div>
+			{/if}
 		{/if}
 	</main>
 
@@ -474,6 +508,17 @@
 	}
 
 	/* .post-list: transition handled by Svelte fade directive */
+
+	.feed-sentinel {
+		height: 1px;
+	}
+
+	.loading-more {
+		padding: 1.5rem;
+		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+	}
 
 	.state-box {
 		display: flex;
