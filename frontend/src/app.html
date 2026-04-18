@@ -2,8 +2,54 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 		<link rel="icon" type="image/png" href="/assets/critiqal-favicon.png" />
+		<script>
+			// Initialize Telegram Mini App before first paint to prevent flash of unstyled content.
+			if (window.Telegram?.WebApp) {
+				var tg = window.Telegram.WebApp;
+
+				// ready() must be called first — enables subsequent method calls to take effect.
+				tg.ready();
+				tg.expand();
+
+				// setHeaderColor must use the same color as the app background (--tg-bg).
+				// Using tg.backgroundColor ensures the header blends seamlessly with app content.
+				tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+
+				// requestFullscreen (Bot API 8.0+) makes the header fully transparent
+				// and extends the app to the full device screen including status bar.
+				try { tg.requestFullscreen && tg.requestFullscreen(); } catch(e) {}
+				try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e) {}
+
+				function applyViewport() {
+					var h = tg.viewportHeight || window.innerHeight;
+					document.documentElement.style.setProperty('--tg-viewport-height', h + 'px');
+
+					// contentSafeAreaInset = space taken by transparent Telegram UI (header/footer)
+					// in fullscreen mode. Also set by Telegram SDK as --tg-content-safe-area-inset-*.
+					// Only set when > 0: setting 0px explicitly would block the CSS fallback chain
+					// that relies on --tg-content-safe-area-inset-top (auto-set by TG SDK).
+					var ci = tg.contentSafeAreaInset;
+					if (ci && ci.top > 0) {
+						document.documentElement.style.setProperty('--tg-content-top', ci.top + 'px');
+					}
+					if (ci && ci.bottom > 0) {
+						document.documentElement.style.setProperty('--tg-content-bottom', ci.bottom + 'px');
+					}
+				}
+
+				tg.onEvent('viewportChanged', applyViewport);
+				tg.onEvent('fullscreenChanged', applyViewport);
+				// safeAreaChanged fires when safe area insets update (can lag behind fullscreenChanged)
+				tg.onEvent('safeAreaChanged', applyViewport);
+				tg.onEvent('contentSafeAreaChanged', applyViewport);
+				tg.onEvent('themeChanged', function() {
+					tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+				});
+				applyViewport();
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

@@ -1,0 +1,222 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
+	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { activeTab } from '$lib/stores/mobile-tab.store';
+	import { profileNav } from '$lib/stores/profile-nav.store';
+	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
+	import type { SwipePhase } from '$lib/overlay-swipe';
+	import { composeOpen, closeCompose } from '$lib/stores/compose.store';
+	import { anySheetOpen } from '$lib/stores/sheet.store';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import type { Post } from '$lib/types';
+	import BottomNav from './BottomNav.svelte';
+	import MobileAuthScreen from './MobileAuthScreen.svelte';
+	import MobileFeed from './MobileFeed.svelte';
+	import MobileExplore from './MobileExplore.svelte';
+	import MobileProfile from './MobileProfile.svelte';
+	import UserProfileOverlay from './UserProfileOverlay.svelte';
+
+	let colorScheme = $state<'light' | 'dark' | null>(null);
+	let currentTab = $state('feed');
+	let viewedUsername = $state<string | null>(null);
+
+	// Composer — owned at layout level so it works from any tab
+	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
+	let isComposerOpen = $state(false);
+
+	composeOpen.subscribe((open) => {
+		if (open && !MobilePostComposer) {
+			import('./MobilePostComposer.svelte').then((m) => {
+				MobilePostComposer = m.default;
+				isComposerOpen = true;
+			});
+		} else {
+			isComposerOpen = open;
+		}
+	});
+
+	function handlePosted(post: Post): void {
+		mobileFeedStore.prependPost(post);
+		closeCompose();
+		activeTab.set('feed'); // Navigate to feed so user sees the new post immediately
+	}
+
+	// Reference to the content div that gets pushed during overlay navigation
+	let contentEl: HTMLElement | null = null;
+
+	// iOS-style push ratio: background shifts left by this fraction of screen
+	// while the overlay is on top, then tracks back to 0 as overlay is swiped away.
+	const PUSH_RATIO = 0.28;
+
+	function applyContentTransform(x: number, sw: number, transition: string): void {
+		if (!contentEl) return;
+		// Interpolate: when overlay is at 0 (fully shown) → content at -PUSH.
+		//              when overlay is at sw (dismissed)  → content at 0.
+		const bgX = PUSH_RATIO * (x / sw - 1) * sw;
+		contentEl.style.transition = transition;
+		contentEl.style.transform = `translateX(${bgX}px)`;
+	}
+
+	function onOverlaySwipe(x: number, sw: number, phase: SwipePhase): void {
+		if (phase === 'drag') {
+			applyContentTransform(x, sw, 'none');
+		} else if (phase === 'dismiss') {
+			// Match overlay's dismiss curve
+			contentEl!.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
+			contentEl!.style.transform = 'translateX(0)';
+		} else {
+			// Cancel / snap-back: spring back to pushed position, match overlay curve
+			if (!contentEl) return;
+			const push = sw * PUSH_RATIO;
+			contentEl.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)';
+			contentEl.style.transform = `translateX(-${push}px)`;
+		}
+	}
+
+	// Watch overlay open/close to push/restore background.
+	// Plain variable tracks previous value so we don't animate on initial render.
+	let _prevUsername: string | null = null;
+
+	$effect(() => {
+		const username = viewedUsername;
+		if (username === _prevUsername) return;
+		_prevUsername = username;
+
+		if (!contentEl) return;
+		const sw = window.innerWidth;
+		const push = sw * PUSH_RATIO;
+
+		if (username) {
+			// Overlay opening — push content left in sync with overlay slide-in
+			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
+			contentEl.style.transform = `translateX(-${push}px)`;
+		} else {
+			// Overlay closed (e.g. tg.BackButton — no swipe was involved)
+			contentEl.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
+			contentEl.style.transform = 'translateX(0)';
+		}
+	});
+
+	profileNav.subscribe((u) => { viewedUsername = u; });
+
+	const unsubscribe = activeTab.subscribe((tab) => {
+		currentTab = tab;
+	});
+
+	onMount(() => {
+		if (isTelegramMiniApp()) {
+			initTelegram();
+			const tg = getTelegramWebApp();
+			colorScheme = tg?.colorScheme ?? null;
+		}
+
+		const unregisterSwipe = registerOverlaySwipeListener(onOverlaySwipe);
+
+		return () => {
+			unsubscribe();
+			unregisterSwipe();
+		};
+	});
+</script>
+
+<svelte:head>
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+</svelte:head>
+
+<div
+	class="mobile-layout"
+	class:dark={colorScheme === 'dark'}
+	class:light={colorScheme === 'light'}
+>
+	{#if authStore.isLoading}
+		<div class="loading-screen"></div>
+	{:else if !authStore.isAuthenticated}
+		<MobileAuthScreen />
+	{:else}
+		<div class="mobile-content" bind:this={contentEl}>
+			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
+			<div class="tab-panel" class:active={currentTab === 'feed'}>
+				<MobileFeed />
+			</div>
+			<div class="tab-panel" class:active={currentTab === 'explore'}>
+				<MobileExplore isActive={currentTab === 'explore'} />
+			</div>
+			<div class="tab-panel" class:active={currentTab === 'profile'}>
+				<MobileProfile />
+			</div>
+		</div>
+		{#if !$anySheetOpen}
+			<BottomNav />
+		{/if}
+	{/if}
+</div>
+
+{#if viewedUsername}
+	<UserProfileOverlay username={viewedUsername} />
+{/if}
+
+{#if MobilePostComposer && isComposerOpen}
+	<MobilePostComposer
+		open={isComposerOpen}
+		onClose={closeCompose}
+		onPosted={handlePosted}
+	/>
+{/if}
+
+<style>
+	:global(:root) {
+		--bottom-nav-height: 72px;
+		--safe-bottom: env(safe-area-inset-bottom, 0px);
+		--safe-top: env(safe-area-inset-top, 0px);
+		--content-bottom-padding: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px);
+	}
+
+	.loading-screen {
+		height: 100dvh;
+		background: var(--tg-bg, var(--color-bg, #0a0a0a));
+	}
+
+	:global(body) {
+		height: var(--tg-viewport-height, 100dvh);
+		overflow: hidden;
+	}
+
+	.mobile-layout {
+		height: var(--tg-viewport-height, 100dvh);
+		min-height: var(--tg-viewport-height, 100dvh);
+		overflow: hidden;
+		position: relative;
+		background: var(--tg-bg, var(--color-bg, #0f0f0f));
+		color: var(--tg-text, var(--color-text-primary, #f0f0f0));
+	}
+
+	.mobile-content {
+		height: 100%;
+		overflow: hidden;
+		position: relative;
+		will-change: transform;
+	}
+
+	.tab-panel {
+		display: none;
+		height: 100%;
+		overflow: hidden;
+	}
+
+	.tab-panel.active {
+		display: block;
+	}
+
+	:global(.mobile-scroll-container) {
+		height: 100dvh;
+		overflow-y: auto;
+		overflow-x: hidden;
+		-webkit-overflow-scrolling: touch;
+		overscroll-behavior-y: contain;
+		/* In fullscreen mode --tg-content-top = transparent Telegram header height.
+		   Falls back to Telegram SDK CSS var, then device safe area, then 0. */
+		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
+		padding-bottom: var(--content-bottom-padding);
+	}
+</style>

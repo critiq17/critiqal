@@ -621,17 +621,12 @@
 	.post-card {
 		padding: 1.25rem 0.5rem;
 		margin: 0 -0.5rem;
-		border-bottom: 1px solid var(--color-border);
 		border-radius: 0.5rem;
 		transition: background-color 0.15s ease;
 	}
 
 	.post-card:hover {
 		background-color: var(--color-surface-raised);
-	}
-
-	.post-card:last-child {
-		border-bottom: none;
 	}
 
 	/* Header */
