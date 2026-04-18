@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.acme.api.dtos.PageResponse;
 import org.acme.domain.post_view.PostView;
 import org.acme.domain.post_view.PostViewId;
 import org.acme.domain.user.UserService;
@@ -34,12 +35,16 @@ public class PostService {
         return post;
     }
 
-    public List<Post> getUserPost(Long authorId) {
-        return postRepo.findByAuthor(authorId);
+    public PageResponse<Post> getUserPost(Long authorId, int page, int size) {
+        var posts = postRepo.findByAuthor(authorId, page, size);
+        var total = postRepo.countByAuthor(authorId);
+        return PageResponse.of(posts, page, size, total);
     }
 
-    public List<Post> getLatestFeed() {
-        return postRepo.findLastest();
+    public PageResponse<Post> getLatestFeed(int page, int size) {
+        var posts = postRepo.findLatest(page, size);
+        var total = postRepo.countPublished();
+        return PageResponse.of(posts, page, size, total);
     }
 
     public Post getById(Long postId) {
@@ -47,11 +52,14 @@ public class PostService {
                 .orElseThrow(() -> new IllegalArgumentException("Post not found"));
     }
 
-    public List<Post> search(String query) {
+    public PageResponse<Post> search(String query, int page, int size) {
         if (query == null || query.isBlank()) {
-            return List.of();
+            return PageResponse.of(List.of(), page, size, 0);
         }
-        return postRepo.search(query);
+
+        var posts = postRepo.search(query, page, size);
+        var total = postRepo.countSearch(query);
+        return PageResponse.of(posts, page, size, total);
     }
 
     @Transactional
