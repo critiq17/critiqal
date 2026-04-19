@@ -1,26 +1,25 @@
-package org.acme.infra.strava;
+package org.acme.api.dtos.strava;
 
-import org.acme.api.dtos.strava.StravaActivityDTO;
+import org.acme.infra.strava.StravaActivity;
 
 import java.time.Instant;
 
-public record StravaActivity(
+public record StravaActivityDTO(
         Long id,
         String name,
         String type,
-        double distanceMeters,
+        double distanceKm,
         int movingTimeSeconds,
         double elevationGain,
         Instant startDate,
-        double avgHeartrate,
-        double avgSpeedMs
+        double avgHeartRate,
+        double avgPaceMinPerKm
 ) {
     public static StravaActivityDTO from(StravaActivity a) {
         double distanceKm = a.distanceMeters() / 1000.0;
         double paceMinPerKm = a.avgSpeedMs() > 0
                 ? (1000.0 / a.avgSpeedMs()) / 60.0
                 : 0;
-
         return new StravaActivityDTO(
                 a.id(),
                 a.name(),
@@ -29,8 +28,7 @@ public record StravaActivity(
                 a.movingTimeSeconds(),
                 a.elevationGain(),
                 a.startDate(),
-                a.avgHeartrate(),
-                Math.round(paceMinPerKm * 100.0) / 100.0
-        );
+                a.ab
+        )
     }
 }
