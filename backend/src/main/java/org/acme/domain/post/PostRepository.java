@@ -55,6 +55,7 @@ public class PostRepository implements PanacheRepository<Post> {
         return count("author.id = ?1 AND status = ?2", authorId, PostStatus.PUBLISHED);
     }
 
+    /*
     public List<Post> search(String query, int page, int size) {
         return getEntityManager()
                 .createQuery("""
@@ -70,7 +71,37 @@ public class PostRepository implements PanacheRepository<Post> {
                 .setMaxResults(size)
                 .getResultList();
     }
+*/
+    public List<Long> searchIds(String query, int page, int size) {
+        return getEntityManager()
+                .createQuery("""
+                        SELECT p.id
+                        FROM Post p
+                        WHERE LOWER(p.content) LIKE :query
+                          AND p.status = :status
+                        ORDER BY p.createdAt DESC, p.id DESC
+                        """, Long.class)
+                .setParameter("query", "%" + query.toLowerCase() + "%")
+                .setParameter("status", PostStatus.PUBLISHED)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
 
+    public List<Post> findByIdsWithRelations(List<Long> ids) {
+        if (ids.isEmpty()) return List.of();
+
+        return getEntityManager()
+                .createQuery("""
+                        SELECT DISTINCT p
+                        FROM Post p
+                        LEFT JOIN FETCH p.author
+                        LEFT JOIN FETCH p.photos
+                        WHERE p.id IN :ids
+                        """, Post.class)
+                .setParameter("ids", ids)
+                .getResultList();
+    }
     public long countSearch(String query) {
         return count("LOWER(content) LIKE ?1 AND status = ?2",
                 "%" + query.toLowerCase() + "%", PostStatus.PUBLISHED);

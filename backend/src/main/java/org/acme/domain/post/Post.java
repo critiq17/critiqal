@@ -20,12 +20,6 @@ public class Post extends PanacheEntity {
     @Column(columnDefinition = "TEXT")
     public String content;
 
-    // remove old photo url tables
-//    @Column(name = "photo_url")
-//    public String photoUrl;
-//    @Column(name = "photo_thumbnail_url")
-//    public String photoThumbnailUrl;
-
     // new post photo entity (post can have many photos)
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
@@ -47,5 +41,9 @@ public class Post extends PanacheEntity {
 
     public static List<Post> findByAuthor(User author) {
         return list("author = ?1 ORDER BY createdAt DESC", author);
+    }
+
+    public Long getId() {
+        return id;
     }
 }

@@ -28,7 +28,8 @@ public record StravaActivityDTO(
                 a.movingTimeSeconds(),
                 a.elevationGain(),
                 a.startDate(),
-                a.ab
-        )
+                a.avgHeartrate(),
+                Math.round(paceMinPerKm * 100.0) / 100.0
+        );
     }
 }
