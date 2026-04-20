@@ -25,5 +25,11 @@ export const API = {
 		avatar: '/api/media/avatar',
 		postPhotos: (postId: number) => `/api/media/posts/${postId}/photos`,
 		postPhoto: (postId: number, photoId: number) => `/api/media/posts/${postId}/photos/${photoId}`
+	},
+	strava: {
+		connect: '/api/integration/strava/connect',
+		connection: '/api/integration/strava',
+		activities: '/api/integration/strava/activities',
+		public: (userId: number) => `/api/integration/strava/public/${userId}`
 	}
 } as const;
