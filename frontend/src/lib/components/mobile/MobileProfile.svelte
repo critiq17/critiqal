@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { fly, fade } from 'svelte/transition';
 	import type { User, Post, ReactionType, ReactionsMap } from '$lib/types';
 	import { userService } from '$lib/services/user.service';
 	import { mediaService } from '$lib/services/media.service';
@@ -10,6 +11,8 @@
 	import { DEFAULT_REACTIONS, REACTION_TYPES, REACTION_VISUALS } from '$lib/reactions';
 	import { openSheet } from '$lib/stores/sheet.store';
 	import { viewTracker } from '$lib/utils/viewTracker';
+	import { activeTab } from '$lib/stores/mobile-tab.store';
+	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import CommentSheet from './CommentSheet.svelte';
 
 	// ---------------------------------------------------------------------------
@@ -62,6 +65,11 @@
 
 	// Settings bottom sheet
 	let settingsOpen = $state(false);
+
+	// Strava
+	let stravaNotification = $state<'connected' | 'denied' | null>(null);
+	let confirmDisconnect = $state(false);
+	let stravaComingSoon = $state(false);
 
 	// Sheet cleanup functions (registered with global sheet store so BottomNav hides)
 	let closeStatsSheet_: (() => void) | null = null;
@@ -405,6 +413,8 @@
 	function closeSettings(): void {
 		settingsOpen = false;
 		settingsDragY = 0;
+		confirmDisconnect = false;
+		stravaComingSoon = false;
 		if (settingsSheetEl) settingsSheetEl.style.transform = '';
 		closeSettings_?.();
 		closeSettings_ = null;
@@ -432,6 +442,16 @@
 			settingsDragY = 0;
 			if (settingsSheetEl) settingsSheetEl.style.transform = '';
 		}
+	}
+
+	function handleStravaConnect(): void {
+		stravaComingSoon = true;
+		setTimeout(() => { stravaComingSoon = false; }, 4000);
+	}
+
+	async function handleStravaDisconnect(): Promise<void> {
+		await stravaStore.disconnect();
+		confirmDisconnect = false;
 	}
 
 	function openSupport(): void {
@@ -514,6 +534,16 @@
 
 	onMount(() => {
 		loadProfile();
+		stravaStore.load();
+
+		const params = new URLSearchParams(window.location.search);
+		const stravaResult = params.get('strava');
+		if (stravaResult === 'connected' || stravaResult === 'denied') {
+			activeTab.set('profile');
+			history.replaceState({}, '', '/');
+			stravaNotification = stravaResult as 'connected' | 'denied';
+			setTimeout(() => { stravaNotification = null; }, 3500);
+		}
 	});
 </script>
 
@@ -530,6 +560,31 @@
 />
 
 <div class="profile-container">
+
+	{#if stravaNotification}
+		<div
+			class="strava-toast"
+			class:strava-toast--success={stravaNotification === 'connected'}
+			class:strava-toast--denied={stravaNotification === 'denied'}
+			role="status"
+			aria-live="polite"
+			in:fly={{ y: -16, duration: 280 }}
+			out:fade={{ duration: 200 }}
+		>
+			{#if stravaNotification === 'connected'}
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+					<polyline points="20 6 9 17 4 12"/>
+				</svg>
+				Strava connected!
+			{:else}
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+					<line x1="18" y1="6" x2="6" y2="18"/>
+					<line x1="6" y1="6" x2="18" y2="18"/>
+				</svg>
+				Connection cancelled
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Sticky header -->
 	<div class="sticky-header" class:visible={showStickyHeader} aria-hidden={!showStickyHeader}>
@@ -980,6 +1035,68 @@
 				<line x1="10" y1="14" x2="21" y2="3"/>
 			</svg>
 		</button>
+		{#if stravaStore.loading && !stravaStore.connection}
+			<div class="settings-row settings-row-info">
+				<span class="settings-row-label">Strava</span>
+				<span class="spinner-xs" aria-label="Loading"></span>
+			</div>
+		{:else if stravaStore.connection}
+			{#if confirmDisconnect}
+				<div class="settings-row settings-strava-confirm">
+					<span class="settings-strava-confirm-text">Disconnect Strava?</span>
+					<div class="settings-strava-confirm-actions">
+						<button
+							class="strava-yes-btn"
+							onclick={handleStravaDisconnect}
+							disabled={stravaStore.loading}
+						>
+							{stravaStore.loading ? '…' : 'Yes'}
+						</button>
+						<button
+							class="strava-no-btn"
+							onclick={() => (confirmDisconnect = false)}
+							disabled={stravaStore.loading}
+						>
+							No
+						</button>
+					</div>
+				</div>
+			{:else}
+				<div class="settings-row settings-strava-connected">
+					<div class="strava-connected-info">
+						<span class="strava-dot" aria-hidden="true"></span>
+						<div class="strava-text">
+							<span class="strava-athlete-name">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
+							<span class="strava-connected-label">Strava connected</span>
+						</div>
+					</div>
+					<button class="strava-disconnect-btn" onclick={() => (confirmDisconnect = true)}>
+						Disconnect
+					</button>
+				</div>
+			{/if}
+		{:else}
+			<button
+				class="settings-row settings-row-strava-connect"
+				onclick={handleStravaConnect}
+				disabled={stravaStore.loading}
+			>
+				<div class="strava-connect-left">
+					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+						<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+					</svg>
+					<span>Connect Strava</span>
+				</div>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+					<polyline points="9 18 15 12 9 6"/>
+				</svg>
+			</button>
+		{/if}
+		{#if stravaComingSoon}
+			<p class="strava-soon-note" in:fade={{ duration: 180 }}>Coming soon · pending Strava's approval</p>
+		{:else if stravaStore.error}
+			<p class="strava-error-row" role="alert">{stravaStore.error}</p>
+		{/if}
 		<button class="settings-row settings-row-danger" onclick={handleLogout}>
 			Log out
 		</button>
@@ -1944,5 +2061,192 @@
 	.settings-row-value {
 		font-size: 14px;
 		color: rgba(255, 255, 255, 0.35);
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Strava settings section                                              */
+	/* ------------------------------------------------------------------ */
+
+	.settings-row-strava-connect {
+		color: #fc4c02;
+	}
+
+	.settings-row-strava-connect:active {
+		background: rgba(252, 76, 2, 0.06);
+	}
+
+	.settings-row-strava-connect:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.strava-connect-left {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.settings-strava-connected {
+		cursor: default;
+		flex-direction: row;
+		justify-content: space-between;
+	}
+
+	.strava-connected-info {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+	}
+
+	.strava-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: #fc4c02;
+		flex-shrink: 0;
+	}
+
+	.strava-text {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+
+	.strava-athlete-name {
+		font-size: 15px;
+		color: var(--color-text-primary, #f0f0f0);
+		font-weight: 500;
+	}
+
+	.strava-connected-label {
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.38);
+	}
+
+	.strava-disconnect-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 14px;
+		font-weight: 500;
+		color: #e05252;
+		padding: 6px 0;
+		font-family: inherit;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.strava-disconnect-btn:active {
+		opacity: 0.7;
+	}
+
+	.settings-strava-confirm {
+		flex-direction: column;
+		align-items: flex-start !important;
+		gap: 10px;
+		cursor: default;
+	}
+
+	.settings-strava-confirm-text {
+		font-size: 15px;
+		color: var(--color-text-primary, #f0f0f0);
+	}
+
+	.settings-strava-confirm-actions {
+		display: flex;
+		gap: 8px;
+	}
+
+	.strava-yes-btn {
+		padding: 6px 18px;
+		border-radius: 8px;
+		background: rgba(224, 82, 82, 0.12);
+		border: 1px solid rgba(224, 82, 82, 0.25);
+		color: #e05252;
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+		font-family: inherit;
+		min-height: 36px;
+	}
+
+	.strava-yes-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.strava-no-btn {
+		padding: 6px 18px;
+		border-radius: 8px;
+		background: none;
+		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
+		color: var(--color-text-primary, #f0f0f0);
+		font-size: 14px;
+		cursor: pointer;
+		font-family: inherit;
+		min-height: 36px;
+	}
+
+	.strava-no-btn:disabled {
+		opacity: 0.5;
+	}
+
+	.strava-soon-note {
+		padding: 0 16px 12px;
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.38);
+		line-height: 1.4;
+	}
+
+	.strava-error-row {
+		padding: 0 16px 10px;
+		font-size: 12px;
+		color: #e05252;
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Strava toast notification                                            */
+	/* ------------------------------------------------------------------ */
+
+	.strava-toast {
+		position: fixed;
+		top: max(env(safe-area-inset-top, 16px), 20px);
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 999;
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 10px 18px;
+		border-radius: 100px;
+		font-size: 14px;
+		font-weight: 500;
+		white-space: nowrap;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+		pointer-events: none;
+	}
+
+	.strava-toast--success {
+		background: rgba(16, 185, 129, 0.95);
+		color: #fff;
+	}
+
+	.strava-toast--denied {
+		background: rgba(60, 60, 60, 0.95);
+		color: rgba(255, 255, 255, 0.8);
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Spinner xs (used in Strava loading state)                            */
+	/* ------------------------------------------------------------------ */
+
+	.spinner-xs {
+		display: inline-block;
+		width: 16px;
+		height: 16px;
+		border: 2px solid rgba(255, 255, 255, 0.15);
+		border-top-color: rgba(255, 255, 255, 0.55);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+		flex-shrink: 0;
 	}
 </style>

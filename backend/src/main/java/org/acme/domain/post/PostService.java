@@ -12,6 +12,9 @@ import org.acme.domain.user.UserService;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class PostService {
@@ -57,9 +60,17 @@ public class PostService {
             return PageResponse.of(List.of(), page, size, 0);
         }
 
-        var posts = postRepo.search(query, page, size);
+        var ids = postRepo.searchIds(query, page, size);
+        var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countSearch(query);
-        return PageResponse.of(posts, page, size, total);
+
+        var postsById = posts.stream()
+                .collect(Collectors.toMap(Post::getId, p -> p));
+        var orderedPosts = ids.stream()
+                .map(postsById::get)
+                .filter(Objects::nonNull)
+                .toList();
+        return PageResponse.of(orderedPosts, page, size, total);
     }
 
     @Transactional

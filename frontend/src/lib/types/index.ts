@@ -5,3 +5,4 @@ export type { Comment, AddCommentRequest } from './comment';
 export type { ReactionType, ReactionsMap, ReactionRequest } from './reaction';
 export type { PageResponse } from './api';
 export { ApiError } from './api';
+export type { StravaConnection, StravaActivity } from './strava';
