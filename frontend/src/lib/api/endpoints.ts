@@ -27,9 +27,9 @@ export const API = {
 		postPhoto: (postId: number, photoId: number) => `/api/media/posts/${postId}/photos/${photoId}`
 	},
 	strava: {
-		connect: '/api/integration/strava/connect',
-		connection: '/api/integration/strava',
-		activities: '/api/integration/strava/activities',
-		public: (userId: number) => `/api/integration/strava/public/${userId}`
+		connect: '/api/integrations/strava/connect',
+		connection: '/api/integrations/strava',
+		activities: '/api/integrations/strava/activities',
+		public: (userId: number) => `/api/integrations/strava/public/${userId}`
 	}
 } as const;

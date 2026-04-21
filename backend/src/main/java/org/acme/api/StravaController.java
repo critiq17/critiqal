@@ -19,7 +19,7 @@ import java.util.Map;
     StravaController
  */
 
-@Path("/api/integration/strava")
+@Path("/api/integrations/strava")
 @Produces(MediaType.APPLICATION_JSON)
 public class StravaController {
 

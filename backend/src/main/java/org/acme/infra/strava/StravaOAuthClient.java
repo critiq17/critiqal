@@ -40,7 +40,7 @@ public class StravaOAuthClient {
     public String buildAuthorizationUrl(String state) {
         return AUTH_URL
                 + "?client_id=" + clientId
-                + "&redirect_uri" + redirectUri
+                + "&redirect_uri=" + redirectUri
                 + "&response_type=code"
                 + "&approval_prompt=auto"
                 + "&scope=read,activity:read"
