@@ -11,11 +11,17 @@ import java.util.List;
 @ApplicationScoped
 public class CommentService {
 
-    @Inject
-    CommentRepository commentRepo;
-    @Inject
-    PostService postService;
-    @Inject UserService userService;
+    private final CommentRepository commentRepo;
+    private final PostService postService;
+    private final UserService userService;
+
+    public CommentService(CommentRepository commentRepo,
+                          PostService postService,
+                          UserService userService) {
+        this.commentRepo = commentRepo;
+        this.postService = postService;
+        this.userService = userService;
+    }
 
     // all post comments
     public List<Comment> getPostComments(Long postId) {

@@ -19,12 +19,18 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class PostService {
 
-    @Inject PostRepository postRepo;
-    @Inject
-    UserService userService;
+    private final PostRepository postRepo;
+    private final UserService userService;
+    private final Event<PostCreatedEvent> postCreatedEvent;
 
     @Inject
-    Event<PostCreatedEvent> postCreatedEvent;
+    public PostService(PostRepository postRepo,
+                       UserService userService,
+                       Event<PostCreatedEvent> postCreatedEvent) {
+        this.postRepo = postRepo;
+        this.userService = userService;
+        this.postCreatedEvent = postCreatedEvent;
+    }
 
     @Transactional
     public Post createPost(Long authorId, String content) {

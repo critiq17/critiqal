@@ -21,11 +21,24 @@ import java.util.Optional;
 @ApplicationScoped
 public class StravaService {
 
-    @Inject StravaRepository stravaRepo;
-    @Inject StravaOAuthClient oAuthClient;
-    @Inject StravaApiClient apiClient;
-    @Inject StravaTokenRefresher tokenRefresher;
-    @Inject UserService userService;
+    private final StravaRepository stravaRepo;
+    private final StravaOAuthClient oAuthClient;
+    private final StravaApiClient apiClient;
+    private final StravaTokenRefresher tokenRefresher;
+    private final UserService userService;
+
+    @Inject
+    public StravaService(StravaRepository stravaRepo,
+                         StravaOAuthClient oAuthClient,
+                         StravaApiClient apiClient,
+                         StravaTokenRefresher tokenRefresher,
+                         UserService userService) {
+        this.stravaRepo = stravaRepo;
+        this.oAuthClient = oAuthClient;
+        this.apiClient = apiClient;
+        this.tokenRefresher = tokenRefresher;
+        this.userService = userService;
+    }
 
     public String getAuthorizationUrl(Long userId) {
         return oAuthClient.buildAuthorizationUrl(userId.toString());

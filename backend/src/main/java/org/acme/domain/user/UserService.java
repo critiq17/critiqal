@@ -10,8 +10,14 @@ import java.util.List;
 @ApplicationScoped
 public class UserService {
 
-    @Inject UserRepository userRepo;
-    @Inject PasswordHash passwordHash;
+    private final UserRepository userRepo;
+    private final PasswordHash passwordHash;
+
+    @Inject
+    public UserService(UserRepository userRepo, PasswordHash passwordHash) {
+        this.userRepo = userRepo;
+        this.passwordHash = passwordHash;
+    }
 
     @Transactional
     public User register(String username, String password) {
