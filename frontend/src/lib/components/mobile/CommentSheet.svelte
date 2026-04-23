@@ -3,9 +3,11 @@
 	import type { Comment } from '$lib/types';
 	import { postService } from '$lib/services';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import { openProfile } from '$lib/stores/profile-nav.store';
-	import { openSheet } from '$lib/stores/sheet.store';
+	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
+	import { openSheet } from '$lib/stores/sheet.store.svelte';
 	import { Sheet } from '$lib/ui';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
+	import { getInitials } from '$lib/utils/getInitials';
 
 	interface Props {
 		postId: number;
@@ -28,23 +30,6 @@
 	let commentReplies = $state(new Map<number, Comment[]>());
 
 	let inputEl = $state<HTMLInputElement | null>(null);
-
-	function formatRelativeTime(dateStr: string): string {
-		const diff = Date.now() - new Date(dateStr).getTime();
-		const minutes = Math.floor(diff / 60000);
-		if (minutes < 1) return 'just now';
-		if (minutes < 60) return `${minutes}m`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h`;
-		const days = Math.floor(hours / 24);
-		if (days < 7) return `${days}d`;
-		return new Date(dateStr).toLocaleDateString();
-	}
-
-	function getInitials(name: string | null, username: string): string {
-		const src = name ?? username;
-		return src.slice(0, 2).toUpperCase();
-	}
 
 	async function loadComments(): Promise<void> {
 		if (!postId) return;

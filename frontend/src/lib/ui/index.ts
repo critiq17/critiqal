@@ -1,4 +1,5 @@
 export { default as Avatar } from './Avatar.svelte';
+export { default as EmptyState } from './EmptyState.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Chip } from './Chip.svelte';
 export { default as IconButton } from './IconButton.svelte';

@@ -2,13 +2,13 @@
 	import { onMount } from 'svelte';
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
-	import { activeTab } from '$lib/stores/mobile-tab.store';
-	import { profileNav } from '$lib/stores/profile-nav.store';
+	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
+	import { profileNavStore } from '$lib/stores/profile-nav.store.svelte';
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
-	import { composeOpen, closeCompose } from '$lib/stores/compose.store';
-	import { anySheetOpen } from '$lib/stores/sheet.store';
-	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
+	import { sheetStore } from '$lib/stores/sheet.store.svelte';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import type { Post } from '$lib/types';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
@@ -18,28 +18,23 @@
 	import UserProfileOverlay from './UserProfileOverlay.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
-	let currentTab = $state('feed');
-	let viewedUsername = $state<string | null>(null);
 
 	// Composer — owned at layout level so it works from any tab
 	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
-	let isComposerOpen = $state(false);
 
-	composeOpen.subscribe((open) => {
+	$effect(() => {
+		const open = composeStore.open;
 		if (open && !MobilePostComposer) {
 			import('./MobilePostComposer.svelte').then((m) => {
 				MobilePostComposer = m.default;
-				isComposerOpen = true;
 			});
-		} else {
-			isComposerOpen = open;
 		}
 	});
 
 	function handlePosted(post: Post): void {
 		mobileFeedStore.prependPost(post);
 		closeCompose();
-		activeTab.set('feed'); // Navigate to feed so user sees the new post immediately
+		tabStore.active = 'feed';
 	}
 
 	// Reference to the content div that gets pushed during overlay navigation
@@ -75,11 +70,10 @@
 	}
 
 	// Watch overlay open/close to push/restore background.
-	// Plain variable tracks previous value so we don't animate on initial render.
 	let _prevUsername: string | null = null;
 
 	$effect(() => {
-		const username = viewedUsername;
+		const username = profileNavStore.username;
 		if (username === _prevUsername) return;
 		_prevUsername = username;
 
@@ -98,12 +92,6 @@
 		}
 	});
 
-	profileNav.subscribe((u) => { viewedUsername = u; });
-
-	const unsubscribe = activeTab.subscribe((tab) => {
-		currentTab = tab;
-	});
-
 	onMount(() => {
 		if (isTelegramMiniApp()) {
 			initTelegram();
@@ -114,7 +102,6 @@
 		const unregisterSwipe = registerOverlaySwipeListener(onOverlaySwipe);
 
 		return () => {
-			unsubscribe();
 			unregisterSwipe();
 		};
 	});
@@ -136,29 +123,29 @@
 	{:else}
 		<div class="mobile-content" bind:this={contentEl}>
 			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
-			<div class="tab-panel" class:active={currentTab === 'feed'}>
+			<div class="tab-panel" class:active={tabStore.active === 'feed'}>
 				<MobileFeed />
 			</div>
-			<div class="tab-panel" class:active={currentTab === 'explore'}>
-				<MobileExplore isActive={currentTab === 'explore'} />
+			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
+				<MobileExplore isActive={tabStore.active === 'explore'} />
 			</div>
-			<div class="tab-panel" class:active={currentTab === 'profile'}>
+			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
 				<MobileProfile />
 			</div>
 		</div>
-		{#if !$anySheetOpen}
+		{#if !sheetStore.anyOpen}
 			<BottomNav />
 		{/if}
 	{/if}
 </div>
 
-{#if viewedUsername}
-	<UserProfileOverlay username={viewedUsername} />
+{#if profileNavStore.username}
+	<UserProfileOverlay username={profileNavStore.username} />
 {/if}
 
-{#if MobilePostComposer && isComposerOpen}
+{#if MobilePostComposer && composeStore.open}
 	<MobilePostComposer
-		open={isComposerOpen}
+		open={composeStore.open}
 		onClose={closeCompose}
 		onPosted={handlePosted}
 	/>

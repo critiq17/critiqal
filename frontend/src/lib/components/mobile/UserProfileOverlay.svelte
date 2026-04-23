@@ -4,8 +4,10 @@
 	import { userService } from '$lib/services/user.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import { closeProfile } from '$lib/stores/profile-nav.store';
+	import { closeProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
+	import { getInitials } from '$lib/utils/getInitials';
 
 	// ── Swipe-to-dismiss (direct DOM, bypass Svelte reactivity for 60fps) ───────
 	//
@@ -123,20 +125,8 @@
 		return String(n);
 	}
 
-	function formatRelativeTime(dateStr: string): string {
-		const diff = Date.now() - new Date(dateStr).getTime();
-		const minutes = Math.floor(diff / 60000);
-		if (minutes < 1) return 'just now';
-		if (minutes < 60) return `${minutes}m`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h`;
-		const days = Math.floor(hours / 24);
-		if (days < 7) return `${days}d`;
-		return new Date(dateStr).toLocaleDateString();
-	}
-
 	function getInitial(user: User): string {
-		return (user.name ?? user.username).charAt(0).toUpperCase();
+		return getInitials(user.name, user.username);
 	}
 
 	async function load(): Promise<void> {

@@ -3,6 +3,19 @@
 	import { isTelegramMiniApp } from '$lib/telegram';
 	import MobileLayout from '$lib/components/mobile/MobileLayout.svelte';
 	import { onMount } from 'svelte';
+	import { onNavigate, goto } from '$app/navigation';
+	import { reducedMotion } from '$lib/ui/reducedMotion.svelte';
+	import { registerUnauthorizedHandler } from '$lib/api/client';
+
+	onNavigate((navigation) => {
+		if (reducedMotion.value || !document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -15,6 +28,10 @@
 	onMount(() => {
 		isMobile = isTelegramMiniApp();
 		authStore.init();
+		registerUnauthorizedHandler(() => {
+			authStore.logout();
+			goto('/login');
+		});
 	});
 </script>
 

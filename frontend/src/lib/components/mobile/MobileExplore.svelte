@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { mobileExploreStore } from '$lib/stores/mobile-explore.store.svelte';
+	import { UseSearch } from '$lib/features/explore/useSearch.svelte';
+	import { getInitials } from '$lib/utils/getInitials';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 	import type { Post, User } from '$lib/types';
-	import { postService, userService } from '$lib/services';
-	import { mobileExploreStore, type ExploreTab } from '$lib/stores/mobile-explore.store';
-	import { get } from 'svelte/store';
 
 	interface Props {
 		isActive: boolean;
@@ -11,135 +12,22 @@
 
 	let { isActive }: Props = $props();
 
-	// ── Local state ──────────────────────────────────────────
-	let query = $state('');
-	let activeTab = $state<ExploreTab>('posts');
+	const search = new UseSearch();
 
-	let loadedQuery = $state<string | null>(null);
-	let loadedTab = $state<ExploreTab | null>(null);
-
-	// Posts paginated state
-	let posts = $state<Post[]>([]);
-	let postsPage = $state(0);
-	let postsHasNext = $state(false);
-	let postsLoading = $state(false);
-	let postsLoadingMore = $state(false);
-	let postsError = $state<string | null>(null);
-
-	// Users state
-	let users = $state<User[]>([]);
-	let usersState = $state<'idle' | 'loading' | 'loaded' | 'error'>('idle');
-	let usersError = $state('');
-
-	let followStates = $state(new Map<number, boolean>());
+	let query = $state(mobileExploreStore.query);
+	let activeTab = $state(mobileExploreStore.tab);
 	let inputEl = $state<HTMLInputElement | undefined>(undefined);
 
-	const DEBOUNCE_MS = 300;
 	const SKELETON_COUNT = 3;
 
-	// ── Hydrate from store on mount ───────────────────────────
-	const cached = get(mobileExploreStore);
-	if (cached.loadedAt !== null) {
-		query = cached.query;
-		activeTab = cached.tab;
-		posts = cached.posts;
-		users = cached.users;
-		loadedQuery = cached.query;
-		loadedTab = cached.tab;
-		usersState = 'loaded';
-	}
+	$effect(() => {
+		mobileExploreStore.query = query;
+		mobileExploreStore.tab = activeTab;
+	});
 
-	// ── Posts pagination ──────────────────────────────────────
-	async function loadPosts(q: string): Promise<void> {
-		postsLoading = true;
-		postsError = null;
-		posts = [];
-		postsPage = 0;
-		postsHasNext = false;
-		try {
-			const res = q.trim()
-				? await postService.search(q.trim(), 0)
-				: await postService.getFeed(0);
-			posts = res.content;
-			postsHasNext = res.hasNext;
-		} catch (err) {
-			postsError = err instanceof Error ? err.message : 'Something went wrong.';
-		} finally {
-			postsLoading = false;
-		}
-	}
+	let loadedQuery: string | null = null;
+	let loadedTab = activeTab;
 
-	async function loadMorePosts(): Promise<void> {
-		if (!postsHasNext || postsLoadingMore) return;
-		postsLoadingMore = true;
-		const q = query;
-		try {
-			const nextPage = postsPage + 1;
-			const res = q.trim()
-				? await postService.search(q.trim(), nextPage)
-				: await postService.getFeed(nextPage);
-			posts = [...posts, ...res.content];
-			postsPage = nextPage;
-			postsHasNext = res.hasNext;
-		} catch {
-			// non-fatal
-		} finally {
-			postsLoadingMore = false;
-		}
-	}
-
-	// ── Debounce ──────────────────────────────────────────────
-	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
-
-	function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number) {
-		return (...args: T): void => {
-			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => fn(...args), delay);
-		};
-	}
-
-	// ── IntersectionObserver action ───────────────────────────
-	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
-		const obs = new IntersectionObserver(
-			([entry]) => {
-				if (entry?.isIntersecting && !postsLoadingMore) loadMorePosts();
-			},
-			{ threshold: 0.1 }
-		);
-		obs.observe(el);
-		return { destroy: () => obs.disconnect() };
-	}
-
-	// ── Search ────────────────────────────────────────────────
-	async function fetchResults(q: string, tab: ExploreTab): Promise<void> {
-		if (loadedQuery === q && loadedTab === tab) return;
-
-		if (tab === 'posts') {
-			await loadPosts(q);
-			if (!postsError) {
-				loadedQuery = q;
-				loadedTab = tab;
-				mobileExploreStore.set({ query: q, tab, posts, users, loadedAt: Date.now() });
-			}
-		} else {
-			usersState = 'loading';
-			usersError = '';
-			try {
-				users = await userService.search(q.trim());
-				loadedQuery = q;
-				loadedTab = tab;
-				usersState = 'loaded';
-				mobileExploreStore.set({ query: q, tab, posts, users, loadedAt: Date.now() });
-			} catch (err: unknown) {
-				usersError = err instanceof Error ? err.message : 'Something went wrong.';
-				usersState = 'error';
-			}
-		}
-	}
-
-	const debouncedFetch = debounce(fetchResults, DEBOUNCE_MS);
-
-	// ── Reactive fetch trigger ────────────────────────────────
 	$effect(() => {
 		const q = query;
 		const tab = activeTab;
@@ -149,77 +37,46 @@
 
 		const queryChanged = untrack(() => q !== loadedQuery);
 		if (queryChanged) {
-			debouncedFetch(q, tab);
+			search.scheduleSearch(q, tab);
 		} else {
-			fetchResults(q, tab);
+			search.fetchResults(q, tab);
 		}
+		loadedQuery = q;
+		loadedTab = tab;
 	});
 
-	// ── Autofocus when tab becomes visible ────────────────────
 	$effect(() => {
-		if (isActive) {
-			inputEl?.focus();
-		}
+		if (isActive) inputEl?.focus();
 	});
 
-	// ── Follow / unfollow ─────────────────────────────────────
-	async function toggleFollow(user: User): Promise<void> {
-		const isFollowing = followStates.get(user.id) ?? false;
-		// Optimistic update
-		followStates = new Map(followStates).set(user.id, !isFollowing);
-		try {
-			if (isFollowing) {
-				await userService.unfollow(user.id);
-			} else {
-				await userService.follow(user.id);
-			}
-		} catch {
-			// Revert on error
-			followStates = new Map(followStates).set(user.id, isFollowing);
-		}
+	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
+		const obs = new IntersectionObserver(
+			([entry]) => {
+				if (entry?.isIntersecting && !search.postsLoadingMore) search.loadMorePosts();
+			},
+			{ threshold: 0.1 }
+		);
+		obs.observe(el);
+		return { destroy: () => obs.disconnect() };
 	}
 
-	// ── Helpers ───────────────────────────────────────────────
-	function getInitials(user: User): string {
-		return (user.name ?? user.username).charAt(0).toUpperCase();
+	function handlePostTap(_post: Post): void {
+		// Placeholder for post detail navigation when route is ready
 	}
 
-	function formatRelativeTime(isoDate: string): string {
-		const diff = Date.now() - new Date(isoDate).getTime();
-		const minutes = Math.floor(diff / 60_000);
-		if (minutes < 1) return 'just now';
-		if (minutes < 60) return `${minutes}m`;
-		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h`;
-		const days = Math.floor(hours / 24);
-		if (days < 7) return `${days}d`;
-		const weeks = Math.floor(days / 7);
-		return `${weeks}w`;
+	function getPostInitials(user: User): string {
+		return getInitials(user.name, user.username);
 	}
 
 	function truncateContent(content: string, maxLen = 120): string {
 		return content.length <= maxLen ? content : `${content.slice(0, maxLen).trimEnd()}…`;
 	}
-
-	function handlePostTap(post: Post): void {
-		// Navigation hook — integrate with router when post detail route is ready
-		// eslint-disable-next-line no-console
-		console.log('[MobileExplore] post tapped:', post.id);
-	}
 </script>
 
 <div class="explore-container">
-	<!-- Sticky search bar -->
 	<div class="search-bar">
 		<div class="search-wrapper">
-			<svg
-				class="search-icon"
-				viewBox="0 0 24 24"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="2"
-				aria-hidden="true"
-			>
+			<svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 				<circle cx="11" cy="11" r="8" />
 				<line x1="21" y1="21" x2="16.65" y2="16.65" />
 			</svg>
@@ -234,12 +91,7 @@
 				spellcheck="false"
 			/>
 			{#if query}
-				<button
-					class="search-clear"
-					onclick={() => (query = '')}
-					aria-label="Clear search"
-					type="button"
-				>
+				<button class="search-clear" onclick={() => (query = '')} aria-label="Clear search" type="button">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
 						<line x1="18" y1="6" x2="6" y2="18" />
 						<line x1="6" y1="6" x2="18" y2="18" />
@@ -248,7 +100,6 @@
 			{/if}
 		</div>
 
-		<!-- Tab bar -->
 		<div class="tab-bar" role="tablist" aria-label="Content type">
 			<button
 				class="tab-btn"
@@ -257,9 +108,7 @@
 				aria-selected={activeTab === 'posts'}
 				type="button"
 				onclick={() => (activeTab = 'posts')}
-			>
-				Posts
-			</button>
+			>Posts</button>
 			<button
 				class="tab-btn"
 				class:active={activeTab === 'people'}
@@ -267,9 +116,7 @@
 				aria-selected={activeTab === 'people'}
 				type="button"
 				onclick={() => (activeTab = 'people')}
-			>
-				People
-			</button>
+			>People</button>
 			<span
 				class="tab-indicator"
 				style:left={activeTab === 'posts' ? '0%' : '50%'}
@@ -279,14 +126,9 @@
 		</div>
 	</div>
 
-	<!-- Results -->
-	<div
-		class="content-area"
-		role="tabpanel"
-		aria-label={activeTab === 'posts' ? 'Posts results' : 'People results'}
-	>
+	<div class="content-area" role="tabpanel" aria-label={activeTab === 'posts' ? 'Posts results' : 'People results'}>
 		{#if activeTab === 'posts'}
-			{#if postsLoading}
+			{#if search.postsLoading}
 				<div class="skeleton-list" aria-busy="true" aria-label="Loading posts">
 					{#each { length: SKELETON_COUNT } as _, i (i)}
 						<div class="post-skeleton" style:animation-delay="{i * 60}ms">
@@ -302,7 +144,7 @@
 						</div>
 					{/each}
 				</div>
-			{:else if postsError}
+			{:else if search.postsError}
 				<div class="empty-state" role="alert">
 					<div class="empty-icon-wrap">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -312,14 +154,10 @@
 						</svg>
 					</div>
 					<p class="empty-title">Something went wrong</p>
-					<p class="empty-subtitle">{postsError}</p>
-					<button
-						class="retry-btn"
-						type="button"
-						onclick={() => fetchResults(query, activeTab)}
-					>Try again</button>
+					<p class="empty-subtitle">{search.postsError}</p>
+					<button class="retry-btn" type="button" onclick={() => search.fetchResults(query, activeTab)}>Try again</button>
 				</div>
-			{:else if posts.length === 0}
+			{:else if search.posts.length === 0}
 				<div class="empty-state">
 					<div class="empty-icon-wrap empty-icon-dashed">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -332,7 +170,7 @@
 				</div>
 			{:else}
 				<ul class="results-list" aria-label="Post results">
-					{#each posts as post, i (post.id)}
+					{#each search.posts as post, i (post.id)}
 						<li
 							class="result-item post-item"
 							style:animation-delay="{i * 30}ms"
@@ -347,7 +185,7 @@
 									{#if post.author.avatarUrl}
 										<img src={post.author.avatarUrl} alt={post.author.username} class="avatar-img" />
 									{:else}
-										<span class="avatar-initial">{getInitials(post.author)}</span>
+										<span class="avatar-initial">{getPostInitials(post.author)}</span>
 									{/if}
 								</div>
 								<div class="post-author-info">
@@ -360,17 +198,17 @@
 					{/each}
 				</ul>
 
-				{#if postsHasNext}
+				{#if search.postsHasNext}
 					<div class="explore-sentinel" use:infiniteScroll></div>
 				{/if}
-				{#if postsLoadingMore}
+				{#if search.postsLoadingMore}
 					<div class="loading-more-indicator">Loading…</div>
 				{/if}
 			{/if}
 
 		{:else}
 			<!-- People tab -->
-			{#if usersState === 'loading'}
+			{#if search.usersState === 'loading'}
 				<div class="skeleton-list" aria-busy="true" aria-label="Loading people">
 					{#each { length: SKELETON_COUNT } as _, i (i)}
 						<div class="user-skeleton" style:animation-delay="{i * 60}ms">
@@ -382,7 +220,7 @@
 						</div>
 					{/each}
 				</div>
-			{:else if usersState === 'error'}
+			{:else if search.usersState === 'error'}
 				<div class="empty-state" role="alert">
 					<div class="empty-icon-wrap">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -392,14 +230,10 @@
 						</svg>
 					</div>
 					<p class="empty-title">Something went wrong</p>
-					<p class="empty-subtitle">{usersError}</p>
-					<button
-						class="retry-btn"
-						type="button"
-						onclick={() => fetchResults(query, activeTab)}
-					>Try again</button>
+					<p class="empty-subtitle">{search.usersError}</p>
+					<button class="retry-btn" type="button" onclick={() => search.fetchResults(query, activeTab)}>Try again</button>
 				</div>
-			{:else if users.length === 0 && usersState === 'loaded'}
+			{:else if search.users.length === 0 && search.usersState === 'loaded'}
 				<div class="empty-state">
 					<div class="empty-icon-wrap empty-icon-dashed">
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -410,20 +244,15 @@
 					<p class="empty-title">Nothing found</p>
 					<p class="empty-subtitle">Try a different search</p>
 				</div>
-			{:else if users.length === 0}
-				<!-- idle state: no search triggered yet -->
-			{:else}
+			{:else if search.users.length > 0}
 				<ul class="results-list" aria-label="People results">
-					{#each users as user, i (user.id)}
-						<li
-							class="result-item user-item"
-							style:animation-delay="{i * 30}ms"
-						>
+					{#each search.users as user, i (user.id)}
+						<li class="result-item user-item" style:animation-delay="{i * 30}ms">
 							<div class="user-avatar-wrap" aria-hidden="true">
 								{#if user.avatarUrl}
 									<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
 								{:else}
-									<span class="avatar-initial">{getInitials(user)}</span>
+									<span class="avatar-initial">{getInitials(user.name, user.username)}</span>
 								{/if}
 							</div>
 							<div class="user-info">
@@ -432,12 +261,12 @@
 							</div>
 							<button
 								class="follow-btn"
-								class:following={followStates.get(user.id) ?? false}
+								class:following={search.followStates.get(user.id) ?? false}
 								type="button"
-								onclick={() => toggleFollow(user)}
-								aria-label="{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'} {user.name ?? user.username}"
+								onclick={() => search.toggleFollow(user)}
+								aria-label="{(search.followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'} {user.name ?? user.username}"
 							>
-								{(followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'}
+								{(search.followStates.get(user.id) ?? false) ? 'Unfollow' : 'Follow'}
 							</button>
 						</li>
 					{/each}
@@ -448,7 +277,6 @@
 </div>
 
 <style>
-	/* ── Container ───────────────────────────────────────────── */
 	.explore-container {
 		height: 100%;
 		overflow-y: auto;
@@ -459,7 +287,6 @@
 		padding-bottom: var(--content-bottom-padding, 104px);
 	}
 
-	/* ── Search bar (sticky) ─────────────────────────────────── */
 	.search-bar {
 		position: sticky;
 		top: 0;
@@ -505,18 +332,14 @@
 		-webkit-appearance: none;
 	}
 
-	.search-input::placeholder {
-		color: rgba(255, 255, 255, 0.35);
-	}
+	.search-input::placeholder { color: rgba(255, 255, 255, 0.35); }
 
 	.search-input:focus {
 		border-color: var(--color-accent, #e05252);
 		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #e05252) 15%, transparent);
 	}
 
-	.search-input::-webkit-search-cancel-button {
-		display: none;
-	}
+	.search-input::-webkit-search-cancel-button { display: none; }
 
 	.search-clear {
 		position: absolute;
@@ -534,17 +357,13 @@
 		transition: color 0.15s ease, background-color 0.15s ease;
 	}
 
-	.search-clear svg {
-		width: 14px;
-		height: 14px;
-	}
+	.search-clear svg { width: 14px; height: 14px; }
 
 	.search-clear:hover {
 		color: var(--color-text-primary, #f0f0f0);
 		background-color: rgba(255, 255, 255, 0.1);
 	}
 
-	/* ── Tab bar ─────────────────────────────────────────────── */
 	.tab-bar {
 		display: flex;
 		position: relative;
@@ -567,14 +386,8 @@
 		z-index: 1;
 	}
 
-	.tab-btn:hover {
-		color: var(--color-text-primary, #f0f0f0);
-	}
-
-	.tab-btn.active {
-		color: var(--color-text-primary, #f0f0f0);
-		font-weight: 600;
-	}
+	.tab-btn:hover { color: var(--color-text-primary, #f0f0f0); }
+	.tab-btn.active { color: var(--color-text-primary, #f0f0f0); font-weight: 600; }
 
 	.tab-indicator {
 		position: absolute;
@@ -585,12 +398,8 @@
 		transition: left 0.2s ease, width 0.2s ease;
 	}
 
-	/* ── Content area ────────────────────────────────────────── */
-	.content-area {
-		padding-top: 4px;
-	}
+	.content-area { padding-top: 4px; }
 
-	/* ── Results list ────────────────────────────────────────── */
 	.results-list {
 		list-style: none;
 		margin: 0;
@@ -599,11 +408,8 @@
 		flex-direction: column;
 	}
 
-	.result-item {
-		animation: fadeSlideUp 0.25s ease both;
-	}
+	.result-item { animation: fadeSlideUp 0.25s ease both; }
 
-	/* ── Post items ──────────────────────────────────────────── */
 	.post-item {
 		padding: 14px 16px;
 		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
@@ -613,13 +419,9 @@
 	}
 
 	.post-item:hover,
-	.post-item:focus-visible {
-		background-color: var(--color-surface-raised, #1a1a1a);
-	}
+	.post-item:focus-visible { background-color: var(--color-surface-raised, #1a1a1a); }
 
-	.post-item:focus-visible {
-		box-shadow: inset 0 0 0 2px var(--color-accent, #e05252);
-	}
+	.post-item:focus-visible { box-shadow: inset 0 0 0 2px var(--color-accent, #e05252); }
 
 	.post-meta {
 		display: flex;
@@ -657,11 +459,11 @@
 		margin: 0;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
 
-	/* ── User items ──────────────────────────────────────────── */
 	.user-item {
 		display: flex;
 		align-items: center;
@@ -695,11 +497,7 @@
 		overflow: hidden;
 	}
 
-	.avatar-img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
+	.avatar-img { width: 100%; height: 100%; object-fit: cover; }
 
 	.avatar-initial {
 		font-size: 13px;
@@ -725,12 +523,8 @@
 		text-overflow: ellipsis;
 	}
 
-	.user-handle {
-		font-size: 12px;
-		color: rgba(255, 255, 255, 0.4);
-	}
+	.user-handle { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
 
-	/* ── Follow button ───────────────────────────────────────── */
 	.follow-btn {
 		background: var(--tg-accent, #e05252);
 		color: white;
@@ -746,26 +540,16 @@
 		white-space: nowrap;
 	}
 
-	.follow-btn:hover {
-		opacity: 0.85;
-	}
+	.follow-btn:hover { opacity: 0.85; }
 
 	.follow-btn.following {
 		background: rgba(255, 255, 255, 0.08);
 		color: rgba(255, 255, 255, 0.7);
 	}
 
-	.follow-btn.following:hover {
-		background: rgba(255, 255, 255, 0.12);
-		opacity: 1;
-	}
+	.follow-btn.following:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
 
-	/* ── Skeleton loading ────────────────────────────────────── */
-	.skeleton-list {
-		display: flex;
-		flex-direction: column;
-		padding-top: 4px;
-	}
+	.skeleton-list { display: flex; flex-direction: column; padding-top: 4px; }
 
 	.post-skeleton {
 		padding: 14px 16px;
@@ -798,17 +582,9 @@
 		animation: shimmer 1.4s ease-in-out infinite;
 	}
 
-	.user-skeleton .skeleton-avatar {
-		width: 40px;
-		height: 40px;
-	}
+	.user-skeleton .skeleton-avatar { width: 40px; height: 40px; }
 
-	.skeleton-meta {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-	}
+	.skeleton-meta { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 
 	.skeleton-line {
 		border-radius: 4px;
@@ -816,31 +592,11 @@
 		animation: shimmer 1.4s ease-in-out infinite;
 	}
 
-	.skeleton-name {
-		height: 13px;
-		width: 40%;
-	}
+	.skeleton-name { height: 13px; width: 40%; }
+	.skeleton-time { height: 11px; width: 20%; animation-delay: 0.1s; }
+	.skeleton-body { height: 13px; width: 90%; animation-delay: 0.05s; }
+	.skeleton-body-short { height: 13px; width: 65%; margin-top: 6px; animation-delay: 0.15s; }
 
-	.skeleton-time {
-		height: 11px;
-		width: 20%;
-		animation-delay: 0.1s;
-	}
-
-	.skeleton-body {
-		height: 13px;
-		width: 90%;
-		animation-delay: 0.05s;
-	}
-
-	.skeleton-body-short {
-		height: 13px;
-		width: 65%;
-		margin-top: 6px;
-		animation-delay: 0.15s;
-	}
-
-	/* ── Empty state ─────────────────────────────────────────── */
 	.empty-state {
 		display: flex;
 		flex-direction: column;
@@ -862,30 +618,10 @@
 		background: rgba(255, 255, 255, 0.04);
 	}
 
-	.empty-icon-wrap svg {
-		width: 22px;
-		height: 22px;
-		color: rgba(255, 255, 255, 0.3);
-	}
-
-	.empty-icon-dashed {
-		border: 1.5px dashed rgba(255, 255, 255, 0.2);
-		background: none;
-	}
-
-	.empty-title {
-		font-size: 15px;
-		font-weight: 600;
-		color: var(--color-text-primary, #f0f0f0);
-		margin: 0;
-	}
-
-	.empty-subtitle {
-		font-size: 13px;
-		color: rgba(255, 255, 255, 0.4);
-		margin: 0;
-		margin-top: -8px;
-	}
+	.empty-icon-wrap svg { width: 22px; height: 22px; color: rgba(255, 255, 255, 0.3); }
+	.empty-icon-dashed { border: 1.5px dashed rgba(255, 255, 255, 0.2); background: none; }
+	.empty-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary, #f0f0f0); margin: 0; }
+	.empty-subtitle { font-size: 13px; color: rgba(255, 255, 255, 0.4); margin: 0; margin-top: -8px; }
 
 	.retry-btn {
 		margin-top: 4px;
@@ -901,18 +637,10 @@
 		transition: background-color 0.15s ease, transform 0.1s ease;
 	}
 
-	.retry-btn:hover {
-		background-color: var(--color-surface-raised, #242424);
-	}
+	.retry-btn:hover { background-color: var(--color-surface-raised, #242424); }
+	.retry-btn:active { transform: scale(0.97); }
 
-	.retry-btn:active {
-		transform: scale(0.97);
-	}
-
-	/* ── Infinite scroll ─────────────────────────────────────── */
-	.explore-sentinel {
-		height: 1px;
-	}
+	.explore-sentinel { height: 1px; }
 
 	.loading-more-indicator {
 		padding: 16px;
@@ -921,25 +649,13 @@
 		color: rgba(255, 255, 255, 0.5);
 	}
 
-	/* ── Animations ──────────────────────────────────────────── */
 	@keyframes fadeSlideUp {
-		from {
-			opacity: 0;
-			transform: translateY(12px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
+		from { opacity: 0; transform: translateY(12px); }
+		to { opacity: 1; transform: translateY(0); }
 	}
 
 	@keyframes shimmer {
-		0%,
-		100% {
-			opacity: 0.5;
-		}
-		50% {
-			opacity: 1;
-		}
+		0%, 100% { opacity: 0.5; }
+		50% { opacity: 1; }
 	}
 </style>

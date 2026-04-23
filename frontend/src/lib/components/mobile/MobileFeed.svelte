@@ -1,18 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Post } from '$lib/types';
-	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import CommentSheet from './CommentSheet.svelte';
-	import { openProfile } from '$lib/stores/profile-nav.store';
+	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
-
-	// Feed state mirrored from store
-	let posts = $state<Post[]>([]);
-	let isLoading = $state(false);
-	let isLoadingMore = $state(false);
-	let hasNext = $state(false);
-	let feedError = $state<string | null>(null);
 
 	// Comment sheet
 	let openCommentSheetPostId = $state<number | null>(null);
@@ -34,24 +26,24 @@
 		openCommentSheetPostId = postId;
 	}
 
-	async function fetchFeed(options: { resetPage?: boolean; force?: boolean } = {}): Promise<void> {
-		const { resetPage = false, force = false } = options;
+	async function fetchFeed(options: { force?: boolean } = {}): Promise<void> {
+		const { force = false } = options;
 		try {
-			await mobileFeedStore.load({ force, resetPage });
+			await mobileFeedStore.load({ force });
 		} catch {
 			// Non-critical — store manages its own error state
 		}
 	}
 
 	async function loadMorePosts(): Promise<void> {
-		if (isLoadingMore) return;
+		if (mobileFeedStore.isLoadingMore) return;
 		await mobileFeedStore.loadMore();
 	}
 
 	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
 		const obs = new IntersectionObserver(
 			([entry]) => {
-				if (entry?.isIntersecting && !isLoadingMore) loadMorePosts();
+				if (entry?.isIntersecting && !mobileFeedStore.isLoadingMore) loadMorePosts();
 			},
 			{ threshold: 0.1 }
 		);
@@ -101,7 +93,7 @@
 			pullThresholdMet = false;
 			isRefreshing = true;
 			try {
-				await fetchFeed({ resetPage: true, force: true });
+				await fetchFeed({ force: true });
 			} finally {
 				isRefreshing = false;
 			}
@@ -111,28 +103,10 @@
 	}
 
 	onMount(() => {
-		let initialized = false;
-
-		const unsub = mobileFeedStore.subscribe((s) => {
-			posts = s.posts;
-			isLoading = s.status === 'loading';
-			isLoadingMore = s.isLoadingMore;
-			hasNext = s.hasNext;
-			feedError = s.error;
-
-			// Trigger fetch on first store update if posts are empty
-			if (!initialized) {
-				initialized = true;
-				if (posts.length === 0) {
-					mobileFeedStore.reset();
-					fetchFeed({ force: true });
-				}
-			}
-		});
-
-		return () => {
-			unsub();
-		};
+		if (mobileFeedStore.posts.length === 0) {
+			mobileFeedStore.reset();
+			fetchFeed({ force: true });
+		}
 	});
 </script>
 
@@ -173,19 +147,19 @@
 	ontouchmove={onPullTouchMove}
 	ontouchend={onPullTouchEnd}
 >
-	{#if isLoading && posts.length === 0}
+	{#if mobileFeedStore.status === 'loading' && mobileFeedStore.posts.length === 0}
 		<div class="feed-state">
 			<div class="skeleton-card"></div>
 			<div class="skeleton-card"></div>
 			<div class="skeleton-card"></div>
 		</div>
-	{:else if feedError && posts.length === 0}
+	{:else if mobileFeedStore.error && mobileFeedStore.posts.length === 0}
 		<div class="feed-state error">
-			<p>{feedError}</p>
-			<button class="retry-btn" onclick={() => fetchFeed({ force: true, resetPage: true })}>Retry</button>
+			<p>{mobileFeedStore.error}</p>
+			<button class="retry-btn" onclick={() => fetchFeed({ force: true })}>Retry</button>
 		</div>
 	{:else}
-		{#each posts as post (post.id)}
+		{#each mobileFeedStore.posts as post (post.id)}
 			<PostComponent
 				{post}
 				variant="mobile"
@@ -195,11 +169,11 @@
 		{/each}
 
 		<!-- Infinite scroll sentinel — only rendered when more pages exist -->
-		{#if hasNext}
+		{#if mobileFeedStore.hasNext}
 			<div class="scroll-sentinel" use:infiniteScroll></div>
 		{/if}
 
-		{#if isLoadingMore}
+		{#if mobileFeedStore.isLoadingMore}
 			<div class="loading-more">Loading…</div>
 		{/if}
 	{/if}
