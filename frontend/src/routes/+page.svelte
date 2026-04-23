@@ -5,7 +5,7 @@
 	import { postService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
-	import PostCard from '$lib/components/PostCard.svelte';
+	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 
 	interface PendingPhoto {

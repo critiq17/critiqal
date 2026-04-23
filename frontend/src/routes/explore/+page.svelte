@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import type { Post, User } from '$lib/types';
 	import { postService, userService } from '$lib/services';
-	import PostCard from '$lib/components/PostCard.svelte';
+	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 

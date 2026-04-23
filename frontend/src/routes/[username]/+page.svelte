@@ -7,7 +7,7 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
-	import PostCard from '$lib/components/PostCard.svelte';
+	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 
 	const username = $page.params.username as string;
