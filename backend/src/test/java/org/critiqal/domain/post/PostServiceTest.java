@@ -16,7 +16,7 @@ import static org.mockito.Mockito.*;
     Testing permissions by delete, post, get
  */
 
-public class PostServiceTest {
+class PostServiceTest {
 
     private final PostRepository postRepo = mock(PostRepository.class);
     private final UserService userService = mock(UserService.class);

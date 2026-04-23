@@ -31,6 +31,6 @@ public class TestAuthHelper {
                 .when().post("/api/auth/register")
                 .then()
                 .statusCode(201)
-                .extract().path("user.id");
+                .extract().jsonPath().getLong("user.id");
     }
 }

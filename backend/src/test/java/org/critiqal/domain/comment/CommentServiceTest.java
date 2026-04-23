@@ -14,7 +14,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-public class CommentServiceTest {
+class CommentServiceTest {
 
     private final CommentRepository commentRepo = mock(CommentRepository.class);
     private final PostService  postService = mock(PostService.class);

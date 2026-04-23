@@ -16,6 +16,7 @@ import org.acme.domain.follow.FollowService;
 import org.acme.domain.post.PostService;
 import org.acme.domain.user.UserService;
 
+import javax.print.attribute.standard.Media;
 import java.util.List;
 
 @Path("/api/users")
@@ -57,6 +58,7 @@ public class UserController {
     @POST
     @Path("/{id}/follow")
     @Authenticated
+    @Consumes(MediaType.WILDCARD)
     public Response follow(@Context SecurityContext ctx, @PathParam("id") Long targetId) {
         Long followerId = extractUserId(ctx);
         followService.follow(followerId, targetId);
