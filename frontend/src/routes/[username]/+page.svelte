@@ -119,7 +119,7 @@
 	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
 		const obs = new IntersectionObserver(
 			([entry]) => {
-				if (entry.isIntersecting && !postsLoadingMore) loadMorePosts();
+				if (entry?.isIntersecting && !postsLoadingMore) loadMorePosts();
 			},
 			{ threshold: 0.1 }
 		);

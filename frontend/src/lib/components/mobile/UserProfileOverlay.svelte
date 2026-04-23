@@ -46,6 +46,7 @@
 
 	function onSwipeTouchMove(e: TouchEvent): void {
 		const t = e.touches[0];
+		if (!t) return;
 
 		// Capture start on first move (avoids the 1-frame lag from touchstart)
 		if (!_dirLocked && _touchStartX === 0) {

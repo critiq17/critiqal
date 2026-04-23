@@ -182,7 +182,7 @@
 	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
 		const obs = new IntersectionObserver(
 			([entry]) => {
-				if (entry.isIntersecting && !isLoadingMore) loadMorePosts();
+				if (entry?.isIntersecting && !isLoadingMore) loadMorePosts();
 			},
 			{ threshold: 0.1 }
 		);
@@ -194,7 +194,7 @@
 	function onPullTouchStart(e: TouchEvent): void {
 		const scrollTop = containerEl?.scrollTop ?? 0;
 		if (scrollTop !== 0) return;
-		pullStartY = e.touches[0].clientY;
+		pullStartY = e.touches[0]?.clientY ?? 0;
 		pullHapticFired = false;
 	}
 
@@ -205,7 +205,7 @@
 			pullY = 0;
 			return;
 		}
-		const delta = e.touches[0].clientY - pullStartY;
+		const delta = (e.touches[0]?.clientY ?? pullStartY) - pullStartY;
 		if (delta <= 0) {
 			isPulling = false;
 			pullY = 0;

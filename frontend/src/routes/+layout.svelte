@@ -11,18 +11,14 @@
 	let { children }: Props = $props();
 
 	let isMobile = $state(false);
-	let mounted = $state(false);
 
 	onMount(() => {
 		isMobile = isTelegramMiniApp();
-		mounted = true;
 		authStore.init();
 	});
 </script>
 
-{#if !mounted}
-	<div style="height:100vh;background:#0a0a0a"></div>
-{:else if isMobile}
+{#if isMobile}
 	<MobileLayout />
 {:else}
 	{@render children()}

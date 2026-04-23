@@ -68,7 +68,7 @@
 	function infiniteScroll(el: HTMLElement): { destroy: () => void } {
 		const obs = new IntersectionObserver(
 			([entry]) => {
-				if (entry.isIntersecting && !isLoadingMore) loadMore();
+				if (entry?.isIntersecting && !isLoadingMore) loadMore();
 			},
 			{ threshold: 0.1 }
 		);

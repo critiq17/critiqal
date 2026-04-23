@@ -88,14 +88,14 @@
 
 	// Drag-to-dismiss handlers
 	function onTouchStart(e: TouchEvent): void {
-		dragStartY = e.touches[0].clientY;
+		dragStartY = e.touches[0]?.clientY ?? 0;
 		isDragging = true;
 		if (sheetEl) sheetEl.classList.add('dragging');
 	}
 
 	function onTouchMove(e: TouchEvent): void {
 		if (!isDragging) return;
-		const delta = e.touches[0].clientY - dragStartY;
+		const delta = (e.touches[0]?.clientY ?? dragStartY) - dragStartY;
 		dragY = Math.max(0, delta);
 		if (sheetEl) {
 			sheetEl.style.transform = `translateY(${dragY}px)`;

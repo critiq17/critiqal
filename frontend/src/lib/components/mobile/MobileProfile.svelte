@@ -337,14 +337,14 @@
 	}
 
 	function onStatsTouchStart(e: TouchEvent): void {
-		statsDragStartY = e.touches[0].clientY;
+		statsDragStartY = e.touches[0]?.clientY ?? 0;
 		statsIsDragging = true;
 		if (statsSheetEl) statsSheetEl.classList.add('dragging');
 	}
 
 	function onStatsTouchMove(e: TouchEvent): void {
 		if (!statsIsDragging) return;
-		const delta = e.touches[0].clientY - statsDragStartY;
+		const delta = (e.touches[0]?.clientY ?? statsDragStartY) - statsDragStartY;
 		statsDragY = Math.max(0, delta);
 		if (statsSheetEl) statsSheetEl.style.transform = `translateY(${statsDragY}px)`;
 	}
@@ -378,14 +378,14 @@
 	}
 
 	function onPostTouchStart(e: TouchEvent): void {
-		postDragStartY = e.touches[0].clientY;
+		postDragStartY = e.touches[0]?.clientY ?? 0;
 		postIsDragging = true;
 		if (postSheetEl) postSheetEl.classList.add('dragging');
 	}
 
 	function onPostTouchMove(e: TouchEvent): void {
 		if (!postIsDragging) return;
-		const delta = e.touches[0].clientY - postDragStartY;
+		const delta = (e.touches[0]?.clientY ?? postDragStartY) - postDragStartY;
 		postDragY = Math.max(0, delta);
 		if (postSheetEl) postSheetEl.style.transform = `translateY(${postDragY}px)`;
 	}
@@ -421,14 +421,14 @@
 	}
 
 	function onSettingsTouchStart(e: TouchEvent): void {
-		settingsDragStartY = e.touches[0].clientY;
+		settingsDragStartY = e.touches[0]?.clientY ?? 0;
 		settingsIsDragging = true;
 		if (settingsSheetEl) settingsSheetEl.classList.add('dragging');
 	}
 
 	function onSettingsTouchMove(e: TouchEvent): void {
 		if (!settingsIsDragging) return;
-		const delta = e.touches[0].clientY - settingsDragStartY;
+		const delta = (e.touches[0]?.clientY ?? settingsDragStartY) - settingsDragStartY;
 		settingsDragY = Math.max(0, delta);
 		if (settingsSheetEl) settingsSheetEl.style.transform = `translateY(${settingsDragY}px)`;
 	}
@@ -516,7 +516,7 @@
 		if (!sentinelEl) return;
 		headerObserver = new IntersectionObserver(
 			(entries) => {
-				showStickyHeader = !entries[0].isIntersecting;
+				showStickyHeader = !(entries[0]?.isIntersecting ?? true);
 			},
 			{ threshold: 0 }
 		);

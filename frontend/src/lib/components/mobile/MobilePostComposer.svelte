@@ -70,7 +70,8 @@
 	}
 
 	function removePhoto(index: number): void {
-		URL.revokeObjectURL(previewUrls[index]);
+		const url = previewUrls[index];
+		if (url) URL.revokeObjectURL(url);
 		selectedFiles = selectedFiles.filter((_, i) => i !== index);
 		previewUrls = previewUrls.filter((_, i) => i !== index);
 		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
