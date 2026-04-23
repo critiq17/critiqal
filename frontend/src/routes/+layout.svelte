@@ -18,6 +18,11 @@
 	});
 </script>
 
+<svelte:head>
+	<link rel="preload" as="image" href="/assets/reactions/GIGACHAD.png" />
+	<link rel="preload" as="image" href="/assets/reactions/THEROCK.png" />
+</svelte:head>
+
 {#if isMobile}
 	<MobileLayout />
 {:else}
@@ -42,6 +47,23 @@
 		--color-text-muted: #666666;
 		--color-accent: #e05252;
 		--color-skeleton: #1e1e1e;
+
+		--radius-sm: 8px;
+		--radius-md: 12px;
+		--radius-lg: 16px;
+		--radius-xl: 20px;
+		--radius-full: 9999px;
+		--shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+		--shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+		--shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+		--spacing-xs: 4px;
+		--spacing-sm: 8px;
+		--spacing-md: 16px;
+		--spacing-lg: 24px;
+		--spacing-xl: 32px;
+		--transition-fast: 150ms ease;
+		--transition-base: 250ms ease;
+		--transition-slow: 400ms ease;
 
 		font-family:
 			-apple-system,

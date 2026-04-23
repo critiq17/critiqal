@@ -5,6 +5,7 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openProfile } from '$lib/stores/profile-nav.store';
 	import { openSheet } from '$lib/stores/sheet.store';
+	import { Sheet } from '$lib/ui';
 
 	interface Props {
 		postId: number;
@@ -26,12 +27,6 @@
 	let replyLoading = $state(new Map<number, boolean>());
 	let commentReplies = $state(new Map<number, Comment[]>());
 
-	// Drag-to-dismiss state
-	let dragY = $state(0);
-	let isDragging = $state(false);
-	let dragStartY = 0;
-
-	let sheetEl = $state<HTMLElement | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
 
 	function formatRelativeTime(dateStr: string): string {
@@ -83,35 +78,6 @@
 		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			handleSubmit();
-		}
-	}
-
-	// Drag-to-dismiss handlers
-	function onTouchStart(e: TouchEvent): void {
-		dragStartY = e.touches[0]?.clientY ?? 0;
-		isDragging = true;
-		if (sheetEl) sheetEl.classList.add('dragging');
-	}
-
-	function onTouchMove(e: TouchEvent): void {
-		if (!isDragging) return;
-		const delta = (e.touches[0]?.clientY ?? dragStartY) - dragStartY;
-		dragY = Math.max(0, delta);
-		if (sheetEl) {
-			sheetEl.style.transform = `translateY(${dragY}px)`;
-		}
-	}
-
-	function onTouchEnd(): void {
-		isDragging = false;
-		if (sheetEl) sheetEl.classList.remove('dragging');
-		if (dragY > 120) {
-			dragY = 0;
-			if (sheetEl) sheetEl.style.transform = '';
-			onClose();
-		} else {
-			dragY = 0;
-			if (sheetEl) sheetEl.style.transform = '';
 		}
 	}
 
@@ -167,35 +133,7 @@
 	});
 </script>
 
-<!-- Backdrop -->
-<div
-	class="backdrop"
-	class:open
-	role="presentation"
-	onclick={onClose}
-></div>
-
-<!-- Sheet -->
-<div
-	class="sheet"
-	class:open
-	bind:this={sheetEl}
-	role="dialog"
-	aria-modal="true"
-	aria-label="Comments"
->
-	<!-- Drag handle -->
-	<div
-		class="sheet-handle-area"
-		role="presentation"
-		ontouchstart={onTouchStart}
-		ontouchmove={onTouchMove}
-		ontouchend={onTouchEnd}
-	>
-		<div class="drag-handle"></div>
-		<h2 class="sheet-title">Comments</h2>
-	</div>
-
+<Sheet {open} onclose={onClose} title="Comments" maxHeight="70vh">
 	<!-- Comments list -->
 	<div class="comments-list">
 		{#if isLoading}
@@ -308,77 +246,9 @@
 			</svg>
 		</button>
 	</div>
-</div>
+</Sheet>
 
 <style>
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
-		z-index: 149;
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 350ms ease;
-	}
-
-	.backdrop.open {
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	.sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 70dvh;
-		border-radius: 24px 24px 0 0;
-		background: var(--color-surface, #1a1a1a);
-		z-index: 150;
-		transform: translateY(100%);
-		transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.sheet.open {
-		transform: translateY(0);
-	}
-
-	/* Remove transition during drag so it follows finger exactly */
-	:global(.sheet.dragging) {
-		transition: none !important;
-	}
-
-	.sheet-handle-area {
-		flex-shrink: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 12px 16px 8px;
-		cursor: grab;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-
-	.drag-handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 2px;
-		background: var(--color-border, rgba(255, 255, 255, 0.2));
-		margin-bottom: 12px;
-	}
-
-	.sheet-title {
-		font-size: 16px;
-		font-weight: 600;
-		color: var(--color-text-primary, #f0f0f0);
-		margin: 0;
-		align-self: flex-start;
-	}
-
 	.comments-list {
 		flex: 1;
 		overflow-y: auto;
@@ -458,12 +328,6 @@
 		align-items: baseline;
 		gap: 8px;
 		margin-bottom: 3px;
-	}
-
-	.comment-username {
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--color-text-primary, #f0f0f0);
 	}
 
 	.comment-time {
@@ -600,7 +464,6 @@
 		padding: 6px 16px 0 44px;
 		align-items: flex-start;
 	}
-
 
 	.reply-content {
 		display: flex;

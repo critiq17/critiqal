@@ -14,6 +14,7 @@
 	import { activeTab } from '$lib/stores/mobile-tab.store';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import CommentSheet from './CommentSheet.svelte';
+	import { Sheet } from '$lib/ui';
 
 	// ---------------------------------------------------------------------------
 	// State
@@ -76,21 +77,6 @@
 	let closePostSheet_: (() => void) | null = null;
 	let closeSettings_: (() => void) | null = null;
 
-	// Drag-to-dismiss shared state (reused per sheet via a helper)
-	let statsDragY = $state(0);
-	let statsIsDragging = $state(false);
-	let statsDragStartY = 0;
-	let statsSheetEl = $state<HTMLElement | null>(null);
-
-	let postDragY = $state(0);
-	let postIsDragging = $state(false);
-	let postDragStartY = 0;
-	let postSheetEl = $state<HTMLElement | null>(null);
-
-	let settingsDragY = $state(0);
-	let settingsIsDragging = $state(false);
-	let settingsDragStartY = 0;
-	let settingsSheetEl = $state<HTMLElement | null>(null);
 
 	// ---------------------------------------------------------------------------
 	// Derived
@@ -330,34 +316,8 @@
 
 	function closeStatsSheet(): void {
 		statsSheetType = null;
-		statsDragY = 0;
-		if (statsSheetEl) statsSheetEl.style.transform = '';
 		closeStatsSheet_?.();
 		closeStatsSheet_ = null;
-	}
-
-	function onStatsTouchStart(e: TouchEvent): void {
-		statsDragStartY = e.touches[0]?.clientY ?? 0;
-		statsIsDragging = true;
-		if (statsSheetEl) statsSheetEl.classList.add('dragging');
-	}
-
-	function onStatsTouchMove(e: TouchEvent): void {
-		if (!statsIsDragging) return;
-		const delta = (e.touches[0]?.clientY ?? statsDragStartY) - statsDragStartY;
-		statsDragY = Math.max(0, delta);
-		if (statsSheetEl) statsSheetEl.style.transform = `translateY(${statsDragY}px)`;
-	}
-
-	function onStatsTouchEnd(): void {
-		statsIsDragging = false;
-		if (statsSheetEl) statsSheetEl.classList.remove('dragging');
-		if (statsDragY > 120) {
-			closeStatsSheet();
-		} else {
-			statsDragY = 0;
-			if (statsSheetEl) statsSheetEl.style.transform = '';
-		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -371,34 +331,8 @@
 
 	function closePostSheet(): void {
 		selectedPost = null;
-		postDragY = 0;
-		if (postSheetEl) postSheetEl.style.transform = '';
 		closePostSheet_?.();
 		closePostSheet_ = null;
-	}
-
-	function onPostTouchStart(e: TouchEvent): void {
-		postDragStartY = e.touches[0]?.clientY ?? 0;
-		postIsDragging = true;
-		if (postSheetEl) postSheetEl.classList.add('dragging');
-	}
-
-	function onPostTouchMove(e: TouchEvent): void {
-		if (!postIsDragging) return;
-		const delta = (e.touches[0]?.clientY ?? postDragStartY) - postDragStartY;
-		postDragY = Math.max(0, delta);
-		if (postSheetEl) postSheetEl.style.transform = `translateY(${postDragY}px)`;
-	}
-
-	function onPostTouchEnd(): void {
-		postIsDragging = false;
-		if (postSheetEl) postSheetEl.classList.remove('dragging');
-		if (postDragY > 120) {
-			closePostSheet();
-		} else {
-			postDragY = 0;
-			if (postSheetEl) postSheetEl.style.transform = '';
-		}
 	}
 
 	// ---------------------------------------------------------------------------
@@ -412,36 +346,10 @@
 
 	function closeSettings(): void {
 		settingsOpen = false;
-		settingsDragY = 0;
 		confirmDisconnect = false;
 		stravaComingSoon = false;
-		if (settingsSheetEl) settingsSheetEl.style.transform = '';
 		closeSettings_?.();
 		closeSettings_ = null;
-	}
-
-	function onSettingsTouchStart(e: TouchEvent): void {
-		settingsDragStartY = e.touches[0]?.clientY ?? 0;
-		settingsIsDragging = true;
-		if (settingsSheetEl) settingsSheetEl.classList.add('dragging');
-	}
-
-	function onSettingsTouchMove(e: TouchEvent): void {
-		if (!settingsIsDragging) return;
-		const delta = (e.touches[0]?.clientY ?? settingsDragStartY) - settingsDragStartY;
-		settingsDragY = Math.max(0, delta);
-		if (settingsSheetEl) settingsSheetEl.style.transform = `translateY(${settingsDragY}px)`;
-	}
-
-	function onSettingsTouchEnd(): void {
-		settingsIsDragging = false;
-		if (settingsSheetEl) settingsSheetEl.classList.remove('dragging');
-		if (settingsDragY > 120) {
-			closeSettings();
-		} else {
-			settingsDragY = 0;
-			if (settingsSheetEl) settingsSheetEl.style.transform = '';
-		}
 	}
 
 	function handleStravaConnect(): void {
@@ -853,32 +761,12 @@
 <!-- ============================================================
      Stats bottom sheet (followers / following)
      ============================================================ -->
-<div
-	class="backdrop"
-	class:open={statsSheetType !== null}
-	role="presentation"
-	onclick={closeStatsSheet}
-></div>
-
-<div
-	class="sheet"
-	class:open={statsSheetType !== null}
-	bind:this={statsSheetEl}
-	role="dialog"
-	aria-modal="true"
-	aria-label={statsSheetType === 'followers' ? 'Followers' : 'Following'}
+<Sheet
+	open={statsSheetType !== null}
+	onclose={closeStatsSheet}
+	title={statsSheetType === 'followers' ? 'Followers' : 'Following'}
+	maxHeight="65vh"
 >
-	<div
-		class="sheet-handle-area"
-		role="presentation"
-		ontouchstart={onStatsTouchStart}
-		ontouchmove={onStatsTouchMove}
-		ontouchend={onStatsTouchEnd}
-	>
-		<div class="drag-handle"></div>
-		<h2 class="sheet-title">{statsSheetType === 'followers' ? 'Followers' : 'Following'}</h2>
-	</div>
-
 	<div class="sheet-body">
 		{#if listsLoading}
 			{#each { length: 4 } as _, i (i)}
@@ -919,36 +807,16 @@
 			{/if}
 		{/if}
 	</div>
-</div>
+</Sheet>
 
 <!-- ============================================================
      Post detail bottom sheet
      ============================================================ -->
-<div
-	class="backdrop"
-	class:open={selectedPost !== null}
-	role="presentation"
-	onclick={closePostSheet}
-></div>
-
-<div
-	class="sheet sheet-tall"
-	class:open={selectedPost !== null}
-	bind:this={postSheetEl}
-	role="dialog"
-	aria-modal="true"
-	aria-label="Post detail"
+<Sheet
+	open={selectedPost !== null}
+	onclose={closePostSheet}
+	maxHeight="80vh"
 >
-	<div
-		class="sheet-handle-area"
-		role="presentation"
-		ontouchstart={onPostTouchStart}
-		ontouchmove={onPostTouchMove}
-		ontouchend={onPostTouchEnd}
-	>
-		<div class="drag-handle"></div>
-	</div>
-
 	{#if selectedPost && profile}
 		<div class="sheet-body post-detail-body">
 			<!-- Author row -->
@@ -987,37 +855,17 @@
 			<p class="post-meta">{new Date(selectedPost.createdAt).toLocaleString()}</p>
 		</div>
 	{/if}
-</div>
+</Sheet>
 
 <!-- ============================================================
      Settings bottom sheet
      ============================================================ -->
-<div
-	class="backdrop"
-	class:open={settingsOpen}
-	role="presentation"
-	onclick={closeSettings}
-></div>
-
-<div
-	class="sheet sheet-settings"
-	class:open={settingsOpen}
-	bind:this={settingsSheetEl}
-	role="dialog"
-	aria-modal="true"
-	aria-label="Settings"
+<Sheet
+	open={settingsOpen}
+	onclose={closeSettings}
+	title="Settings"
+	maxHeight="auto"
 >
-	<div
-		class="sheet-handle-area"
-		role="presentation"
-		ontouchstart={onSettingsTouchStart}
-		ontouchmove={onSettingsTouchMove}
-		ontouchend={onSettingsTouchEnd}
-	>
-		<div class="drag-handle"></div>
-		<h2 class="sheet-title">Settings</h2>
-	</div>
-
 	<div class="sheet-body settings-body">
 		<button class="settings-row settings-row-link" onclick={openSupport}>
 			<span>Support</span>
@@ -1105,7 +953,7 @@
 			<span class="settings-row-value">Critiqal v0.1</span>
 		</div>
 	</div>
-</div>
+</Sheet>
 
 <style>
 	/* Screen-reader only utility */
@@ -1709,86 +1557,8 @@
 	}
 
 	/* ------------------------------------------------------------------ */
-	/* Shared sheet / backdrop                                              */
+	/* Sheet body                                                           */
 	/* ------------------------------------------------------------------ */
-
-	.backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(4px);
-		z-index: 149;
-		opacity: 0;
-		pointer-events: none;
-		transition: opacity 350ms ease;
-	}
-
-	.backdrop.open {
-		opacity: 1;
-		pointer-events: auto;
-	}
-
-	.sheet {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		height: 65dvh;
-		border-radius: 24px 24px 0 0;
-		background: var(--color-surface, #1a1a1a);
-		z-index: 150;
-		transform: translateY(100%);
-		transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-	}
-
-	.sheet.open {
-		transform: translateY(0);
-	}
-
-	.sheet-tall {
-		height: 80dvh;
-	}
-
-	.sheet-settings {
-		height: auto;
-		min-height: 160px;
-	}
-
-	/* Disables transition while dragging so sheet tracks finger exactly */
-	:global(.sheet.dragging) {
-		transition: none !important;
-	}
-
-	.sheet-handle-area {
-		flex-shrink: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 12px 16px 8px;
-		cursor: grab;
-		user-select: none;
-		-webkit-user-select: none;
-	}
-
-	.drag-handle {
-		width: 36px;
-		height: 4px;
-		border-radius: 2px;
-		background: var(--color-border, rgba(255, 255, 255, 0.2));
-		margin-bottom: 12px;
-		flex-shrink: 0;
-	}
-
-	.sheet-title {
-		font-size: 16px;
-		font-weight: 600;
-		color: var(--color-text-primary, #f0f0f0);
-		margin: 0;
-		align-self: flex-start;
-	}
 
 	.sheet-body {
 		flex: 1;
