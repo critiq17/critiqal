@@ -9,16 +9,36 @@
 
 	interface Props {
 		posts: Post[];
+		postsLoading?: boolean;
 		postsError: string | null;
 		onOpenComments: (postId: number) => void;
 		onRetry: () => void;
 	}
 
-	let { posts, postsError, onOpenComments, onRetry }: Props = $props();
+	let { posts, postsLoading = false, postsError, onOpenComments, onRetry }: Props = $props();
 
-	const reactionHooks = $derived(
-		new Map(posts.map((p) => [p.id, new UseReactions(p.id)]))
-	);
+	// Stable map: only create a new UseReactions instance for posts that appear for the first time.
+	// $state so the template re-renders when new posts arrive; mutate in-place to preserve
+	// already-loaded reaction data (replacing the whole map would wipe it).
+	let reactionHooks = $state(new Map<number, UseReactions>());
+	$effect(() => {
+		const seen = new Set(posts.map((p) => p.id));
+		let changed = false;
+		for (const p of posts) {
+			if (!reactionHooks.has(p.id)) {
+				reactionHooks.set(p.id, new UseReactions(p.id));
+				changed = true;
+			}
+		}
+		for (const id of reactionHooks.keys()) {
+			if (!seen.has(id)) {
+				reactionHooks.delete(id);
+				changed = true;
+			}
+		}
+		// Force reactivity update when the map changed in-place
+		if (changed) reactionHooks = new Map(reactionHooks);
+	});
 
 	function formatViews(n: number): string {
 		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -40,6 +60,12 @@
 	<div class="posts-error" role="alert">
 		<p class="error-text">{postsError}</p>
 		<button class="retry-btn" onclick={onRetry}>Try again</button>
+	</div>
+{:else if postsLoading && posts.length === 0}
+	<div class="posts-skeleton" aria-busy="true" aria-label="Loading posts">
+		<div class="skeleton-post"></div>
+		<div class="skeleton-post"></div>
+		<div class="skeleton-post"></div>
 	</div>
 {:else if posts.length === 0}
 	<div class="posts-empty">
@@ -123,6 +149,23 @@
 {/if}
 
 <style>
+	.posts-skeleton {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+
+	.skeleton-post {
+		height: 80px;
+		background: var(--color-surface-raised, #1e1e1e);
+		animation: pulse 1.4s ease-in-out infinite;
+	}
+
+	@keyframes pulse {
+		0%, 100% { opacity: 1; }
+		50% { opacity: 0.4; }
+	}
+
 	.posts-error,
 	.posts-empty {
 		display: flex;

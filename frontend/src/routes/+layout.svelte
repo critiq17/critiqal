@@ -28,9 +28,17 @@
 	onMount(() => {
 		isMobile = isTelegramMiniApp();
 		authStore.init();
+
 		registerUnauthorizedHandler(() => {
+			// Don't fire during init() — that path already handles auth failure itself.
+			if (authStore.isInitializing) return;
+
 			authStore.logout();
-			goto('/login');
+
+			// In TMA the MobileLayout will show MobileAuthScreen automatically
+			// once user becomes null. goto('/login') in a Telegram WebView causes
+			// navigation issues, so we only do it on regular web.
+			if (!isMobile) goto('/login');
 		});
 	});
 </script>

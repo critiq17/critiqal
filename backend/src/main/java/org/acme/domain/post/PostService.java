@@ -45,15 +45,21 @@ public class PostService {
     }
 
     public PageResponse<Post> getUserPost(Long authorId, int page, int size) {
-        var posts = postRepo.findByAuthor(authorId, page, size);
+        var ids = postRepo.findByAuthorIds(authorId, page, size);
+        var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countByAuthor(authorId);
-        return PageResponse.of(posts, page, size, total);
+        var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+        var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
+        return PageResponse.of(ordered, page, size, total);
     }
 
     public PageResponse<Post> getLatestFeed(int page, int size) {
-        var posts = postRepo.findLatest(page, size);
+        var ids = postRepo.findLatestIds(page, size);
+        var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countPublished();
-        return PageResponse.of(posts, page, size, total);
+        var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+        var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
+        return PageResponse.of(ordered, page, size, total);
     }
 
     public Post getById(Long postId) {
@@ -77,6 +83,18 @@ public class PostService {
                 .filter(Objects::nonNull)
                 .toList();
         return PageResponse.of(orderedPosts, page, size, total);
+    }
+
+    public PageResponse<Post> getFollowingFeed(Long userId, int page, int size) {
+        var ids = postRepo.findFollowingFeedIds(userId, page, size);
+        if (ids.isEmpty()) {
+            return PageResponse.of(List.of(), page, size, 0);
+        }
+        var posts = postRepo.findByIdsWithRelations(ids);
+        var total = postRepo.countFollowingFeed(userId);
+        var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+        var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
+        return PageResponse.of(ordered, page, size, total);
     }
 
     @Transactional

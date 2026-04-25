@@ -103,10 +103,9 @@
 	}
 
 	onMount(() => {
-		if (mobileFeedStore.posts.length === 0) {
-			mobileFeedStore.reset();
-			fetchFeed({ force: true });
-		}
+		// ensureLoaded is stale-while-revalidate: returns cached posts instantly
+		// if fresh, otherwise refetches without resetting visible state.
+		mobileFeedStore.ensureLoaded();
 	});
 </script>
 

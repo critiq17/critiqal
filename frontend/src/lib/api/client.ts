@@ -85,7 +85,7 @@ function getUnexpectedResponseMessage(response: Response, text: string): string 
   return 'Unexpected non-JSON response from API';
 }
 
-async function parseResponse<T>(response: Response): Promise<T> {
+async function parseResponse<T>(response: Response, authenticated = false): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
@@ -104,7 +104,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
+    // Only trigger global logout for requests that explicitly required auth.
+    // An unauthenticated request returning 401 means the resource needs a login,
+    // but the current token isn't expired — no reason to kick the user out.
+    if (response.status === 401 && authenticated) {
       onUnauthorized?.();
     }
     const message =
@@ -137,7 +140,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
       signal: controller.signal,
     });
 
-    return parseResponse<T>(response);
+    return parseResponse<T>(response, authenticated);
   } catch (error) {
     if (isAbortError(error)) {
       throw new ApiError(408, 'Request timed out. Please try again.');
@@ -161,7 +164,7 @@ async function upload<T>(path: string, formData: FormData, authenticated = true)
       signal: controller.signal,
     });
 
-    return parseResponse<T>(response);
+    return parseResponse<T>(response, authenticated);
   } catch (error) {
     if (isAbortError(error)) {
       throw new ApiError(408, 'Upload timed out. Please try again.');

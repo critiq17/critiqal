@@ -33,9 +33,10 @@
 	const isMobile = $derived(variant === 'mobile');
 	const isOwnPost = $derived(authStore.user?.id === post.author.id);
 
-	const reactions = new UseReactions(post.id);
-	const comments = new UseComments(post.id);
-	const mutations = new UsePostMutations(post.id, onDeleted);
+	const postId = $derived(post.id);
+	const reactions = new UseReactions(postId);
+	const comments = new UseComments(postId);
+	const mutations = new UsePostMutations(postId, () => onDeleted?.(postId));
 
 	let showOptionsMenu = $state(false);
 	let articleEl: HTMLElement | undefined = $state();
@@ -45,8 +46,6 @@
 		if (!isMobile && articleEl) {
 			cleanupViewTracker = viewTracker.observe(articleEl, post.id, authStore.isAuthenticated);
 		}
-		// Prefetch reactions on mount for better UX
-		reactions.load();
 	});
 
 	onDestroy(() => {

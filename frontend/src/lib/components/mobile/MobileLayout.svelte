@@ -19,6 +19,16 @@
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 
+	// Lazy tab mounting: each tab is mounted once on first activation and kept mounted after.
+	let mountedTabs = $state(new Set<string>(['feed']));
+
+	$effect(() => {
+		const tab = tabStore.active;
+		if (!mountedTabs.has(tab)) {
+			mountedTabs = new Set([...mountedTabs, tab]);
+		}
+	});
+
 	// Composer — owned at layout level so it works from any tab
 	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
 
@@ -38,7 +48,7 @@
 	}
 
 	// Reference to the content div that gets pushed during overlay navigation
-	let contentEl: HTMLElement | null = null;
+	let contentEl = $state<HTMLElement | null>(null);
 
 	// iOS-style push ratio: background shifts left by this fraction of screen
 	// while the overlay is on top, then tracks back to 0 as overlay is swiped away.
@@ -70,23 +80,16 @@
 	}
 
 	// Watch overlay open/close to push/restore background.
-	let _prevUsername: string | null = null;
-
 	$effect(() => {
 		const username = profileNavStore.username;
-		if (username === _prevUsername) return;
-		_prevUsername = username;
-
 		if (!contentEl) return;
 		const sw = window.innerWidth;
 		const push = sw * PUSH_RATIO;
 
 		if (username) {
-			// Overlay opening — push content left in sync with overlay slide-in
 			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
 			contentEl.style.transform = `translateX(-${push}px)`;
 		} else {
-			// Overlay closed (e.g. tg.BackButton — no swipe was involved)
 			contentEl.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
 			contentEl.style.transform = 'translateX(0)';
 		}
@@ -122,15 +125,21 @@
 		<MobileAuthScreen />
 	{:else}
 		<div class="mobile-content" bind:this={contentEl}>
-			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
+			<!-- Tabs are lazily mounted on first activation, then kept in DOM. -->
 			<div class="tab-panel" class:active={tabStore.active === 'feed'}>
-				<MobileFeed />
+				{#if mountedTabs.has('feed')}
+					<MobileFeed />
+				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
-				<MobileExplore isActive={tabStore.active === 'explore'} />
+				{#if mountedTabs.has('explore')}
+					<MobileExplore isActive={tabStore.active === 'explore'} />
+				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
-				<MobileProfile />
+				{#if mountedTabs.has('profile')}
+					<MobileProfile />
+				{/if}
 			</div>
 		</div>
 		{#if !sheetStore.anyOpen}

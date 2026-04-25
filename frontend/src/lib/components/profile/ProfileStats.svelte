@@ -1,14 +1,15 @@
 <script lang="ts">
 	interface Props {
-		followersCount: number;
-		followingCount: number;
+		followersCount: number | null;
+		followingCount: number | null;
 		onOpenFollowers: () => void;
 		onOpenFollowing: () => void;
 	}
 
 	let { followersCount, followingCount, onOpenFollowers, onOpenFollowing }: Props = $props();
 
-	function formatCount(n: number): string {
+	function formatCount(n: number | null): string {
+		if (n === null) return '—';
 		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
 		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
 		return String(n);

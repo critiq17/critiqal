@@ -4,6 +4,9 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { showBackButton, showMainButton, setMainButtonLoading, setMainButtonEnabled } from '$lib/tma/buttons';
 	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
+	import ComposerTextarea from '$lib/components/composer/ComposerTextarea.svelte';
+	import ComposerPhotoPicker from '$lib/components/composer/ComposerPhotoPicker.svelte';
+	import ComposerPhotoPreview from '$lib/components/composer/ComposerPhotoPreview.svelte';
 
 	interface Props {
 		open: boolean;
@@ -16,7 +19,6 @@
 	const composer = new UseComposer();
 
 	let textareaEl: HTMLTextAreaElement | null = null;
-	let fileInputEl: HTMLInputElement | null = null;
 	let footerEl: HTMLElement | null = null;
 	let viewingPhotoUrl = $state<string | null>(null);
 	let hasTgMainButton = $state(false);
@@ -28,21 +30,6 @@
 	function autoGrow(el: HTMLTextAreaElement): void {
 		el.style.height = 'auto';
 		el.style.height = el.scrollHeight + 'px';
-	}
-
-	function handleInput(e: Event): void {
-		autoGrow(e.target as HTMLTextAreaElement);
-	}
-
-	function triggerFileInput(): void {
-		fileInputEl?.click();
-	}
-
-	function handleFileChange(e: Event): void {
-		const input = e.target as HTMLInputElement;
-		if (!input.files?.length) return;
-		composer.addFiles(Array.from(input.files));
-		input.value = '';
 	}
 
 	function removePhoto(index: number): void {
@@ -131,91 +118,64 @@
 	{/if}
 
 	<div class="composer-body">
-		<textarea
-			class="composer-textarea"
-			bind:this={textareaEl}
-			bind:value={composer.text}
-			oninput={handleInput}
-			placeholder="What's on your mind?"
+		<ComposerTextarea
+			value={composer.text}
 			disabled={composer.loading}
-			aria-label="Post content"
-			autocomplete="off"
-			spellcheck="true"
-		></textarea>
+			onValueChange={(v) => { composer.text = v; }}
+			onInput={autoGrow}
+			bindEl={(el) => { textareaEl = el; }}
+		/>
 
-		{#if composer.previewUrls.length > 0}
-			<div class="photo-grid" class:single={composer.previewUrls.length === 1}>
-				{#each composer.previewUrls as url, i (url)}
-					<div class="photo-card">
-						<button class="photo-tap" onclick={() => (viewingPhotoUrl = url)} aria-label="View photo {i + 1}" type="button">
-							<img src={url} alt="Photo {i + 1}" />
-						</button>
-						<button class="remove-btn" onclick={() => removePhoto(i)} type="button" aria-label="Remove photo {i + 1}">
-							<svg viewBox="0 0 12 12" width="10" height="10" fill="none" aria-hidden="true">
-								<path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-							</svg>
-						</button>
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<ComposerPhotoPreview
+			previewUrls={composer.previewUrls}
+			onRemove={removePhoto}
+			onView={(url) => { viewingPhotoUrl = url; }}
+		/>
 	</div>
 
 	<div class="composer-footer" bind:this={footerEl}>
 		<div class="footer-left">
 			{#if composer.selectedFiles.length < composer.maxPhotos}
-				<button class="footer-icon-btn" onclick={triggerFileInput} disabled={composer.loading} type="button" aria-label="Add photo">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22" aria-hidden="true">
-						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-						<circle cx="12" cy="13" r="4"/>
-					</svg>
-				</button>
+				<ComposerPhotoPicker
+					disabled={composer.loading}
+					onFiles={(files) => composer.addFiles(files)}
+				/>
 			{/if}
 		</div>
-		<span class="char-counter" class:warn={composer.charsLeft <= 20} class:over={composer.overLimit}>
+		<span
+			class="char-counter"
+			class:warn={composer.charsLeft <= 20}
+			class:over={composer.overLimit}
+		>
 			{composer.charsLeft}
 		</span>
 	</div>
-
-	<input
-		bind:this={fileInputEl}
-		type="file"
-		accept="image/*"
-		multiple
-		class="sr-only"
-		onchange={handleFileChange}
-		disabled={composer.loading}
-		aria-hidden="true"
-		tabindex="-1"
-	/>
 </div>
 
 {#if viewingPhotoUrl}
 	<div class="photo-viewer" role="dialog" aria-label="Photo preview">
-		<button class="viewer-backdrop" onclick={() => (viewingPhotoUrl = null)} aria-label="Close photo viewer" type="button"></button>
+		<button
+			class="viewer-backdrop"
+			onclick={() => { viewingPhotoUrl = null; }}
+			aria-label="Close photo viewer"
+			type="button"
+		></button>
 		<img src={viewingPhotoUrl} alt="Full size preview" class="viewer-img" />
-		<button class="viewer-close" onclick={() => (viewingPhotoUrl = null)} aria-label="Close" type="button">
+		<button
+			class="viewer-close"
+			onclick={() => { viewingPhotoUrl = null; }}
+			aria-label="Close"
+			type="button"
+		>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">
-				<line x1="18" y1="6" x2="6" y2="18"/>
-				<line x1="6" y1="6" x2="18" y2="18"/>
+				<line x1="18" y1="6" x2="6" y2="18" />
+				<line x1="6" y1="6" x2="18" y2="18" />
 			</svg>
 		</button>
 	</div>
 {/if}
 
 <style>
-	.sr-only {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		padding: 0;
-		margin: -1px;
-		overflow: hidden;
-		clip: rect(0, 0, 0, 0);
-		white-space: nowrap;
-		border: 0;
-	}
-
 	.composer {
 		position: fixed;
 		inset: 0;
@@ -307,87 +267,6 @@
 		gap: 16px;
 	}
 
-	.composer-textarea {
-		background: none;
-		border: none;
-		outline: none;
-		font-size: 17px;
-		line-height: 1.55;
-		color: var(--tg-text, #f0f0f0);
-		width: 100%;
-		resize: none;
-		overflow-y: hidden;
-		min-height: 120px;
-		font-family: inherit;
-		box-sizing: border-box;
-		caret-color: var(--tg-accent, #e05252);
-	}
-
-	.composer-textarea::placeholder { color: var(--tg-hint, rgba(255, 255, 255, 0.3)); }
-	.composer-textarea:disabled { opacity: 0.6; }
-
-	.photo-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 6px;
-	}
-
-	.photo-grid.single { grid-template-columns: 1fr; }
-	.photo-grid.single .photo-card { aspect-ratio: 4 / 3; }
-
-	.photo-card {
-		position: relative;
-		aspect-ratio: 1;
-		border-radius: 12px;
-		overflow: visible;
-	}
-
-	.photo-tap {
-		display: block;
-		width: 100%;
-		height: 100%;
-		padding: 0;
-		border: none;
-		background: none;
-		cursor: pointer;
-		border-radius: 12px;
-		overflow: hidden;
-		-webkit-tap-highlight-color: transparent;
-	}
-
-	.photo-tap img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-		border-radius: 12px;
-		transition: opacity 0.15s ease;
-	}
-
-	.photo-tap:active img { opacity: 0.8; }
-
-	.remove-btn {
-		position: absolute;
-		top: -8px;
-		right: -8px;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: rgba(20, 20, 20, 0.9);
-		border: 1.5px solid rgba(255, 255, 255, 0.15);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: rgba(255, 255, 255, 0.85);
-		padding: 0;
-		z-index: 1;
-		-webkit-tap-highlight-color: transparent;
-		transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	.remove-btn:active { transform: scale(0.85); }
-
 	.composer-footer {
 		flex-shrink: 0;
 		display: flex;
@@ -398,23 +277,11 @@
 		transition: padding-bottom 0.1s ease;
 	}
 
-	.footer-left { display: flex; align-items: center; gap: 4px; }
-
-	.footer-icon-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 8px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
+	.footer-left {
 		display: flex;
 		align-items: center;
-		border-radius: 8px;
-		-webkit-tap-highlight-color: transparent;
-		transition: color 0.15s ease;
+		gap: 4px;
 	}
-
-	.footer-icon-btn:active { color: var(--tg-text, #f0f0f0); }
-	.footer-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 	.char-counter {
 		font-size: 13px;

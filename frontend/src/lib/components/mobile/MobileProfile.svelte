@@ -1,19 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
-	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openSheet } from '$lib/stores/sheet.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
-	import { Sheet } from '$lib/ui';
 	import { UseProfile } from '$lib/features/profile/useProfile.svelte';
 	import ProfileHeader from '$lib/components/profile/ProfileHeader.svelte';
 	import ProfileStickyHeader from '$lib/components/profile/ProfileStickyHeader.svelte';
 	import ProfilePostsList from '$lib/components/profile/ProfilePostsList.svelte';
 	import FollowersSheet from '$lib/components/profile/FollowersSheet.svelte';
-	import ProfileStravaCard from '$lib/components/profile/ProfileStravaCard.svelte';
+	import MobileSettingsSheet from './MobileSettingsSheet.svelte';
 	import CommentSheet from './CommentSheet.svelte';
 
 	const profile = new UseProfile();
@@ -25,15 +22,14 @@
 	let openCommentSheetPostId = $state<number | null>(null);
 	let settingsOpen = $state(false);
 	let stravaNotification = $state<'connected' | 'denied' | null>(null);
-	let confirmDisconnect = $state(false);
-	let stravaComingSoon = $state(false);
 
 	let closeStatsSheet_: (() => void) | null = null;
 	let closeSettings_: (() => void) | null = null;
 
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
-	function formatCount(n: number): string {
+	function formatCount(n: number | null): string {
+		if (n === null) return '—';
 		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
 		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
 		return String(n);
@@ -42,6 +38,7 @@
 	function openStatsSheet(type: 'followers' | 'following'): void {
 		statsSheetType = type;
 		closeStatsSheet_ = openSheet();
+		profile.loadFollowLists();
 	}
 
 	function closeStatsSheet(): void {
@@ -57,43 +54,8 @@
 
 	function closeSettings(): void {
 		settingsOpen = false;
-		confirmDisconnect = false;
-		stravaComingSoon = false;
 		closeSettings_?.();
 		closeSettings_ = null;
-	}
-
-	function handleStravaConnect(): void {
-		stravaComingSoon = true;
-		setTimeout(() => { stravaComingSoon = false; }, 4000);
-	}
-
-	async function handleStravaDisconnect(): Promise<void> {
-		await stravaStore.disconnect();
-		confirmDisconnect = false;
-	}
-
-	function openSupport(): void {
-		const tg = getTelegramWebApp();
-		if (tg) {
-			tg.openTelegramLink('https://t.me/critiq1');
-		} else {
-			window.open('https://t.me/critiq1', '_blank');
-		}
-	}
-
-	function openDesktopVersion(): void {
-		const tg = getTelegramWebApp();
-		if (tg) {
-			tg.openLink('https://dev.critiqal.xyz');
-		} else {
-			window.open('https://dev.critiqal.xyz', '_blank');
-		}
-	}
-
-	async function handleLogout(): Promise<void> {
-		await authStore.logout();
-		goto('/');
 	}
 
 	async function handleAvatarChange(e: Event): Promise<void> {
@@ -176,7 +138,6 @@
 />
 
 <div class="profile-container">
-
 	{#if stravaNotification}
 		<div
 			class="strava-toast"
@@ -188,10 +149,15 @@
 			out:fade={{ duration: 200 }}
 		>
 			{#if stravaNotification === 'connected'}
-				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+					<polyline points="20 6 9 17 4 12" />
+				</svg>
 				Strava connected!
 			{:else}
-				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+				<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+					<line x1="18" y1="6" x2="6" y2="18" />
+					<line x1="6" y1="6" x2="18" y2="18" />
+				</svg>
 				Connection cancelled
 			{/if}
 		</div>
@@ -203,14 +169,14 @@
 		onSettings={openSettings}
 	/>
 
-	{#if profile.isLoading}
+	{#if profile.isLoading && !profile.profile}
 		<div class="loading-state" aria-busy="true" aria-label="Loading profile">
 			<div class="skeleton-avatar"></div>
 			<div class="skeleton-name"></div>
 			<div class="skeleton-bio"></div>
 			<div class="skeleton-bio short"></div>
 		</div>
-	{:else if profile.profileError}
+	{:else if profile.profileError && !profile.profile}
 		<div class="error-state" role="alert">
 			<p class="error-text">{profile.profileError}</p>
 			<button class="retry-btn" onclick={() => profile.load()}>Try again</button>
@@ -253,9 +219,10 @@
 
 		<ProfilePostsList
 			posts={profile.posts}
-			postsError={null}
+			postsLoading={profile.postsLoading}
+			postsError={profile.profileError}
 			onOpenComments={(id) => { openCommentSheetPostId = id; }}
-			onRetry={retryPosts}
+			onRetry={() => profile.load()}
 		/>
 	{/if}
 </div>
@@ -263,7 +230,7 @@
 <CommentSheet
 	postId={openCommentSheetPostId ?? 0}
 	open={openCommentSheetPostId !== null}
-	onClose={() => (openCommentSheetPostId = null)}
+	onClose={() => { openCommentSheetPostId = null; }}
 />
 
 <FollowersSheet
@@ -274,30 +241,7 @@
 	onClose={closeStatsSheet}
 />
 
-<Sheet open={settingsOpen} onclose={closeSettings} title="Settings" maxHeight="auto">
-	<div class="sheet-body settings-body">
-		<button class="settings-row settings-row-link" onclick={openSupport}>
-			<span>Support</span>
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-		</button>
-		<button class="settings-row settings-row-link" onclick={openDesktopVersion}>
-			<span>Desktop Version</span>
-			<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-		</button>
-		<ProfileStravaCard
-			{confirmDisconnect}
-			{stravaComingSoon}
-			onConnect={handleStravaConnect}
-			onDisconnect={handleStravaDisconnect}
-			onConfirmDisconnectChange={(v) => { confirmDisconnect = v; }}
-		/>
-		<button class="settings-row settings-row-danger" onclick={handleLogout}>Log out</button>
-		<div class="settings-row settings-row-info" aria-label="App version">
-			<span class="settings-row-label">Version</span>
-			<span class="settings-row-value">Critiqal v0.1</span>
-		</div>
-	</div>
-</Sheet>
+<MobileSettingsSheet open={settingsOpen} onClose={closeSettings} />
 
 <style>
 	.sr-only {
@@ -359,11 +303,6 @@
 	}
 
 	.skeleton-bio.short { width: 140px; }
-
-	@keyframes shimmer {
-		0%, 100% { opacity: 0.5; }
-		50% { opacity: 1; }
-	}
 
 	.error-state {
 		display: flex;
@@ -435,61 +374,6 @@
 		letter-spacing: 0.4px;
 	}
 
-	.sheet-body {
-		flex: 1;
-		overflow-y: auto;
-		-webkit-overflow-scrolling: touch;
-	}
-
-	.settings-body {
-		display: flex;
-		flex-direction: column;
-		padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-	}
-
-	.settings-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 16px 16px;
-		font-size: 16px;
-		font-family: inherit;
-		cursor: pointer;
-		border: none;
-		background: none;
-		width: 100%;
-		text-align: left;
-		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-	}
-
-	.settings-row:first-child { border-top: none; }
-
-	.settings-row-link {
-		color: var(--color-text-primary, #f0f0f0);
-		font-weight: 400;
-	}
-
-	.settings-row-link:active { background: rgba(255, 255, 255, 0.05); }
-
-	.settings-row-danger {
-		color: #e05252;
-		font-weight: 500;
-	}
-
-	.settings-row-danger:active { background: rgba(224, 82, 82, 0.08); }
-
-	.settings-row-info { cursor: default; }
-
-	.settings-row-label {
-		font-size: 14px;
-		color: rgba(255, 255, 255, 0.5);
-	}
-
-	.settings-row-value {
-		font-size: 14px;
-		color: rgba(255, 255, 255, 0.35);
-	}
-
 	.strava-toast {
 		position: fixed;
 		top: max(env(safe-area-inset-top, 16px), 20px);
@@ -516,5 +400,10 @@
 	.strava-toast--denied {
 		background: rgba(60, 60, 60, 0.95);
 		color: rgba(255, 255, 255, 0.8);
+	}
+
+	@keyframes shimmer {
+		0%, 100% { opacity: 0.5; }
+		50% { opacity: 1; }
 	}
 </style>

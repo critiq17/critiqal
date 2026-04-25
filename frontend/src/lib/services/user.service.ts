@@ -3,37 +3,40 @@ import { API } from '$lib/api/endpoints';
 import type { User, UpdateProfileRequest, Post, PageResponse } from '$lib/types';
 
 export const userService = {
-	getProfile(username: string): Promise<User> {
-		return apiClient.get<User>(API.users.profile(username));
-	},
+  getProfile(username: string): Promise<User> {
+    return apiClient.get<User>(API.users.profile(username));
+  },
 
-	search(query: string): Promise<User[]> {
-		return apiClient.get<User[]>(`${API.users.search}?q=${encodeURIComponent(query)}`);
-	},
+  search(query: string): Promise<User[]> {
+    return apiClient.get<User[]>(`${API.users.search}?q=${encodeURIComponent(query)}`);
+  },
 
-	updateProfile(req: UpdateProfileRequest): Promise<User> {
-		return apiClient.put<User>(API.users.me, req, true);
-	},
+  updateProfile(req: UpdateProfileRequest): Promise<User> {
+    return apiClient.put<User>(API.users.me, req, true);
+  },
 
-	follow(targetId: number): Promise<void> {
-		return apiClient.post<void>(API.users.follow(targetId), {}, true);
-	},
+  follow(targetId: number): Promise<void> {
+    return apiClient.post<void>(API.users.follow(targetId), {}, true);
+  },
 
-	unfollow(targetId: number): Promise<void> {
-		return apiClient.delete(API.users.follow(targetId), true);
-	},
+  unfollow(targetId: number): Promise<void> {
+    return apiClient.delete(API.users.follow(targetId), true);
+  },
 
-	getFollowers(userId: number): Promise<User[]> {
-		return apiClient.get<User[]>(API.users.followers(userId), true);
-	},
+  getFollowers(userId: number): Promise<User[]> {
+    // Public endpoint — follower lists are visible to everyone.
+    // Do NOT pass authenticated=true: a stale/expired token would trigger global logout
+    // even though this is just a read of public social data.
+    return apiClient.get<User[]>(API.users.followers(userId));
+  },
 
-	getFollowing(userId: number): Promise<User[]> {
-		return apiClient.get<User[]>(API.users.following(userId));
-	},
+  getFollowing(userId: number): Promise<User[]> {
+    return apiClient.get<User[]>(API.users.following(userId));
+  },
 
-	getUserPosts(username: string, page = 0, size = 20): Promise<PageResponse<Post>> {
-		return apiClient.get<PageResponse<Post>>(
-			`${API.users.posts(username)}?page=${page}&size=${size}`
-		);
-	}
+  getUserPosts(username: string, page = 0, size = 20): Promise<PageResponse<Post>> {
+    return apiClient.get<PageResponse<Post>>(
+      `${API.users.posts(username)}?page=${page}&size=${size}`
+    );
+  },
 };
