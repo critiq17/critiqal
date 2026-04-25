@@ -137,11 +137,12 @@ jobs:
           command_timeout: 10m
           script: |
             echo "Deploying production"
+            cd /opt/critiqal/prod
 
             docker load < backend-image.tar.gz
             rm backend-image.tar.gz
 
-            cd backend
+            cd /opt/critiqal/prod/backend
             echo "Starting containers..."
             docker compose -f docker-compose.prod.yml up -d --force-recreate
 
