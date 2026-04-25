@@ -2,13 +2,13 @@
 	import { onMount } from 'svelte';
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
-	import { activeTab } from '$lib/stores/mobile-tab.store';
-	import { profileNav } from '$lib/stores/profile-nav.store';
+	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
+	import { profileNavStore } from '$lib/stores/profile-nav.store.svelte';
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
-	import { composeOpen, closeCompose } from '$lib/stores/compose.store';
-	import { anySheetOpen } from '$lib/stores/sheet.store';
-	import { mobileFeedStore } from '$lib/stores/mobile-feed.store';
+	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
+	import { sheetStore } from '$lib/stores/sheet.store.svelte';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import type { Post } from '$lib/types';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
@@ -18,32 +18,37 @@
 	import UserProfileOverlay from './UserProfileOverlay.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
-	let currentTab = $state('feed');
-	let viewedUsername = $state<string | null>(null);
+
+	// Lazy tab mounting: each tab is mounted once on first activation and kept mounted after.
+	let mountedTabs = $state(new Set<string>(['feed']));
+
+	$effect(() => {
+		const tab = tabStore.active;
+		if (!mountedTabs.has(tab)) {
+			mountedTabs = new Set([...mountedTabs, tab]);
+		}
+	});
 
 	// Composer — owned at layout level so it works from any tab
 	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
-	let isComposerOpen = $state(false);
 
-	composeOpen.subscribe((open) => {
+	$effect(() => {
+		const open = composeStore.open;
 		if (open && !MobilePostComposer) {
 			import('./MobilePostComposer.svelte').then((m) => {
 				MobilePostComposer = m.default;
-				isComposerOpen = true;
 			});
-		} else {
-			isComposerOpen = open;
 		}
 	});
 
 	function handlePosted(post: Post): void {
 		mobileFeedStore.prependPost(post);
 		closeCompose();
-		activeTab.set('feed'); // Navigate to feed so user sees the new post immediately
+		tabStore.active = 'feed';
 	}
 
 	// Reference to the content div that gets pushed during overlay navigation
-	let contentEl: HTMLElement | null = null;
+	let contentEl = $state<HTMLElement | null>(null);
 
 	// iOS-style push ratio: background shifts left by this fraction of screen
 	// while the overlay is on top, then tracks back to 0 as overlay is swiped away.
@@ -75,33 +80,19 @@
 	}
 
 	// Watch overlay open/close to push/restore background.
-	// Plain variable tracks previous value so we don't animate on initial render.
-	let _prevUsername: string | null = null;
-
 	$effect(() => {
-		const username = viewedUsername;
-		if (username === _prevUsername) return;
-		_prevUsername = username;
-
+		const username = profileNavStore.username;
 		if (!contentEl) return;
 		const sw = window.innerWidth;
 		const push = sw * PUSH_RATIO;
 
 		if (username) {
-			// Overlay opening — push content left in sync with overlay slide-in
 			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
 			contentEl.style.transform = `translateX(-${push}px)`;
 		} else {
-			// Overlay closed (e.g. tg.BackButton — no swipe was involved)
 			contentEl.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
 			contentEl.style.transform = 'translateX(0)';
 		}
-	});
-
-	profileNav.subscribe((u) => { viewedUsername = u; });
-
-	const unsubscribe = activeTab.subscribe((tab) => {
-		currentTab = tab;
 	});
 
 	onMount(() => {
@@ -114,7 +105,6 @@
 		const unregisterSwipe = registerOverlaySwipeListener(onOverlaySwipe);
 
 		return () => {
-			unsubscribe();
 			unregisterSwipe();
 		};
 	});
@@ -135,30 +125,36 @@
 		<MobileAuthScreen />
 	{:else}
 		<div class="mobile-content" bind:this={contentEl}>
-			<!-- All three tabs stay mounted — only visibility toggles, no DOM destroy -->
-			<div class="tab-panel" class:active={currentTab === 'feed'}>
-				<MobileFeed />
+			<!-- Tabs are lazily mounted on first activation, then kept in DOM. -->
+			<div class="tab-panel" class:active={tabStore.active === 'feed'}>
+				{#if mountedTabs.has('feed')}
+					<MobileFeed />
+				{/if}
 			</div>
-			<div class="tab-panel" class:active={currentTab === 'explore'}>
-				<MobileExplore isActive={currentTab === 'explore'} />
+			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
+				{#if mountedTabs.has('explore')}
+					<MobileExplore isActive={tabStore.active === 'explore'} />
+				{/if}
 			</div>
-			<div class="tab-panel" class:active={currentTab === 'profile'}>
-				<MobileProfile />
+			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
+				{#if mountedTabs.has('profile')}
+					<MobileProfile />
+				{/if}
 			</div>
 		</div>
-		{#if !$anySheetOpen}
+		{#if !sheetStore.anyOpen}
 			<BottomNav />
 		{/if}
 	{/if}
 </div>
 
-{#if viewedUsername}
-	<UserProfileOverlay username={viewedUsername} />
+{#if profileNavStore.username}
+	<UserProfileOverlay username={profileNavStore.username} />
 {/if}
 
-{#if MobilePostComposer && isComposerOpen}
+{#if MobilePostComposer && composeStore.open}
 	<MobilePostComposer
-		open={isComposerOpen}
+		open={composeStore.open}
 		onClose={closeCompose}
 		onPosted={handlePosted}
 	/>

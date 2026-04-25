@@ -2,136 +2,251 @@ import type { User } from '$lib/types';
 import { isTelegramMiniApp, cloudStorage } from '$lib/telegram';
 import { apiClient, setInMemoryToken } from '$lib/api/client';
 
-interface AuthState {
-	user: User | null;
-	isLoading: boolean;
+// ── token persistence helpers ──────────────────────────────────────────────
+// TMA:  token lives in Telegram CloudStorage (sandboxed, persistent across restarts)
+// Web:  token lives in sessionStorage (survives refresh, cleared on tab close;
+//       avoids XSS risk of localStorage while still surviving F5)
+
+function getWebToken(): string | null {
+  try {
+    return sessionStorage.getItem('auth_token');
+  } catch {
+    return null;
+  }
+}
+
+function setWebToken(token: string | null): void {
+  try {
+    if (token) {
+      sessionStorage.setItem('auth_token', token);
+    } else {
+      sessionStorage.removeItem('auth_token');
+    }
+  } catch {
+    // sessionStorage not available (private mode on some browsers)
+  }
+}
+
+function getCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem('auth_user');
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedUser(user: User | null): void {
+  try {
+    if (user) {
+      localStorage.setItem('auth_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('auth_user');
+    }
+  } catch {
+    // ignore
+  }
+}
+
+// ── store factory ─────────────────────────────────────────────────────────
+
+function readCachedUserSync(): User | null {
+  // Synchronous best-effort read so the UI can render optimistically without
+  // waiting for /api/auth/me. cloudStorage in TMA is async — we only attempt
+  // localStorage here; init() will refresh from cloudStorage shortly after.
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('auth_user');
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
 }
 
 function createAuthStore() {
-	let state = $state<AuthState>({ user: null, isLoading: true });
+  // Optimistic boot: if we have a cached user, render the app immediately and
+  // verify the token in the background. Skip the initial loading flash entirely.
+  const cachedUser = readCachedUserSync();
+  let state = $state<{ user: User | null; isLoading: boolean }>({
+    user: cachedUser,
+    isLoading: cachedUser === null,
+  });
 
-	function getStoredUser(): User | null {
-		if (typeof window === 'undefined') return null;
-		const raw = localStorage.getItem('auth_user');
-		if (!raw) return null;
-		try {
-			return JSON.parse(raw) as User;
-		} catch {
-			return null;
-		}
-	}
+  // While init() is running we suppress the global 401 handler so a failed
+  // /api/auth/me during startup doesn't cause a logout() → init() feedback loop.
+  let initializing = false;
 
-	async function init(): Promise<void> {
-		let token: string | null = null;
-		let userRaw: string | null = null;
+  // ── init ──────────────────────────────────────────────────────────────────
 
-		if (isTelegramMiniApp()) {
-			token = await cloudStorage.get('auth_token');
-			userRaw = await cloudStorage.get('auth_user');
-		} else {
-			if (typeof window !== 'undefined') {
-				token = localStorage.getItem('auth_token');
-				userRaw = localStorage.getItem('auth_user');
-			}
-		}
+  async function init(): Promise<void> {
+    initializing = true;
+    try {
+      if (isTelegramMiniApp()) {
+        await _initTMA();
+      } else {
+        await _initWeb();
+      }
+    } finally {
+      initializing = false;
+    }
+  }
 
-		if (token !== null) {
-			setInMemoryToken(token);
+  async function _initTMA(): Promise<void> {
+    // Fetch token and user cache in parallel to save one IPC round-trip.
+    const [token, userRaw] = await Promise.all([
+      cloudStorage.get('auth_token'),
+      cloudStorage.get('auth_user'),
+    ]);
 
-			let user: User | null = null;
+    if (!token) {
+      state = { user: null, isLoading: false };
+      return;
+    }
 
-			if (userRaw !== null) {
-				try {
-					user = JSON.parse(userRaw) as User;
-				} catch {
-					user = null;
-				}
-			}
+    setInMemoryToken(token);
 
-			if (user === null) {
-				try {
-					user = await apiClient.get<User>('/api/auth/me', true);
-				} catch {
-					user = null;
-				}
-			}
+    // Show cached user immediately for zero-wait perceived auth.
+    const cached = _tryParse<User>(userRaw);
+    if (cached) {
+      state = { user: cached, isLoading: false };
+    }
 
-			state = { user, isLoading: false };
-		} else {
-			state = { user: null, isLoading: false };
-		}
-	}
+    // Verify token with backend. Use 'true' so the Bearer header is sent,
+    // but we handle the failure ourselves — no global logout during init.
+    try {
+      const verified = await apiClient.get<User>('/api/auth/me', true);
+      state = { user: verified, isLoading: false };
+      // Keep cloudStorage user cache in sync (fire-and-forget).
+      cloudStorage.set('auth_user', JSON.stringify(verified)).catch(() => {});
+    } catch {
+      // Token is expired or invalid. Clear everything and show login.
+      setInMemoryToken(null);
+      await Promise.allSettled([
+        cloudStorage.remove('auth_token'),
+        cloudStorage.remove('auth_user'),
+      ]);
+      setCachedUser(null);
+      state = { user: null, isLoading: false };
+    }
+  }
 
-	function setUser(user: User | null): void {
-		state = { ...state, user };
-		if (typeof window !== 'undefined') {
-			if (user) {
-				localStorage.setItem('auth_user', JSON.stringify(user));
-			} else {
-				localStorage.removeItem('auth_user');
-				localStorage.removeItem('auth_token');
-			}
-		}
-	}
+  async function _initWeb(): Promise<void> {
+    const token = getWebToken();
+    const cached = getCachedUser();
 
-	async function login(user: User, token: string): Promise<void> {
-		setInMemoryToken(token);
+    // Optimistic: render with cached user immediately, never show loading screen
+    // when we already know who the user is.
+    if (cached) {
+      state = { user: cached, isLoading: false };
+    }
 
-		if (isTelegramMiniApp()) {
-			await cloudStorage.set('auth_token', token);
-			await cloudStorage.set('auth_user', JSON.stringify(user));
-		} else {
-			if (typeof window !== 'undefined') {
-				localStorage.setItem('auth_token', token);
-				localStorage.setItem('auth_user', JSON.stringify(user));
-			}
-		}
+    if (token) {
+      setInMemoryToken(token);
+      try {
+        const verified = await apiClient.get<User>('/api/auth/me', true);
+        if (
+          verified.id !== cached?.id ||
+          verified.avatarUrl !== cached?.avatarUrl ||
+          verified.name !== cached?.name ||
+          verified.bio !== cached?.bio
+        ) {
+          state = { user: verified, isLoading: false };
+          setCachedUser(verified);
+        } else if (state.isLoading) {
+          state = { user: verified, isLoading: false };
+        }
+      } catch {
+        setInMemoryToken(null);
+        setWebToken(null);
+        setCachedUser(null);
+        state = { user: null, isLoading: false };
+      }
+      return;
+    }
 
-		// Mirror-write to localStorage so the sync getStoredToken path always works
-		if (typeof window !== 'undefined') {
-			localStorage.setItem('auth_token', token);
-			localStorage.setItem('auth_user', JSON.stringify(user));
-		}
+    // No token — try cookie session (best-effort, don't show loading flash if we had cache).
+    try {
+      const verified = await apiClient.get<User>('/api/auth/me', false);
+      state = { user: verified, isLoading: false };
+      setCachedUser(verified);
+    } catch {
+      // Only clear if there was no cached user; otherwise keep optimistic state
+      // and let a real 401 from a subsequent request trigger logout.
+      if (!cached) {
+        setCachedUser(null);
+        state = { user: null, isLoading: false };
+      }
+    }
+  }
 
-		setUser(user);
-	}
+  // ── public API ────────────────────────────────────────────────────────────
 
-	async function logout(): Promise<void> {
-		setInMemoryToken(null);
+  async function login(user: User, token: string): Promise<void> {
+    setInMemoryToken(token);
 
-		if (isTelegramMiniApp()) {
-			await cloudStorage.remove('auth_token');
-			await cloudStorage.remove('auth_user');
-		}
+    if (isTelegramMiniApp()) {
+      // Parallel writes to CloudStorage.
+      await Promise.all([
+        cloudStorage.set('auth_token', token),
+        cloudStorage.set('auth_user', JSON.stringify(user)),
+      ]);
+    } else {
+      setWebToken(token);
+    }
 
-		// Always clear localStorage regardless of environment
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('auth_token');
-			localStorage.removeItem('auth_user');
-		}
+    setCachedUser(user);
+    state = { user, isLoading: false };
+  }
 
-		setUser(null);
-	}
+  async function logout(): Promise<void> {
+    setInMemoryToken(null);
 
-	function updateUser(user: User): void {
-		setUser(user);
-	}
+    if (isTelegramMiniApp()) {
+      await Promise.allSettled([
+        cloudStorage.remove('auth_token'),
+        cloudStorage.remove('auth_user'),
+      ]);
+    } else {
+      setWebToken(null);
+    }
 
-	return {
-		get user() {
-			return state.user;
-		},
-		get isLoading() {
-			return state.isLoading;
-		},
-		get isAuthenticated() {
-			return state.user !== null;
-		},
-		init,
-		login,
-		logout,
-		updateUser
-	};
+    setCachedUser(null);
+    state = { ...state, user: null };
+  }
+
+  function updateUser(user: User): void {
+    setCachedUser(user);
+    state = { ...state, user };
+  }
+
+  function _tryParse<T>(raw: string | null | undefined): T | null {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  // Expose initializing flag so the global 401 handler can check it.
+  return {
+    get user() {
+      return state.user;
+    },
+    get isLoading() {
+      return state.isLoading;
+    },
+    get isAuthenticated() {
+      return state.user !== null;
+    },
+    get isInitializing() {
+      return initializing;
+    },
+    init,
+    login,
+    logout,
+    updateUser,
+  };
 }
 
 export const authStore = createAuthStore();

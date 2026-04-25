@@ -57,6 +57,7 @@ public class UserController {
     @POST
     @Path("/{id}/follow")
     @Authenticated
+    @Consumes(MediaType.WILDCARD)
     public Response follow(@Context SecurityContext ctx, @PathParam("id") Long targetId) {
         Long followerId = extractUserId(ctx);
         followService.follow(followerId, targetId);
@@ -73,9 +74,31 @@ public class UserController {
     }
 
 
+    // JAX-RS prefers literal paths over templates — these must appear before /{username}.
+    // They are the "following feed" (subscriptions), reachable at /api/users/notifications/*.
+
+    @GET
+    @Path("/notifications")
+    @Authenticated
+    public Response getNotificationsInfo(@Context SecurityContext ctx) {
+        Long userId = extractUserId(ctx);
+        var stats = followService.getStats(userId);
+        return Response.ok(stats).build();
+    }
+
+    @GET
+    @Path("/notifications/posts")
+    @Authenticated
+    public PageResponse<PostDTO> getFollowingFeed(
+            @Context SecurityContext ctx,
+            @BeanParam PageRequest pageRequest) {
+        Long userId = extractUserId(ctx);
+        return postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size())
+                .map(PostDTO::from);
+    }
+
     @GET
     @Path("/{id}/followers")
-    @Authenticated
     public List<UserDTO> getFollowers(@PathParam("id") Long userId) {
         return followService.getFollowers(userId).stream()
                 .map(UserDTO::from)

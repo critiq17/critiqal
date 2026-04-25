@@ -3,6 +3,19 @@
 	import { isTelegramMiniApp } from '$lib/telegram';
 	import MobileLayout from '$lib/components/mobile/MobileLayout.svelte';
 	import { onMount } from 'svelte';
+	import { onNavigate, goto } from '$app/navigation';
+	import { reducedMotion } from '$lib/ui/reducedMotion.svelte';
+	import { registerUnauthorizedHandler } from '$lib/api/client';
+
+	onNavigate((navigation) => {
+		if (reducedMotion.value || !document.startViewTransition) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -11,18 +24,31 @@
 	let { children }: Props = $props();
 
 	let isMobile = $state(false);
-	let mounted = $state(false);
 
 	onMount(() => {
 		isMobile = isTelegramMiniApp();
-		mounted = true;
 		authStore.init();
+
+		registerUnauthorizedHandler(() => {
+			// Don't fire during init() — that path already handles auth failure itself.
+			if (authStore.isInitializing) return;
+
+			authStore.logout();
+
+			// In TMA the MobileLayout will show MobileAuthScreen automatically
+			// once user becomes null. goto('/login') in a Telegram WebView causes
+			// navigation issues, so we only do it on regular web.
+			if (!isMobile) goto('/login');
+		});
 	});
 </script>
 
-{#if !mounted}
-	<div style="height:100vh;background:#0a0a0a"></div>
-{:else if isMobile}
+<svelte:head>
+	<link rel="preload" as="image" href="/assets/reactions/GIGACHAD.png" />
+	<link rel="preload" as="image" href="/assets/reactions/THEROCK.png" />
+</svelte:head>
+
+{#if isMobile}
 	<MobileLayout />
 {:else}
 	{@render children()}
@@ -46,6 +72,23 @@
 		--color-text-muted: #666666;
 		--color-accent: #e05252;
 		--color-skeleton: #1e1e1e;
+
+		--radius-sm: 8px;
+		--radius-md: 12px;
+		--radius-lg: 16px;
+		--radius-xl: 20px;
+		--radius-full: 9999px;
+		--shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+		--shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+		--shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+		--spacing-xs: 4px;
+		--spacing-sm: 8px;
+		--spacing-md: 16px;
+		--spacing-lg: 24px;
+		--spacing-xl: 32px;
+		--transition-fast: 150ms ease;
+		--transition-base: 250ms ease;
+		--transition-slow: 400ms ease;
 
 		font-family:
 			-apple-system,

@@ -14,16 +14,13 @@ import java.util.List;
 @ApplicationScoped
 public class PostRepository implements PanacheRepository<Post> {
 
-    // Fetch join author + photos
-    public List<Post> findLatest(int page, int size) {
+    public List<Long> findLatestIds(int page, int size) {
         return getEntityManager()
                 .createQuery("""
-                        SELECT DISTINCT p FROM Post p
-                        LEFT JOIN FETCH p.author
-                        LEFT JOIN FETCH p.photos
+                        SELECT p.id FROM Post p
                         WHERE p.status = :status
-                        ORDER BY p.createdAt DESC
-                        """, Post.class)
+                        ORDER BY p.createdAt DESC, p.id DESC
+                        """, Long.class)
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setFirstResult(page * size)
                 .setMaxResults(size)
@@ -34,16 +31,13 @@ public class PostRepository implements PanacheRepository<Post> {
         return count("status", PostStatus.PUBLISHED);
     }
 
-    // Find all published posts by author
-    public List<Post> findByAuthor(Long authorId, int page, int size) {
+    public List<Long> findByAuthorIds(Long authorId, int page, int size) {
         return getEntityManager()
                 .createQuery("""
-                        SELECT DISTINCT p FROM Post p
-                        LEFT JOIN FETCH p.author
-                        LEFT JOIN FETCH p.photos
+                        SELECT p.id FROM Post p
                         WHERE p.author.id = :authorId AND p.status = :status
-                        ORDER BY p.createdAt DESC
-                        """, Post.class)
+                        ORDER BY p.createdAt DESC, p.id DESC
+                        """, Long.class)
                 .setParameter("authorId", authorId)
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setFirstResult(page * size)
@@ -86,6 +80,39 @@ public class PostRepository implements PanacheRepository<Post> {
                 .setFirstResult(page * size)
                 .setMaxResults(size)
                 .getResultList();
+    }
+
+    public List<Long> findFollowingFeedIds(Long userId, int page, int size) {
+        return getEntityManager()
+                .createQuery("""
+                        SELECT p.id FROM Post p
+                        WHERE p.status = :status
+                          AND p.author.id IN (
+                              SELECT f.following.id FROM Follow f
+                              WHERE f.follower.id = :userId
+                          )
+                        ORDER BY p.createdAt DESC, p.id DESC
+                        """, Long.class)
+                .setParameter("status", PostStatus.PUBLISHED)
+                .setParameter("userId", userId)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long countFollowingFeed(Long userId) {
+        return getEntityManager()
+                .createQuery("""
+                        SELECT COUNT(p) FROM Post p
+                        WHERE p.status = :status
+                          AND p.author.id IN (
+                              SELECT f.following.id FROM Follow f
+                              WHERE f.follower.id = :userId
+                          )
+                        """, Long.class)
+                .setParameter("status", PostStatus.PUBLISHED)
+                .setParameter("userId", userId)
+                .getSingleResult();
     }
 
     public List<Post> findByIdsWithRelations(List<Long> ids) {

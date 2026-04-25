@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import type { Post } from '$lib/types';
-	import { postService } from '$lib/services/post.service';
-	import { mediaService } from '$lib/services/media.service';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { showBackButton, showMainButton, setMainButtonLoading, setMainButtonEnabled } from '$lib/tma/buttons';
+	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
+	import ComposerTextarea from '$lib/components/composer/ComposerTextarea.svelte';
+	import ComposerPhotoPicker from '$lib/components/composer/ComposerPhotoPicker.svelte';
+	import ComposerPhotoPreview from '$lib/components/composer/ComposerPhotoPreview.svelte';
 
 	interface Props {
 		open: boolean;
@@ -14,130 +16,44 @@
 
 	let { open, onClose, onPosted }: Props = $props();
 
-	const MAX_PHOTOS = 3;
-	const MAX_CHARS = 500;
-
-	let text = $state('');
-	let selectedFiles = $state<File[]>([]);
-	let previewUrls = $state<string[]>([]);
-	let loading = $state(false);
-	let errorMessage = $state('');
-	let viewingPhotoUrl = $state<string | null>(null);
+	const composer = new UseComposer();
 
 	let textareaEl: HTMLTextAreaElement | null = null;
-	let fileInputEl: HTMLInputElement | null = null;
 	let footerEl: HTMLElement | null = null;
-
-	let hasContent = $derived(text.trim().length > 0);
-	let charsLeft = $derived(MAX_CHARS - text.length);
-	let overLimit = $derived(charsLeft < 0);
-	let canPost = $derived(hasContent && !overLimit && !loading);
-
-	// True when TG native MainButton is confirmed active → hides in-page Post btn
+	let viewingPhotoUrl = $state<string | null>(null);
 	let hasTgMainButton = $state(false);
 
-	// Sync native MainButton enabled state when it's active
 	$effect(() => {
-		if (hasTgMainButton) setMainButtonEnabled(canPost);
+		if (hasTgMainButton) setMainButtonEnabled(composer.canPost);
 	});
 
-	// ── textarea auto-grow ───────────────────────────────────────────────────────
 	function autoGrow(el: HTMLTextAreaElement): void {
 		el.style.height = 'auto';
 		el.style.height = el.scrollHeight + 'px';
 	}
 
-	function handleInput(e: Event): void {
-		autoGrow(e.target as HTMLTextAreaElement);
-	}
-
-	// ── photo helpers ────────────────────────────────────────────────────────────
-	function triggerFileInput(): void {
-		fileInputEl?.click();
-	}
-
-	function handleFileChange(e: Event): void {
-		const input = e.target as HTMLInputElement;
-		if (!input.files?.length) return;
-
-		const remaining = MAX_PHOTOS - selectedFiles.length;
-		const toAdd = Array.from(input.files).slice(0, remaining);
-		const newUrls = toAdd.map((f) => URL.createObjectURL(f));
-
-		selectedFiles = [...selectedFiles, ...toAdd];
-		previewUrls = [...previewUrls, ...newUrls];
-		input.value = '';
-	}
-
 	function removePhoto(index: number): void {
-		URL.revokeObjectURL(previewUrls[index]);
-		selectedFiles = selectedFiles.filter((_, i) => i !== index);
-		previewUrls = previewUrls.filter((_, i) => i !== index);
+		composer.removePhoto(index);
 		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
 	}
 
-	function openPhotoViewer(url: string): void {
-		viewingPhotoUrl = url;
-	}
-
-	function closePhotoViewer(): void {
-		viewingPhotoUrl = null;
-	}
-
-	// ── state reset ──────────────────────────────────────────────────────────────
-	function resetState(): void {
-		text = '';
-		previewUrls.forEach((url) => URL.revokeObjectURL(url));
-		selectedFiles = [];
-		previewUrls = [];
-		errorMessage = '';
-		loading = false;
-		if (textareaEl) textareaEl.style.height = 'auto';
-	}
-
-	// ── submit ───────────────────────────────────────────────────────────────────
 	async function submitPost(): Promise<void> {
-		const content = text.trim();
-		if (!content || loading || overLimit) return;
-
-		loading = true;
-		errorMessage = '';
 		if (hasTgMainButton) setMainButtonLoading(true);
-
-		try {
-			const newPost = await postService.create({ content });
-
-			const uploadedPhotos: import('$lib/types').PostPhoto[] = [];
-			for (const file of selectedFiles) {
-				try {
-					const photo = await mediaService.uploadPostPhoto(newPost.id, file);
-					uploadedPhotos.push(photo);
-				} catch {
-					// skip failed uploads, continue with the rest
-				}
-			}
-
-			const finalPost: Post =
-				uploadedPhotos.length > 0 ? { ...newPost, photos: uploadedPhotos } : newPost;
-
+		const post = await composer.submit();
+		if (post) {
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
-			resetState();
-			onPosted(finalPost);
-		} catch (err: unknown) {
-			errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
-			loading = false;
-			if (hasTgMainButton) setMainButtonLoading(false);
+			onPosted(post);
+		} else if (hasTgMainButton) {
+			setMainButtonLoading(false);
 		}
 	}
 
-	// ── native TG buttons (platform-guarded) ────────────────────────────────────
 	let cleanupBackButton: (() => void) | null = null;
 	let cleanupMainButton: (() => void) | null = null;
 
 	onMount(() => {
 		const tg = getTelegramWebApp();
 
-		// Native buttons only on a real TMA client (not browser dev shell)
 		if (tg?.platform && tg.platform !== 'unknown') {
 			cleanupBackButton = showBackButton(onClose);
 			cleanupMainButton = showMainButton('Post', submitPost);
@@ -145,7 +61,6 @@
 			hasTgMainButton = true;
 		}
 
-		// Small delay so the open animation settles before keyboard appears
 		const focusTimer = setTimeout(() => {
 			if (textareaEl) {
 				textareaEl.focus();
@@ -177,144 +92,90 @@
 	});
 </script>
 
-<!-- Full-screen overlay — slides up from bottom, same pattern as UserProfileOverlay -->
-<div
-	class="composer"
-	class:open
-	role="dialog"
-	aria-modal="true"
-	aria-label="New post"
->
-	<!-- ── Header — always rendered; Post btn hidden when native MainButton is active ── -->
+<div class="composer" class:open role="dialog" aria-modal="true" aria-label="New post">
 	<div class="composer-header">
-		<button class="cancel-btn" onclick={onClose} disabled={loading} type="button">
+		<button class="cancel-btn" onclick={onClose} disabled={composer.loading} type="button">
 			Cancel
 		</button>
 		<span class="hdr-title">New post</span>
 		{#if !hasTgMainButton}
 			<button
 				class="post-btn"
-				class:ready={canPost}
+				class:ready={composer.canPost}
 				onclick={submitPost}
-				disabled={!canPost}
+				disabled={!composer.canPost}
 				type="button"
 			>
-				{loading ? '…' : 'Post'}
+				{composer.loading ? '…' : 'Post'}
 			</button>
 		{:else}
 			<span class="hdr-space" aria-hidden="true"></span>
 		{/if}
 	</div>
 
-	{#if errorMessage}
-		<p class="error-msg" role="alert">{errorMessage}</p>
+	{#if composer.errorMessage}
+		<p class="error-msg" role="alert">{composer.errorMessage}</p>
 	{/if}
 
-	<!-- ── Scrollable body — grows with text, user can scroll to review ── -->
 	<div class="composer-body">
-		<textarea
-			class="composer-textarea"
-			bind:this={textareaEl}
-			bind:value={text}
-			oninput={handleInput}
-			placeholder="What's on your mind?"
-			disabled={loading}
-			aria-label="Post content"
-			autocomplete="off"
-			spellcheck="true"
-		></textarea>
+		<ComposerTextarea
+			value={composer.text}
+			disabled={composer.loading}
+			onValueChange={(v) => { composer.text = v; }}
+			onInput={autoGrow}
+			bindEl={(el) => { textareaEl = el; }}
+		/>
 
-		<!-- Photo grid — full-width cards, tap to preview, ✕ to remove -->
-		{#if previewUrls.length > 0}
-			<div class="photo-grid" class:single={previewUrls.length === 1}>
-				{#each previewUrls as url, i (url)}
-					<div class="photo-card">
-						<button
-							class="photo-tap"
-							onclick={() => openPhotoViewer(url)}
-							aria-label="View photo {i + 1}"
-							type="button"
-						>
-							<img src={url} alt="Photo {i + 1}" />
-						</button>
-						<button
-							class="remove-btn"
-							onclick={() => removePhoto(i)}
-							type="button"
-							aria-label="Remove photo {i + 1}"
-						>
-							<svg viewBox="0 0 12 12" width="10" height="10" fill="none" aria-hidden="true">
-								<path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-							</svg>
-						</button>
-					</div>
-				{/each}
-			</div>
-		{/if}
+		<ComposerPhotoPreview
+			previewUrls={composer.previewUrls}
+			onRemove={removePhoto}
+			onView={(url) => { viewingPhotoUrl = url; }}
+		/>
 	</div>
 
-	<!-- ── Footer toolbar ── -->
 	<div class="composer-footer" bind:this={footerEl}>
 		<div class="footer-left">
-			{#if selectedFiles.length < MAX_PHOTOS}
-				<button
-					class="footer-icon-btn"
-					onclick={triggerFileInput}
-					disabled={loading}
-					type="button"
-					aria-label="Add photo"
-				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" width="22" height="22" aria-hidden="true">
-						<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-						<circle cx="12" cy="13" r="4"/>
-					</svg>
-				</button>
+			{#if composer.selectedFiles.length < composer.maxPhotos}
+				<ComposerPhotoPicker
+					disabled={composer.loading}
+					onFiles={(files) => composer.addFiles(files)}
+				/>
 			{/if}
 		</div>
-		<span class="char-counter" class:warn={charsLeft <= 20} class:over={overLimit}>
-			{charsLeft}
+		<span
+			class="char-counter"
+			class:warn={composer.charsLeft <= 20}
+			class:over={composer.overLimit}
+		>
+			{composer.charsLeft}
 		</span>
 	</div>
-
-	<input
-		bind:this={fileInputEl}
-		type="file"
-		accept="image/*"
-		multiple
-		class="sr-only"
-		onchange={handleFileChange}
-		disabled={loading}
-		aria-hidden="true"
-		tabindex="-1"
-	/>
 </div>
 
-<!-- Full-screen photo viewer -->
 {#if viewingPhotoUrl}
 	<div class="photo-viewer" role="dialog" aria-label="Photo preview">
 		<button
 			class="viewer-backdrop"
-			onclick={closePhotoViewer}
+			onclick={() => { viewingPhotoUrl = null; }}
 			aria-label="Close photo viewer"
 			type="button"
 		></button>
 		<img src={viewingPhotoUrl} alt="Full size preview" class="viewer-img" />
 		<button
 			class="viewer-close"
-			onclick={closePhotoViewer}
+			onclick={() => { viewingPhotoUrl = null; }}
 			aria-label="Close"
 			type="button"
 		>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">
-				<line x1="18" y1="6" x2="6" y2="18"/>
-				<line x1="6" y1="6" x2="18" y2="18"/>
+				<line x1="18" y1="6" x2="6" y2="18" />
+				<line x1="6" y1="6" x2="18" y2="18" />
 			</svg>
 		</button>
 	</div>
 {/if}
 
 <style>
-	/* ── Full-screen overlay ────────────────────────────────────────────────────── */
 	.composer {
 		position: fixed;
 		inset: 0;
@@ -324,7 +185,6 @@
 		flex-direction: column;
 		transform: translateY(100%);
 		transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
-		/* Prevent interaction with content behind while animating */
 		pointer-events: none;
 	}
 
@@ -333,7 +193,6 @@
 		pointer-events: auto;
 	}
 
-	/* ── Header ─────────────────────────────────────────────────────────────────── */
 	.composer-header {
 		display: flex;
 		align-items: center;
@@ -368,13 +227,8 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.cancel-btn:active {
-		opacity: 0.6;
-	}
-
-	.cancel-btn:disabled {
-		cursor: default;
-	}
+	.cancel-btn:active { opacity: 0.6; }
+	.cancel-btn:disabled { cursor: default; }
 
 	.post-btn {
 		background: none;
@@ -391,19 +245,10 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.post-btn.ready {
-		color: var(--tg-accent, #e05252);
-	}
+	.post-btn.ready { color: var(--tg-accent, #e05252); }
+	.post-btn:disabled { cursor: default; }
+	.hdr-space { min-width: 64px; }
 
-	.post-btn:disabled {
-		cursor: default;
-	}
-
-	.hdr-space {
-		min-width: 64px;
-	}
-
-	/* ── Error ───────────────────────────────────────────────────────────────────── */
 	.error-msg {
 		font-size: 13px;
 		color: #e05252;
@@ -411,7 +256,6 @@
 		flex-shrink: 0;
 	}
 
-	/* ── Scrollable body ─────────────────────────────────────────────────────────── */
 	.composer-body {
 		flex: 1;
 		overflow-y: auto;
@@ -423,106 +267,6 @@
 		gap: 16px;
 	}
 
-	/* ── Textarea ────────────────────────────────────────────────────────────────── */
-	.composer-textarea {
-		background: none;
-		border: none;
-		outline: none;
-		font-size: 17px;
-		line-height: 1.55;
-		color: var(--tg-text, #f0f0f0);
-		width: 100%;
-		resize: none;
-		/* overflow: hidden so autoGrow drives height, not internal scroll */
-		overflow-y: hidden;
-		min-height: 120px;
-		font-family: inherit;
-		box-sizing: border-box;
-		caret-color: var(--tg-accent, #e05252);
-	}
-
-	.composer-textarea::placeholder {
-		color: var(--tg-hint, rgba(255, 255, 255, 0.3));
-	}
-
-	.composer-textarea:disabled {
-		opacity: 0.6;
-	}
-
-	/* ── Photo grid ──────────────────────────────────────────────────────────────── */
-	.photo-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 6px;
-	}
-
-	/* Single photo: wider aspect ratio, more prominent */
-	.photo-grid.single {
-		grid-template-columns: 1fr;
-	}
-
-	.photo-grid.single .photo-card {
-		aspect-ratio: 4 / 3;
-	}
-
-	.photo-card {
-		position: relative;
-		aspect-ratio: 1;
-		border-radius: 12px;
-		overflow: visible;
-	}
-
-	.photo-tap {
-		display: block;
-		width: 100%;
-		height: 100%;
-		padding: 0;
-		border: none;
-		background: none;
-		cursor: pointer;
-		border-radius: 12px;
-		overflow: hidden;
-		-webkit-tap-highlight-color: transparent;
-	}
-
-	.photo-tap img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-		display: block;
-		border-radius: 12px;
-		transition: opacity 0.15s ease;
-	}
-
-	.photo-tap:active img {
-		opacity: 0.8;
-	}
-
-	.remove-btn {
-		position: absolute;
-		top: -8px;
-		right: -8px;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: rgba(20, 20, 20, 0.9);
-		border: 1.5px solid rgba(255, 255, 255, 0.15);
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: rgba(255, 255, 255, 0.85);
-		padding: 0;
-		z-index: 1;
-		-webkit-tap-highlight-color: transparent;
-		transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	.remove-btn:active {
-		transform: scale(0.85);
-	}
-
-	/* ── Footer toolbar ──────────────────────────────────────────────────────────── */
 	.composer-footer {
 		flex-shrink: 0;
 		display: flex;
@@ -539,28 +283,6 @@
 		gap: 4px;
 	}
 
-	.footer-icon-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		padding: 8px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
-		display: flex;
-		align-items: center;
-		border-radius: 8px;
-		-webkit-tap-highlight-color: transparent;
-		transition: color 0.15s ease;
-	}
-
-	.footer-icon-btn:active {
-		color: var(--tg-text, #f0f0f0);
-	}
-
-	.footer-icon-btn:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
-	}
-
 	.char-counter {
 		font-size: 13px;
 		color: var(--tg-hint, rgba(255, 255, 255, 0.3));
@@ -570,16 +292,9 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.char-counter.warn {
-		color: rgba(255, 165, 0, 0.8);
-	}
+	.char-counter.warn { color: rgba(255, 165, 0, 0.8); }
+	.char-counter.over { color: #e05252; font-weight: 600; }
 
-	.char-counter.over {
-		color: #e05252;
-		font-weight: 600;
-	}
-
-	/* ── Photo viewer ─────────────────────────────────────────────────────────────── */
 	.photo-viewer {
 		position: fixed;
 		inset: 0;
@@ -631,10 +346,6 @@
 
 	@keyframes fadeIn {
 		from { opacity: 0; }
-		to   { opacity: 1; }
-	}
-
-	.sr-only {
-		display: none;
+		to { opacity: 1; }
 	}
 </style>

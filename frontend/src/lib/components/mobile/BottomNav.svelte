@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { activeTab } from '$lib/stores/mobile-tab.store';
-  import type { MobileTab } from '$lib/stores/mobile-tab.store';
-  import { openCompose } from '$lib/stores/compose.store';
+  import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
+  import type { MobileTab } from '$lib/stores/mobile-tab.store.svelte';
+  import { openCompose } from '$lib/stores/compose.store.svelte';
   import { getTelegramWebApp } from '$lib/telegram';
 
-  let currentTab = $derived($activeTab);
-
   function selectTab(tab: MobileTab): void {
-    activeTab.set(tab);
+    tabStore.active = tab;
     getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
   }
 
@@ -20,30 +18,30 @@
 <nav class="nav-pill" aria-label="Main navigation">
   <button
     class="tab-btn"
-    class:active={currentTab === 'feed'}
+    class:active={tabStore.active === 'feed'}
     aria-label="Feed"
-    aria-current={currentTab === 'feed' ? 'page' : undefined}
+    aria-current={tabStore.active === 'feed' ? 'page' : undefined}
     onclick={() => selectTab('feed')}
   >
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
       <polyline points="9 22 9 12 15 12 15 22"/>
     </svg>
-    <span class="dot" class:hidden={currentTab !== 'feed'}></span>
+    <span class="dot" class:hidden={tabStore.active !== 'feed'}></span>
   </button>
 
   <button
     class="tab-btn"
-    class:active={currentTab === 'explore'}
+    class:active={tabStore.active === 'explore'}
     aria-label="Explore"
-    aria-current={currentTab === 'explore' ? 'page' : undefined}
+    aria-current={tabStore.active === 'explore' ? 'page' : undefined}
     onclick={() => selectTab('explore')}
   >
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="11" cy="11" r="8"/>
       <line x1="21" y1="21" x2="16.65" y2="16.65"/>
     </svg>
-    <span class="dot" class:hidden={currentTab !== 'explore'}></span>
+    <span class="dot" class:hidden={tabStore.active !== 'explore'}></span>
   </button>
 
   <!-- Centre compose button — not a tab, an action -->
@@ -56,16 +54,16 @@
 
   <button
     class="tab-btn"
-    class:active={currentTab === 'profile'}
+    class:active={tabStore.active === 'profile'}
     aria-label="Profile"
-    aria-current={currentTab === 'profile' ? 'page' : undefined}
+    aria-current={tabStore.active === 'profile' ? 'page' : undefined}
     onclick={() => selectTab('profile')}
   >
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
     </svg>
-    <span class="dot" class:hidden={currentTab !== 'profile'}></span>
+    <span class="dot" class:hidden={tabStore.active !== 'profile'}></span>
   </button>
 </nav>
 
