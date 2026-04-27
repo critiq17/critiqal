@@ -49,6 +49,9 @@ Spend on: profile badges, extended bio, follower suggestions priority.
 
 ## Stack
 
-- **Backend** — Java 21 + Quarkus, PostgreSQL 16, Redis 7
-- **Frontend** — Svelte 5 + TypeScript
-- **Infra** — Docker Compose, Nginx, GitHub Actions
+- **Backend** — Java 21 + Quarkus 3, PostgreSQL 16
+- **Frontend** — SvelteKit 2 + Svelte 5 + TypeScript
+- **Media / Integrations** — Cloudflare R2, Strava API
+- **Infra** — Docker Compose, GitHub Actions
+
+For the current repository layout and code boundaries, see `docs/Engineering.md`.
