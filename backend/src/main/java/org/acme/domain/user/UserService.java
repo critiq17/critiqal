@@ -1,6 +1,7 @@
 package org.acme.domain.user;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.acme.utils.PasswordHash;
@@ -12,11 +13,13 @@ public class UserService {
 
     private final UserRepository userRepo;
     private final PasswordHash passwordHash;
+    private final Event<UserRegisteredEvent> userRegisteredEvent;
 
     @Inject
-    public UserService(UserRepository userRepo, PasswordHash passwordHash) {
+    public UserService(UserRepository userRepo, PasswordHash passwordHash, Event<UserRegisteredEvent> userRegisteredEvent) {
         this.userRepo = userRepo;
         this.passwordHash = passwordHash;
+        this.userRegisteredEvent = userRegisteredEvent;
     }
 
     @Transactional
@@ -24,7 +27,9 @@ public class UserService {
         if (userRepo.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already taken");
         }
-        return userRepo.createUser(username, passwordHash.hash(password));
+        var user = userRepo.createUser(username, passwordHash.hash(password));
+        userRegisteredEvent.fireAsync(new UserRegisteredEvent(user.id, user.username));
+        return user;
     }
 
     public User getByUsername(String username) {
