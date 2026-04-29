@@ -1,6 +1,8 @@
 package org.critiqal.domain.user;
 
+import jakarta.enterprise.event.Event;
 import org.acme.domain.user.User;
+import org.acme.domain.user.UserRegisteredEvent;
 import org.acme.domain.user.UserRepository;
 import org.acme.domain.user.UserService;
 import org.acme.utils.PasswordHash;
@@ -17,12 +19,14 @@ class UserServiceTest {
 
     private final UserRepository userRepo = mock(UserRepository.class);
     private final PasswordHash passwordHash = mock(PasswordHash.class);
+    @SuppressWarnings("unchecked")
+    private final Event<UserRegisteredEvent> registeredEvent = mock(Event.class);
 
     private UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepo, passwordHash);
+        userService = new UserService(userRepo, passwordHash, registeredEvent);
     }
 
     @Test
