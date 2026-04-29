@@ -19,23 +19,23 @@ Developers and athletes who want a low-noise space to share progress with people
 
 ## Tech Stack
 
-| Layer     | Technology                              |
-|-----------|-----------------------------------------|
-| Backend   | Java 21 + Quarkus                       |
-| Frontend  | Svelte 5 + TypeScript                   |
-| Database  | PostgreSQL 16                           |
-| Cache     | Redis 7                                 |
-| Messaging | Internal event-service (SSE/WebSocket)  |
-| Auth      | Cookie-based sessions (HttpOnly, Secure)|
-| Infra     | Docker Compose, Nginx, GitHub Actions   |
+| Layer        | Technology                              |
+|--------------|-----------------------------------------|
+| Backend      | Java 21 + Quarkus 3                     |
+| Frontend     | SvelteKit 2 + Svelte 5 + TypeScript     |
+| Database     | PostgreSQL 16                           |
+| Media        | Cloudflare R2                           |
+| Integrations | Strava API                              |
+| Auth         | JWT bearer auth                         |
+| Infra        | Docker Compose, GitHub Actions          |
 
 ## Architecture Principles
 
-- **DDD** — domain logic lives in the domain layer, not in services or controllers
-- **SOLID** — every class has one reason to change; dependencies are injected, not created
-- **DRY** — no duplicated logic; shared code extracted to libraries or modules
-- **KISS** — simple solutions preferred; complexity must be justified
+- **Layered monolith** — one Quarkus API and one SvelteKit app in a single repo
+- **Feature-oriented packages** — backend code is grouped by feature (`post`, `user`, `comment`, etc.)
+- **Thin transport layers** — controllers and frontend services stay close to HTTP concerns
+- **Pragmatic boundaries** — repositories, entities, and services can live in the same feature package when that keeps the code simpler
 
 ## Project Status
 
-Early development. See `docs/Features.md` for the planned roadmap.
+Active development. See `docs/Engineering.md` for the current code structure and `docs/Features.md` for the broader roadmap.
