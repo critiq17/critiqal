@@ -4,12 +4,13 @@ import { apiClient, setInMemoryToken } from '$lib/api/client';
 
 // ── token persistence helpers ──────────────────────────────────────────────
 // TMA:  token lives in Telegram CloudStorage (sandboxed, persistent across restarts)
-// Web:  token lives in sessionStorage (survives refresh, cleared on tab close;
-//       avoids XSS risk of localStorage while still surviving F5)
+// Web:  token lives in localStorage so the session survives tab close and browser
+//       restart. TEMP: this is a stop-gap until HttpOnly cookie sessions land
+//       (see Linear: SESSION-1/2/3). XSS risk is acknowledged trade-off.
 
 function getWebToken(): string | null {
   try {
-    return sessionStorage.getItem('auth_token');
+    return localStorage.getItem('auth_token');
   } catch {
     return null;
   }
@@ -18,12 +19,12 @@ function getWebToken(): string | null {
 function setWebToken(token: string | null): void {
   try {
     if (token) {
-      sessionStorage.setItem('auth_token', token);
+      localStorage.setItem('auth_token', token);
     } else {
-      sessionStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_token');
     }
   } catch {
-    // sessionStorage not available (private mode on some browsers)
+    // localStorage not available (private mode on some browsers)
   }
 }
 
@@ -155,11 +156,21 @@ function createAuthStore() {
         } else if (state.isLoading) {
           state = { user: verified, isLoading: false };
         }
-      } catch {
-        setInMemoryToken(null);
-        setWebToken(null);
-        setCachedUser(null);
-        state = { user: null, isLoading: false };
+      } catch (err) {
+        // Only clear the session on a real auth failure (401/403). Network blips,
+        // 5xx, timeouts must NOT log the user out — keep the cached user and let
+        // a subsequent authenticated request trigger a real logout if needed.
+        const status = (err as { status?: number } | null)?.status;
+        if (status === 401 || status === 403) {
+          setInMemoryToken(null);
+          setWebToken(null);
+          setCachedUser(null);
+          state = { user: null, isLoading: false };
+        } else if (cached) {
+          state = { user: cached, isLoading: false };
+        } else {
+          state = { user: null, isLoading: false };
+        }
       }
       return;
     }

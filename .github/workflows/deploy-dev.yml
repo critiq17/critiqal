@@ -1,4 +1,17 @@
 # Deploy to dev
+#
+# Strategy:
+#   1. Build backend Docker image with BuildKit + GHA cache, push to GHCR.
+#   2. Build frontend, upload as artifact.
+#   3. Deploy job pulls frontend artifact, copies it + docker-compose to the
+#      server via Tailscale-protected SSH, then triggers the server to pull
+#      the new backend image straight from GHCR (no big SCP transfer).
+#
+# Why this is fast:
+#   - Backend Maven deps and Docker layers are cached across runs (GHA cache).
+#   - Image transfer goes over GitHub's CDN (server <-> GHCR), not through
+#     the Tailscale relay that previously bottlenecked SCP at ~500KB/s.
+#   - Tailscale stays in the picture only for SSH/SCP of small files.
 name: Deploy to dev
 
 on:
@@ -9,41 +22,45 @@ concurrency:
   group: deploy-dev
   cancel-in-progress: true
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/critiqal-backend
+  IMAGE_TAG: dev
+
 jobs:
   build-backend:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
         with:
-          java-version: "21"
-          distribution: "temurin"
-          cache: maven
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build JAR
-        working-directory: backend
-        run: ./mvnw package -DskipTests -q
-
-      - name: Build Docker image
-        working-directory: backend
-        run: docker build -t critiqal-backend-dev:latest .
-
-      - name: Save image
-        run: docker save critiqal-backend-dev:latest | gzip > backend-image.tar.gz
-
-      - uses: actions/upload-artifact@v4
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
         with:
-          name: backend-image
-          path: backend-image.tar.gz
-          retention-days: 1
+          context: backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:dev-${{ github.sha }}
+          cache-from: type=gha,scope=backend-dev
+          cache-to: type=gha,mode=max,scope=backend-dev
 
   build-frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +76,7 @@ jobs:
         env:
           VITE_API_URL: ""
         run: |
-          npm ci
+          npm ci --prefer-offline --no-audit --fund=false
           npm run build
 
       - uses: actions/upload-artifact@v4
@@ -74,13 +91,12 @@ jobs:
   deploy:
     needs: [build-backend, build-frontend]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: backend-image
-          path: .
 
       - uses: actions/download-artifact@v4
         with:
@@ -91,17 +107,6 @@ jobs:
         uses: tailscale/github-action@v2
         with:
           authKey: ${{ secrets.TAILSCALE_AUTHKEY }}
-
-      - name: Copy Docker image
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          source: "backend-image.tar.gz"
-          target: "/opt/critiqal/dev/"
-          overwrite: true
 
       - name: Copy docker-compose
         uses: appleboy/scp-action@v0.1.7
@@ -115,7 +120,7 @@ jobs:
           strip_components: 1
           overwrite: true
 
-      - name: Copy frontend
+      - name: Copy frontend build
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -128,36 +133,44 @@ jobs:
           overwrite: true
           rm: true
 
-      - name: Deploy
+      - name: Deploy on server (pull image, restart, healthcheck)
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
+          envs: GHCR_TOKEN,GHCR_USER,BACKEND_IMAGE
           command_timeout: 10m
           script: |
+            set -euo pipefail
             echo "Deploying dev"
-            cd /opt/critiqal/dev
 
-            docker load < backend-image.tar.gz
-            rm backend-image.tar.gz
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
             cd /opt/critiqal/dev/backend
-            echo "Starting containers..."
-            docker compose -f docker-compose.dev.yml up -d --force-recreate
+            export BACKEND_IMAGE
+            docker compose -f docker-compose.dev.yml pull backend
+            docker compose -f docker-compose.dev.yml up -d --remove-orphans
 
-            echo "Waiting for backend" 
-            for i in $(seq 1 30);do
-              curl -sf http://localhost:8083/health > /dev/null 2>&1 && echo "Backend ready" && break
+            docker logout ghcr.io >/dev/null 2>&1 || true
+
+            echo "Waiting for backend"
+            for i in $(seq 1 30); do
+              curl -sf http://localhost:8083/health >/dev/null 2>&1 && echo "Backend ready" && break
               [ "$i" -eq 30 ] && docker compose -f docker-compose.dev.yml logs --tail=30 backend && exit 1
               sleep 2
             done
 
             cd /opt/critiqal/dev/frontend
-            npm ci --omit=dev --silent
+            npm ci --omit=dev --prefer-offline --no-audit --fund=false --silent
             PORT=3001 pm2 reload critiqal-dev --update-env 2>/dev/null || \
               PORT=3001 pm2 start index.js --name critiqal-dev
             pm2 save
 
+            docker image prune -f >/dev/null 2>&1 || true
             echo "Dev deploy complete"
