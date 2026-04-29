@@ -16,7 +16,7 @@ services:
       retries: 5
 
   backend:
-    image: critiqal-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/critiq17/critiqal-backend:prod}
     container_name: critiqal-prod-backend
     restart: unless-stopped
     ports:
