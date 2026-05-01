@@ -30,9 +30,10 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Uni<SecurityIdentity> authenticate(RoutingContext context,
-                                              IdentityProviderManager idm) {
+            IdentityProviderManager idm) {
         var cookie = context.request().getCookie(cookieName);
-        if (cookie == null) return Uni.createFrom().nullItem();
+        if (cookie == null)
+            return Uni.createFrom().nullItem();
         var sid = cookie.getValue();
 
         return Uni.createFrom().item(() -> sessions.resolve(sid))
