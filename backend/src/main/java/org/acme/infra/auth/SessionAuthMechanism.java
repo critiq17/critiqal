@@ -3,11 +3,11 @@ package org.acme.infra.auth;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.identity.request.AuthenticationRequest;
-import io.quarkus.security.identity.request.TrustedAuthenticationRequest;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
 import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.acme.application.auth.SessionService;
@@ -23,7 +23,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
     public SessionAuthMechanism(
             SessionService sessions,
-            @ConfigProperty(name = "sessions.cookie.name") String cookieName) {
+            @ConfigProperty(name = "session.cookie.name") String cookieName) {
         this.sessions = sessions;
         this.cookieName = cookieName;
     }
@@ -33,14 +33,16 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
                                               IdentityProviderManager idm) {
         var cookie = context.request().getCookie(cookieName);
         if (cookie == null) return Uni.createFrom().nullItem();
+        var sid = cookie.getValue();
 
-        return sessions.resolve(cookie.getValue())
-                .map(userId -> (SecurityIdentity) QuarkusSecurityIdentity.builder()
-                        .setPrincipal(userId::toString)
-                        .addRole("USER")
-                        .build())
-                .map(Uni.createFrom()::item)
-                .orElseGet(() -> Uni.createFrom().nullItem());
+        return Uni.createFrom().item(() -> sessions.resolve(sid))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .map(opt -> opt
+                        .map(userId -> (SecurityIdentity) QuarkusSecurityIdentity.builder()
+                                .setPrincipal(userId::toString)
+                                .addRole("USER")
+                                .build())
+                        .orElse(null));
     }
 
     @Override
@@ -50,6 +52,6 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Set<Class<? extends AuthenticationRequest>> getCredentialTypes() {
-        return Set.of(TrustedAuthenticationRequest.class);
+        return Set.of();
     }
 }

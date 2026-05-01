@@ -16,7 +16,7 @@ import java.util.Optional;
 @ApplicationScoped
 public class RedisSessionService implements SessionService {
 
-    private static final String KEY_PREFIX = "session";
+    private static final String KEY_PREFIX = "session:";
     private static final int RANDOM_BYTES = 32;
 
     private final ValueCommands<String, String> commands;

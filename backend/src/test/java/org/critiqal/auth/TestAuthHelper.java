@@ -1,36 +1,32 @@
 package org.critiqal.auth;
 
+import io.restassured.response.Response;
+
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 
-/*
-    TestAuthHelper - tester for auth API
- */
-public class TestAuthHelper {
+public final class TestAuthHelper {
 
-    // Test registered and claim JWT token
-    public static String registerAndGetToken(String username) {
+    public static final String COOKIE = "session";
+
+    private TestAuthHelper() {}
+
+    public static Response registerAndGetResponse(String username) {
         return given()
                 .contentType(JSON)
                 .body("""
                     {"username":"%s","password":"pass123"}
                     """.formatted(username))
                 .when().post("/api/auth/register")
-                .then()
-                .statusCode(201)
-                .extract().path("token");
+                .then().statusCode(201)
+                .extract().response();
     }
 
-    // Tested registered and give user id
+    public static String registerAndGetSessionCookie(String username) {
+        return registerAndGetResponse(username).getCookie(COOKIE);
+    }
+
     public static Long registerAndGetUserId(String username) {
-        return given()
-                .contentType(JSON)
-                .body("""
-                    {"username":"%s","password":"pass123"}
-                    """.formatted(username))
-                .when().post("/api/auth/register")
-                .then()
-                .statusCode(201)
-                .extract().jsonPath().getLong("user.id");
+        return registerAndGetResponse(username).jsonPath().getLong("id");
     }
 }

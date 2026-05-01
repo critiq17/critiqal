@@ -5,22 +5,23 @@ import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
 
 @QuarkusTest
 class AuthControllerIT {
 
     @Test
-    void register_validData_returns201WithToken() {
+    void register_validData_returns201WithCookieAndUser() {
         given()
             .contentType(JSON)
             .body("{\"username\":\"newuser_auth\",\"password\":\"pass123\"}")
         .when().post("/api/auth/register")
         .then()
-                .statusCode(201)
-                .body("token", notNullValue())
-                .body("user.username", equalTo("newuser_auth"))
-                .body( "user.id", notNullValue());
+            .statusCode(201)
+            .cookie("session", notNullValue())
+            .body("username", equalTo("newuser_auth"))
+            .body("id", notNullValue());
     }
 
     @Test
@@ -36,7 +37,7 @@ class AuthControllerIT {
     }
 
     @Test
-    void login_validCredentials_returnsToken() {
+    void login_validCredentials_returnsCookie() {
         given().contentType(JSON)
                 .body("{\"username\":\"login_valid_user\",\"password\":\"pass123\"}")
                 .when().post("/api/auth/register")
@@ -48,7 +49,8 @@ class AuthControllerIT {
         .when().post("/api/auth/login")
         .then()
             .statusCode(200)
-            .body("token", org.hamcrest.Matchers.notNullValue());
+            .cookie("session", notNullValue())
+            .body("username", equalTo("login_valid_user"));
     }
 
     @Test
@@ -66,26 +68,25 @@ class AuthControllerIT {
     }
 
     @Test
-    void me_noToken_returns401() {
+    void me_noCookie_returns401() {
         given()
                 .when().get("/api/auth/me")
                 .then().statusCode(401);
     }
 
     @Test
-    void me_validToken_returnsUser() {
-        var token = given().contentType(JSON)
+    void me_validCookie_returnsUser() {
+        var sid = given().contentType(JSON)
                 .body("{\"username\":\"me_user\",\"password\":\"pass123\"}")
-                .when().post("api/auth/register")
-                .then().extract().path("token").toString();
+                .when().post("/api/auth/register")
+                .then().statusCode(201)
+                .extract().cookie("session");
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .cookie("session", sid)
                 .when().get("/api/auth/me")
                 .then()
                 .statusCode(200)
                 .body("username", equalTo("me_user"));
     }
-
-
 }

@@ -12,9 +12,9 @@ public class SessionFactoryCookie {
     private final int maxAgeSeconds;
 
     public SessionFactoryCookie(
-            @ConfigProperty(name = "sessions.cookie.name") String name,
-            @ConfigProperty(name = "sessions.cookie.secure") boolean secure,
-            @ConfigProperty(name = "sessions.ttl-days") int ttlDays) {
+            @ConfigProperty(name = "session.cookie.name") String name,
+            @ConfigProperty(name = "session.cookie.secure") boolean secure,
+            @ConfigProperty(name = "session.ttl-days") int ttlDays) {
         this.name = name;
         this.secure = secure;
         this.maxAgeSeconds = ttlDays * 24 * 60 * 60;
