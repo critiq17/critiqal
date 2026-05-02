@@ -67,4 +67,18 @@ public class AuthController {
         var userId = Long.parseLong(ctx.getUserPrincipal().getName());
         return Response.ok(UserDTO.from(userService.getById(userId))).build();
     }
+
+    @DELETE @Path("/sessions/{id}")
+    @Consumes(MediaType.WILDCARD)
+    @Authenticated
+    public Response revokeSession(@PathParam("id") String sessionId,
+                                  @Context SecurityContext ctx) {
+        var callerId = Long.parseLong(ctx.getUserPrincipal().getName());
+        var owner = sessions.resolve(sessionId);
+        if (owner.isEmpty() || !owner.get().equals(callerId)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        sessions.destroy(sessionId);
+        return Response.noContent().build();
+    }
 }

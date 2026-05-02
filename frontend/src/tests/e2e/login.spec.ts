@@ -55,22 +55,18 @@ test.describe('Login flow', () => {
 
   test('successful login redirects to feed', async ({ page }) => {
     // Mock the auth API to avoid needing a running backend.
+    // Backend returns UserDTO directly (no token wrapper — session is in HttpOnly cookie).
     await page.route(`${API_URL}/api/auth/login`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          token: 'test-token-abc123',
-          user: {
-            id: '1',
-            username: 'testuser',
-            name: 'Test User',
-            email: 'test@example.com',
-            bio: null,
-            avatarUrl: null,
-            followersCount: 0,
-            followingCount: 0,
-          },
+          id: 1,
+          username: 'testuser',
+          name: 'Test User',
+          bio: null,
+          avatarUrl: null,
+          createdAt: new Date().toISOString(),
         }),
       });
     });

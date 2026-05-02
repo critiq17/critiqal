@@ -89,4 +89,65 @@ class AuthControllerIT {
                 .statusCode(200)
                 .body("username", equalTo("me_user"));
     }
+
+    @Test
+    void login_unknownUser_returns401() {
+        given()
+            .contentType(JSON)
+            .body("{\"username\":\"ghost_user_404\",\"password\":\"pass123\"}")
+        .when().post("/api/auth/login")
+        .then().statusCode(401);
+    }
+
+    @Test
+    void revokeSession_ownSession_returns204() {
+        // Register and capture the session ID from login response
+        var loginResp = given().contentType(JSON)
+                .body("{\"username\":\"revoke_user\",\"password\":\"pass123\"}")
+                .when().post("/api/auth/register")
+                .then().statusCode(201)
+                .extract().response();
+
+        var sid = loginResp.getCookie("session");
+
+        // Revoke the own session
+        given()
+            .cookie("session", sid)
+        .when().delete("/api/auth/sessions/" + sid)
+        .then().statusCode(204);
+
+        // Verify the session is gone — /me must return 401 now
+        given()
+            .cookie("session", sid)
+        .when().get("/api/auth/me")
+        .then().statusCode(401);
+    }
+
+    @Test
+    void revokeSession_otherUserSession_returns403() {
+        var aliceSid = given().contentType(JSON)
+                .body("{\"username\":\"alice_revoke\",\"password\":\"pass123\"}")
+                .when().post("/api/auth/register")
+                .then().statusCode(201)
+                .extract().cookie("session");
+
+        var bobSid = given().contentType(JSON)
+                .body("{\"username\":\"bob_revoke\",\"password\":\"pass123\"}")
+                .when().post("/api/auth/register")
+                .then().statusCode(201)
+                .extract().cookie("session");
+
+        // Bob tries to revoke Alice's session
+        given()
+            .cookie("session", bobSid)
+        .when().delete("/api/auth/sessions/" + aliceSid)
+        .then().statusCode(403);
+    }
+
+    @Test
+    void revokeSession_unauthenticated_returns401() {
+        given()
+        .when().delete("/api/auth/sessions/some-random-id")
+        .then().statusCode(401);
+    }
 }
