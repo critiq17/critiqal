@@ -64,7 +64,8 @@ public class UserService {
     }
 
     public boolean checkPassword(String username, String rawPassword) {
-        var user = getByUsername(username);
-        return passwordHash.verify(rawPassword, user.passwordHash);
+        return userRepo.findByUsername(username)
+                .map(user -> passwordHash.verify(rawPassword, user.passwordHash))
+                .orElse(false);
     }
 }

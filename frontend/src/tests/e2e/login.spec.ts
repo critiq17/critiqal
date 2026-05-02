@@ -29,9 +29,7 @@ test.describe('Login flow', () => {
       .or(page.locator('input[type="email"]'))
       .first();
 
-    const passwordField = page
-      .locator('input[type="password"]')
-      .first();
+    const passwordField = page.locator('input[type="password"]').first();
 
     await expect(usernameField).toBeVisible();
     await expect(passwordField).toBeVisible();
@@ -43,9 +41,7 @@ test.describe('Login flow', () => {
       await loginLink.click();
     }
 
-    const submitBtn = page
-      .getByRole('button', { name: /sign in|log in|login|continue/i })
-      .first();
+    const submitBtn = page.getByRole('button', { name: /sign in|log in|login|continue/i }).first();
 
     if (await submitBtn.isVisible()) {
       await submitBtn.click();
@@ -107,14 +103,14 @@ test.describe('Login flow', () => {
     }
   });
 
-  test('does not store auth token in localStorage', async ({ page }) => {
-    // Security: the bearer token must never appear in localStorage.
+  test('stores auth_user in localStorage after login (no token)', async ({ page }) => {
+    // Cookie sessions: auth_user holds the cached user object for optimistic render.
+    // auth_token must never appear — the session lives in an HttpOnly cookie only.
     await page.route(`${API_URL}/api/auth/login`, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          token: 'secret-token-xyz',
           user: {
             id: '1',
             username: 'testuser',
@@ -152,10 +148,13 @@ test.describe('Login flow', () => {
       await page.waitForTimeout(500);
     }
 
-    const tokenInStorage = await page.evaluate(() => {
-      return localStorage.getItem('auth_token');
+    const [tokenInStorage, userInStorage] = await page.evaluate(() => {
+      return [localStorage.getItem('auth_token'), localStorage.getItem('auth_user')];
     });
 
+    // Bearer token must never be in localStorage.
     expect(tokenInStorage).toBeNull();
+    // User cache must be present for optimistic rendering.
+    expect(userInStorage).not.toBeNull();
   });
 });

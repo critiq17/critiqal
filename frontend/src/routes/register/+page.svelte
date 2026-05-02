@@ -50,8 +50,8 @@
 		error = '';
 
 		try {
-			const response = await authService.register({ username, password });
-			authStore.login(response.user, response.token);
+			const user = await authService.register({ username, password });
+			authStore.login(user);
 			await goto('/');
 		} catch (err: unknown) {
 			error = mapError(err);

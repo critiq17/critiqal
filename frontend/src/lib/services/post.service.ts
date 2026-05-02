@@ -17,8 +17,7 @@ export const postService = {
 
   getFollowingFeed(page = 0, size = 20): Promise<PageResponse<Post>> {
     return apiClient.get<PageResponse<Post>>(
-      `${API.users.followingFeed}?page=${page}&size=${size}`,
-      true
+      `${API.users.followingFeed}?page=${page}&size=${size}`
     );
   },
 
@@ -33,11 +32,11 @@ export const postService = {
   },
 
   create(req: CreatePostRequest): Promise<Post> {
-    return apiClient.post<Post>(API.posts.feed, req, true);
+    return apiClient.post<Post>(API.posts.feed, req);
   },
 
   delete(id: number): Promise<void> {
-    return apiClient.delete(API.posts.byId(id), true);
+    return apiClient.delete(API.posts.byId(id));
   },
 
   // --- Comments ---
@@ -47,11 +46,11 @@ export const postService = {
   },
 
   addComment(postId: number, req: AddCommentRequest): Promise<Comment> {
-    return apiClient.post<Comment>(API.posts.comments(postId), req, true);
+    return apiClient.post<Comment>(API.posts.comments(postId), req);
   },
 
   deleteComment(postId: number, commentId: number): Promise<void> {
-    return apiClient.delete(API.posts.comment(postId, commentId), true);
+    return apiClient.delete(API.posts.comment(postId, commentId));
   },
 
   getReplies(postId: number, commentId: number): Promise<Comment[]> {
@@ -59,7 +58,7 @@ export const postService = {
   },
 
   addReply(postId: number, commentId: number, req: AddCommentRequest): Promise<Comment> {
-    return apiClient.post<Comment>(API.posts.replies(postId, commentId), req, true);
+    return apiClient.post<Comment>(API.posts.replies(postId, commentId), req);
   },
 
   // --- Reactions ---
@@ -69,14 +68,14 @@ export const postService = {
   },
 
   getMyReaction(postId: number): Promise<ReactionType | undefined> {
-    return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`, true);
+    return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`);
   },
 
   react(postId: number, type: ReactionType): Promise<void> {
-    return apiClient.post<void>(API.posts.reactions(postId), { type }, true);
+    return apiClient.post<void>(API.posts.reactions(postId), { type });
   },
 
   removeReaction(postId: number): Promise<void> {
-    return apiClient.delete(API.posts.reactions(postId), true);
+    return apiClient.delete(API.posts.reactions(postId));
   },
 };
