@@ -1,6 +1,6 @@
 package org.critiqal.api;
 
-import org.acme.application.auth.SessionService;
+import org.critiqal.application.auth.SessionService;
 
 import java.util.Map;
 import java.util.Optional;

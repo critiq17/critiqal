@@ -1,9 +1,8 @@
 package org.critiqal.domain.post;
 
 import jakarta.enterprise.event.Event;
-import org.acme.domain.post.*;
-import org.acme.domain.user.User;
-import org.acme.domain.user.UserService;
+import org.critiqal.domain.user.User;
+import org.critiqal.domain.user.UserService;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
 

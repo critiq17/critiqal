@@ -1,12 +1,9 @@
 package org.critiqal.domain.comment;
 
-import org.acme.domain.comment.Comment;
-import org.acme.domain.comment.CommentRepository;
-import org.acme.domain.comment.CommentService;
-import org.acme.domain.post.Post;
-import org.acme.domain.post.PostService;
-import org.acme.domain.user.User;
-import org.acme.domain.user.UserService;
+import org.critiqal.domain.post.Post;
+import org.critiqal.domain.post.PostService;
+import org.critiqal.domain.user.User;
+import org.critiqal.domain.user.UserService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;

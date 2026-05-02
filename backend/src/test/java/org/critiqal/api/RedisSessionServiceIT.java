@@ -2,7 +2,7 @@ package org.critiqal.api;
 
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import org.acme.application.auth.SessionService;
+import org.critiqal.application.auth.SessionService;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

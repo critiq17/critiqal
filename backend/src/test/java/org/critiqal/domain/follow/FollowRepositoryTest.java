@@ -1,9 +1,7 @@
 package org.critiqal.domain.follow;
 
-import org.acme.domain.follow.FollowRepository;
-import org.acme.domain.follow.FollowService;
-import org.acme.domain.user.User;
-import org.acme.domain.user.UserService;
+import org.critiqal.domain.user.User;
+import org.critiqal.domain.user.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

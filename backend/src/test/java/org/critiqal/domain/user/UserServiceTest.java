@@ -1,15 +1,10 @@
 package org.critiqal.domain.user;
 
 import jakarta.enterprise.event.Event;
-import org.acme.domain.user.User;
-import org.acme.domain.user.UserRegisteredEvent;
-import org.acme.domain.user.UserRepository;
-import org.acme.domain.user.UserService;
-import org.acme.utils.PasswordHash;
+import org.critiqal.utils.PasswordHash;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
