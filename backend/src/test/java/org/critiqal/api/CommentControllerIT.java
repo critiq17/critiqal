@@ -11,10 +11,10 @@ import static org.hamcrest.Matchers.notNullValue;
 @QuarkusTest
 class CommentControllerIT {
 
-    private Long createPost(String token) {
+    private Long createPost(String sid) {
         return Long.valueOf(
             given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"post for comments\"}")
             .when().post("/api/posts")
@@ -34,11 +34,11 @@ class CommentControllerIT {
 
     @Test
     void addComment_valid_returns201() {
-        var token = TestAuthHelper.registerAndGetToken("comment_valid_user");
-        var postId = createPost(token);
+        var sid = TestAuthHelper.registerAndGetSessionCookie("comment_valid_user");
+        var postId = createPost(sid);
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"nice post\"}")
         .when().post("/api/posts/" + postId + "/comments")
@@ -50,11 +50,11 @@ class CommentControllerIT {
 
     @Test
     void addComment_blankContent_returns400() {
-        var token = TestAuthHelper.registerAndGetToken("comment_blank_user");
-        var postId = createPost(token);
+        var sid = TestAuthHelper.registerAndGetSessionCookie("comment_blank_user");
+        var postId = createPost(sid);
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"\"}")
         .when().post("/api/posts/" + postId + "/comments")
@@ -63,12 +63,12 @@ class CommentControllerIT {
 
     @Test
     void addReply_toReply_returns400() {
-        var token = TestAuthHelper.registerAndGetToken("reply_to_reply_user");
-        var postId = createPost(token);
+        var sid = TestAuthHelper.registerAndGetSessionCookie("reply_to_reply_user");
+        var postId = createPost(sid);
 
         var commentId = Long.valueOf(
             given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"root comment\"}")
             .when().post("/api/posts/" + postId + "/comments")
@@ -78,7 +78,7 @@ class CommentControllerIT {
 
         var replyId = Long.valueOf(
             given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"first reply\"}")
             .when().post("/api/posts/" + postId + "/comments/" + commentId + "/replies")
@@ -87,7 +87,7 @@ class CommentControllerIT {
         );
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"reply to reply\"}")
         .when().post("/api/posts/" + postId + "/comments/" + replyId + "/replies")
@@ -96,12 +96,12 @@ class CommentControllerIT {
 
     @Test
     void deleteComment_notOwner_returns400() {
-        var ownerToken = TestAuthHelper.registerAndGetToken("comment_owner_del");
-        var otherToken = TestAuthHelper.registerAndGetToken("comment_other_del");
-        var postId = createPost(ownerToken);
+        var ownerSid = TestAuthHelper.registerAndGetSessionCookie("comment_owner_del");
+        var otherSid = TestAuthHelper.registerAndGetSessionCookie("comment_other_del");
+        var postId = createPost(ownerSid);
 
         var commentId = given()
-            .header("Authorization", "Bearer " + ownerToken)
+            .cookie(TestAuthHelper.COOKIE, ownerSid)
             .contentType(JSON)
             .body("{\"content\":\"to delete\"}")
         .when().post("/api/posts/" + postId + "/comments")
@@ -109,18 +109,18 @@ class CommentControllerIT {
         .extract().path("id").toString();
 
         given()
-            .header("Authorization", "Bearer " + otherToken)
+            .cookie(TestAuthHelper.COOKIE, otherSid)
         .when().delete("/api/posts/" + postId + "/comments/" + commentId)
         .then().statusCode(400);
     }
 
     @Test
     void deleteComment_owner_returns204() {
-        var token = TestAuthHelper.registerAndGetToken("comment_owner_204");
-        var postId = createPost(token);
+        var sid = TestAuthHelper.registerAndGetSessionCookie("comment_owner_204");
+        var postId = createPost(sid);
 
         var commentId = given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"delete me\"}")
         .when().post("/api/posts/" + postId + "/comments")
@@ -128,18 +128,18 @@ class CommentControllerIT {
         .extract().path("id").toString();
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
         .when().delete("/api/posts/" + postId + "/comments/" + commentId)
         .then().statusCode(204);
     }
 
     @Test
     void getComments_returns200() {
-        var token = TestAuthHelper.registerAndGetToken("comment_get_user");
-        var postId = createPost(token);
+        var sid = TestAuthHelper.registerAndGetSessionCookie("comment_get_user");
+        var postId = createPost(sid);
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"visible comment\"}")
         .when().post("/api/posts/" + postId + "/comments")

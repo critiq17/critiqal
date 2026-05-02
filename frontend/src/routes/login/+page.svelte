@@ -26,8 +26,8 @@
 		error = '';
 
 		try {
-			const response = await authService.login({ username, password });
-			authStore.login(response.user, response.token);
+			const user = await authService.login({ username, password });
+			authStore.login(user);
 			await goto('/');
 		} catch (err: unknown) {
 			error = mapError(err);

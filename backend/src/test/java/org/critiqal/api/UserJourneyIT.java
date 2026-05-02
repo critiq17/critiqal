@@ -1,6 +1,7 @@
 package org.critiqal.api;
 
 import io.quarkus.test.junit.QuarkusTest;
+import org.critiqal.auth.TestAuthHelper;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -16,26 +17,26 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class UserJourneyIT {
 
-    static String token;
+    static String sid;
     static Long postId;
     static Long commentId;
 
     @Test @Order(1)
     void step1_register() {
-        token = given()
+        sid = given()
                 .contentType(JSON)
                 .body("{\"username\":\"journey_user\",\"password\":\"pass123\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
-                .extract().path("token");
+                .extract().cookie(TestAuthHelper.COOKIE);
 
-        assertNotNull(token);
+        assertNotNull(sid);
     }
 
     @Test @Order(2)
     void step2_createPost() {
         postId = Long.valueOf(given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"my first post\"}")
                 .when().post("/api/posts")
@@ -56,7 +57,7 @@ public class UserJourneyIT {
     @Test @Order(4)
     void step4_addComment() {
         commentId = Long.valueOf(given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"great post!\"}")
                 .when().post("/api/posts/" + postId + "/comments")
@@ -77,7 +78,7 @@ public class UserJourneyIT {
     @Test @Order(6)
     void step6_deletePost() {
         given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .when().delete("/api/posts/" + postId)
                 .then().statusCode(204);
     }
@@ -89,5 +90,4 @@ public class UserJourneyIT {
                 .then().statusCode(200)
                 .body("content.id", not(hasItem(postId.intValue())));
     }
-
 }

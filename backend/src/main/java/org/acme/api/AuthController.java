@@ -1,60 +1,84 @@
 package org.acme.api;
 
 import io.quarkus.security.Authenticated;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
-import org.acme.api.dtos.AuthResponse;
 import org.acme.api.dtos.LoginRequest;
 import org.acme.api.dtos.RegisterRequest;
 import org.acme.api.dtos.UserDTO;
+import org.acme.application.auth.SessionService;
 import org.acme.domain.user.UserService;
-import org.acme.utils.JwtTokenService;
+import org.acme.infra.auth.SessionFactoryCookie;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthController {
 
-    @Inject
-    UserService userService;
 
-    @Inject
-    JwtTokenService jwtTokenService;
+    private final UserService userService;
+    private final SessionService sessions;
+    private final SessionFactoryCookie cookies;
 
+    public AuthController(UserService userService,
+                          SessionService sessions,
+                          SessionFactoryCookie cookies) {
+        this.userService = userService;
+        this.sessions = sessions;
+        this.cookies = cookies;
+    }
 
-    @POST
-    @Path("/register")
+    @POST @Path("/register")
     public Response register(RegisterRequest req) {
         var user = userService.register(req.username(), req.password());
-        var token = jwtTokenService.generate(user);
+        var sid = sessions.create(user.id);
         return Response.status(Response.Status.CREATED)
-                .entity(new AuthResponse(token, UserDTO.from(user)))
+                .entity(UserDTO.from(user))
+                .cookie(cookies.issue(sid))
                 .build();
     }
 
-    @POST
-    @Path("/login")
+    @POST @Path("/login")
     public Response login(LoginRequest req) {
-
         if (!userService.checkPassword(req.username(), req.password())) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-
         var user = userService.getByUsername(req.username());
-        var token = jwtTokenService.generate(user);
-        return Response.ok(new AuthResponse(token, UserDTO.from(user))).build();
+        var sid = sessions.create(user.id);
+        return Response.ok(UserDTO.from(user))
+                .cookie(cookies.issue(sid))
+                .build();
     }
 
-    @GET
-    @Path("/me")
+    @POST @Path("/logout")
+    @Consumes(MediaType.WILDCARD)
+    @Authenticated
+    public Response logout(@CookieParam("session") String sid) {
+        sessions.destroy(sid);
+        return Response.noContent().cookie(cookies.expire()).build();
+    }
+
+    @GET @Path("/me")
     @Authenticated
     public Response me(@Context SecurityContext ctx) {
-        Long userId = Long.parseLong(ctx.getUserPrincipal().getName());
-        var user = userService.getById(userId);
-        return Response.ok(UserDTO.from(user)).build();
+        var userId = Long.parseLong(ctx.getUserPrincipal().getName());
+        return Response.ok(UserDTO.from(userService.getById(userId))).build();
+    }
+
+    @DELETE @Path("/sessions/{id}")
+    @Consumes(MediaType.WILDCARD)
+    @Authenticated
+    public Response revokeSession(@PathParam("id") String sessionId,
+                                  @Context SecurityContext ctx) {
+        var callerId = Long.parseLong(ctx.getUserPrincipal().getName());
+        var owner = sessions.resolve(sessionId);
+        if (owner.isEmpty() || !owner.get().equals(callerId)) {
+            return Response.status(Response.Status.FORBIDDEN).build();
+        }
+        sessions.destroy(sessionId);
+        return Response.noContent().build();
     }
 }

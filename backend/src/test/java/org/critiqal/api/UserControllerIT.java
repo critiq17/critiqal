@@ -13,7 +13,7 @@ class UserControllerIT {
 
     @Test
     void getProfile_returns200() {
-        TestAuthHelper.registerAndGetToken("profile_get_user");
+        TestAuthHelper.registerAndGetSessionCookie("profile_get_user");
 
         given()
         .when().get("/api/users/profile_get_user")
@@ -33,10 +33,10 @@ class UserControllerIT {
 
     @Test
     void updateProfile_valid_returns200() {
-        var token = TestAuthHelper.registerAndGetToken("profile_update_user");
+        var sid = TestAuthHelper.registerAndGetSessionCookie("profile_update_user");
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"name\":\"Alice\",\"bio\":\"my bio\"}")
         .when().put("/api/users/me")
@@ -57,49 +57,49 @@ class UserControllerIT {
     @Test
     void follow_self_returns400() {
         var selfId = TestAuthHelper.registerAndGetUserId("follow_self_user");
-        var token = given()
+        var sid = given()
             .contentType(JSON)
             .body("{\"username\":\"follow_self_user\",\"password\":\"pass123\"}")
         .when().post("/api/auth/login")
         .then().statusCode(200)
-        .extract().path("token");
+        .extract().cookie(TestAuthHelper.COOKIE);
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
         .when().post("/api/users/" + selfId + "/follow")
         .then().statusCode(400);
     }
 
     @Test
     void follow_valid_returns204() {
-        var followerToken = TestAuthHelper.registerAndGetToken("follow_follower_user");
+        var followerSid = TestAuthHelper.registerAndGetSessionCookie("follow_follower_user");
         var targetId = TestAuthHelper.registerAndGetUserId("follow_target_user");
 
         given()
-            .header("Authorization", "Bearer " + followerToken)
+            .cookie(TestAuthHelper.COOKIE, followerSid)
         .when().post("/api/users/" + targetId + "/follow")
         .then().statusCode(200);
     }
 
     @Test
     void unfollow_valid_returns204() {
-        var followerToken = TestAuthHelper.registerAndGetToken("unfollow_follower_user");
+        var followerSid = TestAuthHelper.registerAndGetSessionCookie("unfollow_follower_user");
         var targetId = TestAuthHelper.registerAndGetUserId("unfollow_target_user");
 
         given()
-            .header("Authorization", "Bearer " + followerToken)
+            .cookie(TestAuthHelper.COOKIE, followerSid)
         .when().post("/api/users/" + targetId + "/follow")
         .then().statusCode(200);
 
         given()
-            .header("Authorization", "Bearer " + followerToken)
+            .cookie(TestAuthHelper.COOKIE, followerSid)
         .when().delete("/api/users/" + targetId + "/follow")
         .then().statusCode(204);
     }
 
     @Test
     void searchUsers_returns200() {
-        TestAuthHelper.registerAndGetToken("search_target_user");
+        TestAuthHelper.registerAndGetSessionCookie("search_target_user");
 
         given()
             .queryParam("q", "search_target")

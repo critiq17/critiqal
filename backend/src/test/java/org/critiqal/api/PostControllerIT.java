@@ -30,10 +30,10 @@ public class PostControllerIT {
 
     @Test
     void createPost_valid_returns201() {
-        var token = TestAuthHelper.registerAndGetToken("post_creator");
+        var sid = TestAuthHelper.registerAndGetSessionCookie("post_creator");
 
         given()
-            .header("Authorization", "Bearer " + token)
+            .cookie(TestAuthHelper.COOKIE, sid)
             .contentType(JSON)
             .body("{\"content\":\"hello world\"}")
         .when().post("/api/posts")
@@ -45,10 +45,10 @@ public class PostControllerIT {
 
     @Test
     void createPost_blankContent_returns400() {
-        var token = TestAuthHelper.registerAndGetToken("post_blank");
+        var sid = TestAuthHelper.registerAndGetSessionCookie("post_blank");
 
         given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"\"}")
                 .when().post("/api/posts")
@@ -57,35 +57,35 @@ public class PostControllerIT {
 
     @Test
     void deletePost_notOwner_returns400() {
-        var ownerToken = TestAuthHelper.registerAndGetToken("post_owner");
-        var otherToken = TestAuthHelper.registerAndGetToken("post_other");
+        var ownerSid = TestAuthHelper.registerAndGetSessionCookie("post_owner");
+        var otherSid = TestAuthHelper.registerAndGetSessionCookie("post_other");
 
         var postId = given()
-                .header("Authorization", "Bearer " + ownerToken)
+                .cookie(TestAuthHelper.COOKIE, ownerSid)
                 .contentType(JSON)
                 .body("{\"content\":\"to be deleted\"}")
                 .when().post("/api/posts")
                 .then().statusCode(201)
                 .extract().path("id").toString();
         given()
-                .header("Authorization", "Bearer " + otherToken)
+                .cookie(TestAuthHelper.COOKIE, otherSid)
                 .when().delete("/api/posts/" + postId)
                 .then().statusCode(400);
     }
 
     @Test
     void deletePost_owner_returns204() {
-        var token = TestAuthHelper.registerAndGetToken("post_delete_owner");
+        var sid = TestAuthHelper.registerAndGetSessionCookie("post_delete_owner");
 
         var postId = given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"delete me\"}")
                 .when().post("/api/posts")
                 .then().statusCode(201)
                 .extract().path("id").toString();
         given()
-                .header("Authorization", "Bearer " + token)
+                .cookie(TestAuthHelper.COOKIE, sid)
                 .when().delete("/api/posts/" + postId)
                 .then().statusCode(204);
     }

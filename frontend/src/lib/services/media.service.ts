@@ -10,24 +10,24 @@ export const mediaService = {
 	uploadAvatar(file: File): Promise<AvatarUploadResult> {
 		const formData = new FormData();
 		formData.append('file', file);
-		return apiClient.upload<AvatarUploadResult>(API.media.avatar, formData, true);
+		return apiClient.upload<AvatarUploadResult>(API.media.avatar, formData);
 	},
 
 	deleteAvatar(): Promise<void> {
-		return apiClient.delete<void>(API.media.avatar, true);
+		return apiClient.delete<void>(API.media.avatar);
 	},
 
 	uploadPostPhoto(postId: number, file: File): Promise<PostPhoto> {
 		const formData = new FormData();
 		formData.append('file', file);
-		return apiClient.upload<PostPhoto>(API.media.postPhotos(postId), formData, true);
+		return apiClient.upload<PostPhoto>(API.media.postPhotos(postId), formData);
 	},
 
 	deletePostPhoto(postId: number, photoId: number): Promise<void> {
-		return apiClient.delete<void>(API.media.postPhoto(postId, photoId), true);
+		return apiClient.delete<void>(API.media.postPhoto(postId, photoId));
 	},
 
 	deleteAllPostPhotos(postId: number): Promise<void> {
-		return apiClient.delete<void>(API.media.postPhotos(postId), true);
-	}
+		return apiClient.delete<void>(API.media.postPhotos(postId));
+	},
 };

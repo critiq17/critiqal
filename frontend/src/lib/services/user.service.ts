@@ -12,21 +12,18 @@ export const userService = {
   },
 
   updateProfile(req: UpdateProfileRequest): Promise<User> {
-    return apiClient.put<User>(API.users.me, req, true);
+    return apiClient.put<User>(API.users.me, req);
   },
 
   follow(targetId: number): Promise<void> {
-    return apiClient.post<void>(API.users.follow(targetId), {}, true);
+    return apiClient.post<void>(API.users.follow(targetId), {});
   },
 
   unfollow(targetId: number): Promise<void> {
-    return apiClient.delete(API.users.follow(targetId), true);
+    return apiClient.delete(API.users.follow(targetId));
   },
 
   getFollowers(userId: number): Promise<User[]> {
-    // Public endpoint — follower lists are visible to everyone.
-    // Do NOT pass authenticated=true: a stale/expired token would trigger global logout
-    // even though this is just a read of public social data.
     return apiClient.get<User[]>(API.users.followers(userId));
   },
 

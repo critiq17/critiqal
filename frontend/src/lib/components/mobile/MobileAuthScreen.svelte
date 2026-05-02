@@ -34,11 +34,11 @@
 			if (activeMode === 'login') {
 				const req: LoginRequest = { username, password };
 				const res = await authService.login(req);
-				await authStore.login(res.user, res.token);
+				await authStore.login(res);
 			} else {
 				const req: RegisterRequest = { username, password };
 				const res = await authService.register(req);
-				await authStore.login(res.user, res.token);
+				await authStore.login(res);
 			}
 
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');

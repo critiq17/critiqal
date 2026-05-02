@@ -4,21 +4,10 @@ import { ApiError } from '$lib/types';
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
 const REQUEST_TIMEOUT_MS = 15000;
 
-let memoryToken: string | null = null;
 let onUnauthorized: (() => void) | null = null;
 
 export function registerUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
-}
-
-export function setInMemoryToken(token: string | null): void {
-  memoryToken = token;
-}
-
-function getStoredToken(): string | null {
-  if (memoryToken !== null) return memoryToken;
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('auth_token');
 }
 
 function isTunnelHost(hostname: string): boolean {
@@ -33,23 +22,13 @@ function shouldBypassTunnelWarning(): boolean {
   return import.meta.env.DEV;
 }
 
-function buildHeaders(
-  authenticated: boolean,
-  options: { json?: boolean } = {}
-): Record<string, string> {
+function buildHeaders(options: { json?: boolean } = {}): Record<string, string> {
   const { json = true } = options;
   const headers: Record<string, string> = {};
 
   if (json) {
     headers['Accept'] = 'application/json';
     headers['Content-Type'] = 'application/json';
-  }
-
-  if (authenticated) {
-    const token = getStoredToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
   }
 
   // Skip ngrok browser warning in Telegram WebView/tunnel environments.
@@ -85,7 +64,7 @@ function getUnexpectedResponseMessage(response: Response, text: string): string 
   return 'Unexpected non-JSON response from API';
 }
 
-async function parseResponse<T>(response: Response, authenticated = false): Promise<T> {
+async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
@@ -104,10 +83,8 @@ async function parseResponse<T>(response: Response, authenticated = false): Prom
   }
 
   if (!response.ok) {
-    // Only trigger global logout for requests that explicitly required auth.
-    // An unauthenticated request returning 401 means the resource needs a login,
-    // but the current token isn't expired — no reason to kick the user out.
-    if (response.status === 401 && authenticated) {
+    // Any 401 means the session is dead — trigger global logout.
+    if (response.status === 401) {
       onUnauthorized?.();
     }
     const message =
@@ -122,11 +99,10 @@ async function parseResponse<T>(response: Response, authenticated = false): Prom
 
 interface RequestOptions {
   body?: unknown;
-  authenticated?: boolean;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const { body, authenticated = false } = options;
+  const { body } = options;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -134,13 +110,13 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   try {
     const response = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: buildHeaders(authenticated),
+      headers: buildHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
       credentials: 'include',
       signal: controller.signal,
     });
 
-    return parseResponse<T>(response, authenticated);
+    return parseResponse<T>(response);
   } catch (error) {
     if (isAbortError(error)) {
       throw new ApiError(408, 'Request timed out. Please try again.');
@@ -151,20 +127,20 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   }
 }
 
-async function upload<T>(path: string, formData: FormData, authenticated = true): Promise<T> {
+async function upload<T>(path: string, formData: FormData): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
-      headers: buildHeaders(authenticated, { json: false }),
+      headers: buildHeaders({ json: false }),
       body: formData,
       credentials: 'include',
       signal: controller.signal,
     });
 
-    return parseResponse<T>(response, authenticated);
+    return parseResponse<T>(response);
   } catch (error) {
     if (isAbortError(error)) {
       throw new ApiError(408, 'Upload timed out. Please try again.');
@@ -176,23 +152,23 @@ async function upload<T>(path: string, formData: FormData, authenticated = true)
 }
 
 export const apiClient = {
-  get<T>(path: string, authenticated = false): Promise<T> {
-    return request<T>('GET', path, { authenticated });
+  get<T>(path: string): Promise<T> {
+    return request<T>('GET', path);
   },
 
-  post<T>(path: string, body: unknown, authenticated = false): Promise<T> {
-    return request<T>('POST', path, { body, authenticated });
+  post<T>(path: string, body: unknown): Promise<T> {
+    return request<T>('POST', path, { body });
   },
 
-  put<T>(path: string, body: unknown, authenticated = false): Promise<T> {
-    return request<T>('PUT', path, { body, authenticated });
+  put<T>(path: string, body: unknown): Promise<T> {
+    return request<T>('PUT', path, { body });
   },
 
-  delete<T = void>(path: string, authenticated = false): Promise<T> {
-    return request<T>('DELETE', path, { authenticated });
+  delete<T = void>(path: string): Promise<T> {
+    return request<T>('DELETE', path);
   },
 
-  upload<T>(path: string, formData: FormData, authenticated = true): Promise<T> {
-    return upload<T>(path, formData, authenticated);
+  upload<T>(path: string, formData: FormData): Promise<T> {
+    return upload<T>(path, formData);
   },
 };

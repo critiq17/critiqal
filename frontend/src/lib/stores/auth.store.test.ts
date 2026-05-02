@@ -8,160 +8,258 @@ const mockCloudStorageSet = vi.fn(async (_key: string, _value: string) => {});
 const mockCloudStorageRemove = vi.fn(async (_key: string) => {});
 
 vi.mock('$lib/telegram', () => ({
-	isTelegramMiniApp: () => mockIsTelegramMiniApp(),
-	cloudStorage: {
-		get: (key: string) => mockCloudStorageGet(key),
-		set: (key: string, value: string) => mockCloudStorageSet(key, value),
-		remove: (key: string) => mockCloudStorageRemove(key)
-	}
+  isTelegramMiniApp: () => mockIsTelegramMiniApp(),
+  cloudStorage: {
+    get: (key: string) => mockCloudStorageGet(key),
+    set: (key: string, value: string) => mockCloudStorageSet(key, value),
+    remove: (key: string) => mockCloudStorageRemove(key),
+  },
 }));
 
-const mockSetInMemoryToken = vi.fn((_token: string | null) => {});
-const mockApiClientGet = vi.fn(async () => null);
+const mockApiClientGet = vi.fn(async (_path: string) => null);
+const mockApiClientPost = vi.fn(async (_path: string, _body: unknown) => undefined);
 
 vi.mock('$lib/api/client', () => ({
-	setInMemoryToken: (token: string | null) => mockSetInMemoryToken(token),
-	apiClient: {
-		get: (_path: string, _auth: boolean) => mockApiClientGet()
-	}
+  apiClient: {
+    get: (path: string) => mockApiClientGet(path),
+    post: (path: string, body: unknown) => mockApiClientPost(path, body),
+  },
 }));
 
 // Import after mocks are registered
 import { authStore } from './auth.store.svelte';
-
 import type { User } from '$lib/types';
 
 const mockUser: User = {
-	id: 1,
-	username: 'testuser',
-	name: 'Test User',
-	bio: null,
-	avatarUrl: null,
-	createdAt: '2024-01-01T00:00:00Z'
+  id: 1,
+  username: 'testuser',
+  name: 'Test User',
+  bio: null,
+  avatarUrl: null,
+  createdAt: '2024-01-01T00:00:00Z',
 };
 
-const AUTH_TOKEN_KEY = 'auth_token';
+const updatedUser: User = {
+  ...mockUser,
+  name: 'Updated Name',
+  bio: 'A bio',
+};
+
 const AUTH_USER_KEY = 'auth_user';
 
 beforeEach(async () => {
-	// Reset mock behaviour
-	mockIsTelegramMiniApp.mockReturnValue(false);
-	mockCloudStorageGet.mockResolvedValue(null);
-	mockCloudStorageSet.mockResolvedValue(undefined);
-	mockCloudStorageRemove.mockResolvedValue(undefined);
-	mockSetInMemoryToken.mockReset();
-	mockApiClientGet.mockResolvedValue(null);
+  // Reset mock behaviour
+  mockIsTelegramMiniApp.mockReturnValue(false);
+  mockCloudStorageGet.mockResolvedValue(null);
+  mockCloudStorageSet.mockResolvedValue(undefined);
+  mockCloudStorageRemove.mockResolvedValue(undefined);
+  mockApiClientGet.mockResolvedValue(null);
+  mockApiClientPost.mockResolvedValue(undefined);
 
-	// Clear all mocked call records
-	vi.clearAllMocks();
+  vi.clearAllMocks();
 
-	// Re-register default implementations after clearAllMocks
-	mockIsTelegramMiniApp.mockReturnValue(false);
-	mockCloudStorageGet.mockResolvedValue(null);
-	mockCloudStorageSet.mockResolvedValue(undefined);
-	mockCloudStorageRemove.mockResolvedValue(undefined);
+  // Re-register defaults after clearAllMocks
+  mockIsTelegramMiniApp.mockReturnValue(false);
+  mockCloudStorageGet.mockResolvedValue(null);
+  mockCloudStorageSet.mockResolvedValue(undefined);
+  mockCloudStorageRemove.mockResolvedValue(undefined);
+  mockApiClientGet.mockResolvedValue(null);
+  mockApiClientPost.mockResolvedValue(undefined);
 
-	// Clear localStorage and reset store to logged-out state
-	localStorage.clear();
-	await authStore.logout();
+  localStorage.clear();
+  // Reset store to logged-out state without hitting backend
+  await authStore.logout();
 });
 
-describe('init()', () => {
-	it('reads token and user from localStorage when isTelegramMiniApp returns false', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(false);
-		localStorage.setItem(AUTH_TOKEN_KEY, 'test-token-123');
-		localStorage.setItem(AUTH_USER_KEY, JSON.stringify(mockUser));
+// ── init() — web ──────────────────────────────────────────────────────────
 
-		await authStore.init();
+describe('init() web', () => {
+  it('renders cached user immediately, then updates from GET /api/auth/me', async () => {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(mockUser));
+    mockApiClientGet.mockResolvedValue(updatedUser);
 
-		expect(authStore.user).toEqual(mockUser);
-		expect(authStore.isAuthenticated).toBe(true);
-	});
+    await authStore.init();
 
-	it('reads token from cloudStorage.get when isTelegramMiniApp returns true', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(true);
-		mockCloudStorageGet.mockImplementation(async (key: string) => {
-			if (key === AUTH_TOKEN_KEY) return 'cloud-token-abc';
-			if (key === AUTH_USER_KEY) return JSON.stringify(mockUser);
-			return null;
-		});
+    expect(authStore.user).toEqual(updatedUser);
+    expect(authStore.isAuthenticated).toBe(true);
+  });
 
-		await authStore.init();
+  it('clears cache and sets user to null on 401 from /api/auth/me', async () => {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(mockUser));
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    mockApiClientGet.mockRejectedValue(err);
 
-		expect(mockCloudStorageGet).toHaveBeenCalledWith(AUTH_TOKEN_KEY);
-		expect(authStore.isAuthenticated).toBe(true);
-	});
+    await authStore.init();
 
-	it('leaves user null when no token is found', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(false);
-		// localStorage is already clear from beforeEach
+    expect(authStore.user).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+  });
 
-		await authStore.init();
+  it('keeps cached user on network error (non-401)', async () => {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(mockUser));
+    const err = Object.assign(new Error('Network error'), { status: undefined });
+    mockApiClientGet.mockRejectedValue(err);
 
-		expect(authStore.user).toBeNull();
-		expect(authStore.isAuthenticated).toBe(false);
-	});
+    await authStore.init();
+
+    // Optimistic cached user must be preserved — do not log out on network blips.
+    expect(authStore.user).toEqual(mockUser);
+    expect(authStore.isAuthenticated).toBe(true);
+  });
+
+  it('sets user to null when no cache and /api/auth/me fails with network error', async () => {
+    // No cached user, network fails
+    const err = new Error('Network error');
+    mockApiClientGet.mockRejectedValue(err);
+
+    await authStore.init();
+
+    expect(authStore.user).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
+  });
+
+  it('leaves user null when no session and no cache', async () => {
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    mockApiClientGet.mockRejectedValue(err);
+
+    await authStore.init();
+
+    expect(authStore.user).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
+  });
 });
+
+// ── login() ───────────────────────────────────────────────────────────────
 
 describe('login()', () => {
-	it('writes token to localStorage when not in Telegram', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(false);
+  it('sets state.user and persists to localStorage auth_user', async () => {
+    await authStore.login(mockUser);
 
-		await authStore.login(mockUser, 'my-token');
+    expect(authStore.user).toEqual(mockUser);
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBe(JSON.stringify(mockUser));
+  });
 
-		expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe('my-token');
-	});
+  it('does not write auth_token to localStorage', async () => {
+    await authStore.login(mockUser);
 
-	it('calls cloudStorage.set with auth_token when in Telegram', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(true);
+    expect(localStorage.getItem('auth_token')).toBeNull();
+  });
 
-		await authStore.login(mockUser, 'cloud-token');
+  it('saves user to cloudStorage when in Telegram', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
 
-		expect(mockCloudStorageSet).toHaveBeenCalledWith(AUTH_TOKEN_KEY, 'cloud-token');
-	});
+    await authStore.login(mockUser);
 
-	it('sets user on the store', async () => {
-		await authStore.login(mockUser, 'any-token');
+    expect(mockCloudStorageSet).toHaveBeenCalledWith(AUTH_USER_KEY, JSON.stringify(mockUser));
+    expect(authStore.user).toEqual(mockUser);
+  });
 
-		expect(authStore.user).toEqual(mockUser);
-	});
+  it('does not call cloudStorage.set with auth_token in Telegram', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+
+    await authStore.login(mockUser);
+
+    const tokenCalls = mockCloudStorageSet.mock.calls.filter(([key]) => key === 'auth_token');
+    expect(tokenCalls).toHaveLength(0);
+  });
 });
+
+// ── logout() ─────────────────────────────────────────────────────────────
 
 describe('logout()', () => {
-	it('clears auth_token from localStorage', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(false);
-		await authStore.login(mockUser, 'remove-me');
-		expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe('remove-me');
+  it('calls POST /api/auth/logout and clears user + cache', async () => {
+    await authStore.login(mockUser);
+    expect(authStore.user).toEqual(mockUser);
 
-		await authStore.logout();
+    await authStore.logout();
 
-		expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
-	});
+    expect(mockApiClientPost).toHaveBeenLastCalledWith('/api/auth/logout', {});
+    expect(authStore.user).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+  });
 
-	it('clears auth_user from localStorage', async () => {
-		mockIsTelegramMiniApp.mockReturnValue(false);
-		await authStore.login(mockUser, 'any-token');
-		expect(localStorage.getItem(AUTH_USER_KEY)).not.toBeNull();
+  it('clears local state even when backend returns 500 (idempotent)', async () => {
+    await authStore.login(mockUser);
+    mockApiClientPost.mockRejectedValue(Object.assign(new Error('Server error'), { status: 500 }));
 
-		await authStore.logout();
+    await authStore.logout();
 
-		expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
-	});
+    expect(authStore.user).toBeNull();
+    expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
+  });
+
+  it('clears cloudStorage auth_user when in Telegram', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+    await authStore.login(mockUser);
+
+    await authStore.logout();
+
+    expect(mockCloudStorageRemove).toHaveBeenCalledWith(AUTH_USER_KEY);
+    expect(authStore.user).toBeNull();
+  });
 });
 
+// ── isAuthenticated ───────────────────────────────────────────────────────
+
 describe('isAuthenticated', () => {
-	it('is true after a successful login', async () => {
-		await authStore.login(mockUser, 'token');
-		expect(authStore.isAuthenticated).toBe(true);
-	});
+  it('is true after a successful login', async () => {
+    await authStore.login(mockUser);
+    expect(authStore.isAuthenticated).toBe(true);
+  });
 
-	it('is false after logout', async () => {
-		await authStore.login(mockUser, 'token');
-		await authStore.logout();
-		expect(authStore.isAuthenticated).toBe(false);
-	});
+  it('is false after logout', async () => {
+    await authStore.login(mockUser);
+    await authStore.logout();
+    expect(authStore.isAuthenticated).toBe(false);
+  });
 
-	it('is false on a fresh store with no stored credentials', async () => {
-		expect(authStore.isAuthenticated).toBe(false);
-	});
+  it('is false on a fresh store with no stored credentials', () => {
+    expect(authStore.isAuthenticated).toBe(false);
+  });
+});
+
+// ── init() — TMA ──────────────────────────────────────────────────────────
+
+describe('init() TMA', () => {
+  it('reads auth_user from cloudStorage and verifies with /api/auth/me', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+    mockCloudStorageGet.mockImplementation(async (key: string) => {
+      if (key === AUTH_USER_KEY) return JSON.stringify(mockUser);
+      return null;
+    });
+    mockApiClientGet.mockResolvedValue(updatedUser);
+
+    await authStore.init();
+
+    expect(mockCloudStorageGet).toHaveBeenCalledWith(AUTH_USER_KEY);
+    expect(authStore.user).toEqual(updatedUser);
+    expect(authStore.isAuthenticated).toBe(true);
+  });
+
+  it('clears cloudStorage and sets user null on 401 from /api/auth/me', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+    mockCloudStorageGet.mockImplementation(async (key: string) => {
+      if (key === AUTH_USER_KEY) return JSON.stringify(mockUser);
+      return null;
+    });
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    mockApiClientGet.mockRejectedValue(err);
+
+    await authStore.init();
+
+    expect(mockCloudStorageRemove).toHaveBeenCalledWith(AUTH_USER_KEY);
+    expect(authStore.user).toBeNull();
+  });
+
+  it('sets user null when cloudStorage is empty and /api/auth/me fails', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    mockApiClientGet.mockRejectedValue(err);
+
+    await authStore.init();
+
+    expect(authStore.user).toBeNull();
+  });
 });
