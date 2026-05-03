@@ -12,6 +12,8 @@ import org.critiqal.domain.comment.CommentService;
 import org.critiqal.domain.post.PostService;
 import org.critiqal.domain.reaction.ReactionService;
 import org.critiqal.domain.reaction.ReactionType;
+import org.critiqal.domain.shared.pagination.Page;
+import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.infra.storage.services.MediaService;
 
 import java.util.List;
@@ -29,14 +31,14 @@ public class PostController {
     MediaService mediaService;
 
     @GET
-    public PageResponse<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {
+    public Page<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {
         return postService.getLatestFeed(pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
     }
 
     @GET
     @Path("/search")
-    public PageResponse<PostDTO> search(
+    public Page<PostDTO> search(
             @QueryParam("q") String query,
             @BeanParam PageRequest pageRequest) {
         return postService.search(query, pageRequest.page(), pageRequest.size())
@@ -164,4 +166,3 @@ public class PostController {
         return Long.parseLong(ctx.getUserPrincipal().getName());
     }
 }
-

@@ -2,6 +2,9 @@ package org.critiqal.domain.comment;
 
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostService;
+import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.shared.exception.ForbiddenException;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.UserService;
 import org.junit.jupiter.api.Test;
@@ -21,7 +24,7 @@ class CommentServiceTest {
 
     @Test
     void addComment_blankContent_throws() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
                 () -> commentService.addComment(1L, 1L, ""));
     }
 
@@ -34,7 +37,7 @@ class CommentServiceTest {
         when(userService.getById(any())).thenReturn(new User());
         when(postService.getById(any())).thenReturn(new Post());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ConflictException.class,
                 () -> commentService.addReply(1L, 1L, 5L, "reply to reply"));
     }
 
@@ -47,7 +50,7 @@ class CommentServiceTest {
 
         when(commentRepo.findByIdOptional(1L)).thenReturn(Optional.of(comment));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ForbiddenException.class,
                 () -> commentService.deleteComment(1L, 99L));
     }
 }

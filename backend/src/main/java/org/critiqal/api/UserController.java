@@ -7,8 +7,8 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
-import org.critiqal.api.dtos.PageRequest;
-import org.critiqal.api.dtos.PageResponse;
+import org.critiqal.domain.shared.pagination.Page;
+import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.api.dtos.PostDTO;
 import org.critiqal.api.dtos.UpdateProfileRequest;
 import org.critiqal.api.dtos.UserDTO;
@@ -89,7 +89,7 @@ public class UserController {
     @GET
     @Path("/notifications/posts")
     @Authenticated
-    public PageResponse<PostDTO> getFollowingFeed(
+    public Page<PostDTO> getFollowingFeed(
             @Context SecurityContext ctx,
             @BeanParam PageRequest pageRequest) {
         Long userId = extractUserId(ctx);
@@ -115,7 +115,7 @@ public class UserController {
 
     @GET
     @Path("/{username}/posts")
-    public PageResponse<PostDTO> getUserPosts(
+    public Page<PostDTO> getUserPosts(
             @PathParam("username") String username,
             @BeanParam PageRequest pageRequest) {
         var user = userService.getByUsername(username);

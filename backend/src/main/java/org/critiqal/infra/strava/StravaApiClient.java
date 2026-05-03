@@ -3,6 +3,7 @@ package org.critiqal.infra.strava;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
+import org.critiqal.domain.shared.exception.strava.StravaException;
 
 import java.net.URI;
 import java.net.http.HttpClient;

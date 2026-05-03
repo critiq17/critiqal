@@ -2,6 +2,10 @@ package org.critiqal.domain.comment;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.shared.exception.ForbiddenException;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.post.PostService;
 import org.critiqal.domain.user.UserService;
 
@@ -42,7 +46,7 @@ public class CommentService {
     @Transactional
     public Comment addComment(Long authorId, Long postId, String content) {
         if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("Comment cannot be empty");
+            throw new DomainException("Comment cannot be empty");
         }
         var author = userService.getById(authorId);
         var post = postService.getById(postId);
@@ -53,16 +57,16 @@ public class CommentService {
     @Transactional
     public Comment addReply(Long authorId, Long postId, Long parentId, String content) {
         if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("Reply cannot be empty");
+            throw new DomainException("Reply cannot be empty");
         }
 
         var author = userService.getById(authorId);
         var post = postService.getById(postId);
         var parent = commentRepo.findByIdOptional(parentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
 
         if (parent.parent != null) {
-            throw new IllegalArgumentException("Cannot reply to a reply");
+            throw new ConflictException("Cannot reply to a reply");
         }
 
         return commentRepo.addReply(author, post, parent, content);
@@ -72,9 +76,9 @@ public class CommentService {
     @Transactional
     public void deleteComment(Long commentId, Long requestedId) {
         var comment = commentRepo.findByIdOptional(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("Comment not found"));
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
         if (!comment.author.id.equals(requestedId)) {
-            throw new IllegalArgumentException("Not your comment");
+            throw new ForbiddenException("Not your comment");
         }
         commentRepo.deleteComment(commentId, requestedId);
     }

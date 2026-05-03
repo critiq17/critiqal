@@ -4,6 +4,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.post.PostService;
+import org.critiqal.domain.shared.exception.ForbiddenException;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.infra.storage.services.MediaService;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
@@ -22,7 +24,7 @@ public class PostPhotoService {
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {
-            throw new IllegalArgumentException("You not author");
+            throw new ForbiddenException("You not author");
         }
         var url = mediaService.uploadPostPhoto(post, Files.newInputStream(file.uploadedFile()), file.contentType());
 
@@ -40,11 +42,11 @@ public class PostPhotoService {
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {
-            throw new IllegalArgumentException("You not author");
+            throw new ForbiddenException("You not author");
         }
 
         var photo = postPhotoRepo.findByIdOptional(photoId)
-                .orElseThrow(() -> new IllegalArgumentException("Photo not found"));
+                .orElseThrow(() -> new NotFoundException("Photo not found"));
 
         if (photo.url != null) mediaService.deletePhoto(photo.url);
         postPhotoRepo.delete(photo);

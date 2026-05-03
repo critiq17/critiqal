@@ -4,6 +4,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.utils.PasswordHash;
 
 import java.util.List;
@@ -25,7 +27,7 @@ public class UserService {
     @Transactional
     public User register(String username, String password) {
         if (userRepo.findByUsername(username).isPresent()) {
-            throw new IllegalArgumentException("Username already taken");
+            throw new ConflictException("Username already taken");
         }
         var user = userRepo.createUser(username, passwordHash.hash(password));
         userRegisteredEvent.fireAsync(new UserRegisteredEvent(user.id, user.username));
@@ -34,12 +36,12 @@ public class UserService {
 
     public User getByUsername(String username) {
         return userRepo.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     public User getById(Long id) {
         return userRepo.findByIdOptional(id)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new NotFoundException("User not found"));
     }
 
     public List<User> search(String query) {

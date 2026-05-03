@@ -1,6 +1,8 @@
 package org.critiqal.domain.user;
 
 import jakarta.enterprise.event.Event;
+import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.utils.PasswordHash;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,7 +31,7 @@ class UserServiceTest {
         var existing = new User();
         when(userRepo.findByUsername("taken")).thenReturn(Optional.of(existing));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ConflictException.class,
                 () -> userService.register("taken", "pass123"));
     }
 
@@ -50,7 +52,7 @@ class UserServiceTest {
     void getById_notFound_throws() {
         when(userRepo.findByIdOptional(99L)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NotFoundException.class,
                 () -> userService.getById(99L));
     }
 

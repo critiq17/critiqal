@@ -4,9 +4,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
-import org.critiqal.api.dtos.PageResponse;
 import org.critiqal.domain.post_view.PostView;
 import org.critiqal.domain.post_view.PostViewId;
+import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.shared.exception.ForbiddenException;
+import org.critiqal.domain.shared.exception.NotFoundException;
+import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.user.UserService;
 
 import java.time.Instant;
@@ -34,7 +37,7 @@ public class PostService {
     @Transactional
     public Post createPost(Long authorId, String content) {
         if (content == null || content.isBlank()) {
-            throw new IllegalArgumentException("Post cannot be empty");
+            throw new DomainException("Post cannot be empty");
         }
         var author = userService.getById(authorId);
         var post = postRepo.createPost(author, content);
@@ -43,32 +46,32 @@ public class PostService {
         return post;
     }
 
-    public PageResponse<Post> getUserPost(Long authorId, int page, int size) {
+    public Page<Post> getUserPost(Long authorId, int page, int size) {
         var ids = postRepo.findByAuthorIds(authorId, page, size);
         var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countByAuthor(authorId);
         var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
         var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
-        return PageResponse.of(ordered, page, size, total);
+        return Page.of(ordered, page, size, total);
     }
 
-    public PageResponse<Post> getLatestFeed(int page, int size) {
+    public Page<Post> getLatestFeed(int page, int size) {
         var ids = postRepo.findLatestIds(page, size);
         var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countPublished();
         var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
         var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
-        return PageResponse.of(ordered, page, size, total);
+        return Page.of(ordered, page, size, total);
     }
 
     public Post getById(Long postId) {
         return postRepo.findByIdOptional(postId)
-                .orElseThrow(() -> new IllegalArgumentException("Post not found"));
+                .orElseThrow(() -> new NotFoundException("Post not found"));
     }
 
-    public PageResponse<Post> search(String query, int page, int size) {
+    public Page<Post> search(String query, int page, int size) {
         if (query == null || query.isBlank()) {
-            return PageResponse.of(List.of(), page, size, 0);
+            return Page.of(List.of(), page, size, 0);
         }
 
         var ids = postRepo.searchIds(query, page, size);
@@ -81,19 +84,19 @@ public class PostService {
                 .map(postsById::get)
                 .filter(Objects::nonNull)
                 .toList();
-        return PageResponse.of(orderedPosts, page, size, total);
+        return Page.of(orderedPosts, page, size, total);
     }
 
-    public PageResponse<Post> getFollowingFeed(Long userId, int page, int size) {
+    public Page<Post> getFollowingFeed(Long userId, int page, int size) {
         var ids = postRepo.findFollowingFeedIds(userId, page, size);
         if (ids.isEmpty()) {
-            return PageResponse.of(List.of(), page, size, 0);
+            return Page.of(List.of(), page, size, 0);
         }
         var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countFollowingFeed(userId);
         var postsById = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
         var ordered = ids.stream().map(postsById::get).filter(Objects::nonNull).toList();
-        return PageResponse.of(ordered, page, size, total);
+        return Page.of(ordered, page, size, total);
     }
 
     @Transactional
@@ -122,7 +125,7 @@ public class PostService {
     public void deletePost(Long postId, Long requestedId) {
         var post = getById(postId);
         if (!post.author.id.equals(requestedId)) {
-            throw new IllegalArgumentException("Not your post");
+            throw new ForbiddenException("Not your post");
         }
         post.status = PostStatus.DELETED;
     }

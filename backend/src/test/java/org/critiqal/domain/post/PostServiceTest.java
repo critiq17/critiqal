@@ -3,6 +3,9 @@ package org.critiqal.domain.post;
 import jakarta.enterprise.event.Event;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.shared.exception.ForbiddenException;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.junit.jupiter.api.Test;
 import java.util.Optional;
 
@@ -25,13 +28,13 @@ class PostServiceTest {
 
     @Test
     void createPost_blankContent_throwsException() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
                 () -> postService.createPost(1L, "  "));
     }
 
     @Test
     void createPost_nullContent_throwsException() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
                 () -> postService.createPost(1L, null));
     }
 
@@ -44,7 +47,7 @@ class PostServiceTest {
 
         when(postRepo.findByIdOptional(1L)).thenReturn(Optional.of(post));
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(ForbiddenException.class,
                 () -> postService.deletePost(1L, 99L));
     }
 
@@ -65,7 +68,7 @@ class PostServiceTest {
     void getById_notFound_throwsException() {
         when(postRepo.findByIdOptional(99L)).thenReturn(Optional.empty());
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(NotFoundException.class,
                 () -> postService.getById(99L));
     }
 
@@ -76,4 +79,3 @@ class PostServiceTest {
         verifyNoInteractions(postRepo);
     }
 }
-

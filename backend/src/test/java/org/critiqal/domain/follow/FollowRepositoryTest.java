@@ -2,6 +2,7 @@ package org.critiqal.domain.follow;
 
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -38,10 +39,10 @@ class FollowRepositoryTest {
         user.id = 1L;
 
         when(userService.getById(1L)).thenReturn(user);
-        doThrow(new IllegalArgumentException("Cannot follow yourself"))
+        doThrow(new DomainException("Cannot follow yourself"))
                 .when(followRepo).follow(user, user);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(DomainException.class,
                 () -> followService.follow(1L, 1L));
     }
 

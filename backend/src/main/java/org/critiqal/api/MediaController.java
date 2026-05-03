@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
+import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.shared.exception.ForbiddenException;
 
 @Path("/api/media")
 public class MediaController {
@@ -112,7 +114,7 @@ public class MediaController {
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {
-            return Response.status(Response.Status.FORBIDDEN).build();
+            throw new ForbiddenException("Not your post");
         }
         mediaService.deleteAllPostPhotos(postId);
         return Response.noContent().build();
@@ -121,10 +123,10 @@ public class MediaController {
     private void validateImage(FileUpload file) {
         var allowed = Set.of("image/jpeg", "image/png", "image/webp", "image/heic");
         if (!allowed.contains(file.contentType())) {
-            throw new IllegalArgumentException("Only images are allowed");
+            throw new DomainException("Only images are allowed");
         }
         if (file.size() > 10 * 1024 * 1024) {
-            throw new IllegalArgumentException("Max file size is 10MB");
+            throw new DomainException("Max file size is 10MB");
         }
     }
 

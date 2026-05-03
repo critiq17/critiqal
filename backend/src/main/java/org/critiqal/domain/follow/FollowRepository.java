@@ -3,6 +3,7 @@ package org.critiqal.domain.follow;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.User;
 
 import java.util.List;
@@ -41,7 +42,7 @@ public class FollowRepository implements PanacheRepository<Follow> {
     @Transactional
     public void follow(User follower, User following) {
         if (follower.id.equals(following.id)) {
-            throw new IllegalArgumentException("Cannot follow yourself");
+            throw new DomainException("Cannot follow yourself");
         }
         if (isFollowing(follower.id, following.id)) {
             return;

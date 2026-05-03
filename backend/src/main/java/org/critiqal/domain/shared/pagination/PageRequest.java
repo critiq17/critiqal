@@ -1,10 +1,7 @@
-package org.critiqal.api.dtos;
+package org.critiqal.domain.shared.pagination;
 
 import jakarta.ws.rs.QueryParam;
 
-/*
-    PageRequest - pagination DTO
- */
 public class PageRequest {
 
     private static final int DEFAULT_SIZE = 20;

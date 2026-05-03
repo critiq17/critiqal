@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.domain.shared.exception;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
@@ -10,11 +10,11 @@ import org.jboss.logging.Logger;
 import java.util.Map;
 
 @Provider
-public class GlobalExceptionMapper implements ExceptionMapper<IllegalArgumentException> {
+public class GlobalExceptionMapper implements ExceptionMapper<DomainException> {
 
     @Override
-    public Response toResponse(IllegalArgumentException e) {
-        return Response.status(Response.Status.BAD_REQUEST)
+    public Response toResponse(DomainException e) {
+        return Response.status(e.status())
                 .entity(Map.of("error", e.getMessage()))
                 .build();
     }
