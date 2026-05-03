@@ -1,7 +1,6 @@
 package org.critiqal.api;
 
 import io.quarkus.security.Authenticated;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -22,7 +21,11 @@ import java.util.Map;
 @Produces(MediaType.APPLICATION_JSON)
 public class StravaController {
 
-    @Inject StravaService stravaService;
+    private final StravaService stravaService;
+
+    public StravaController(StravaService stravaService) {
+        this.stravaService = stravaService;
+    }
 
     // create OAuth link for connect account
     @GET

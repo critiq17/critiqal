@@ -1,7 +1,6 @@
 package org.critiqal.api;
 
 import io.quarkus.security.Authenticated;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -24,11 +23,20 @@ import java.util.Map;
 @Consumes(MediaType.APPLICATION_JSON)
 public class PostController {
 
-    @Inject PostService postService;
-    @Inject CommentService commentService;
-    @Inject ReactionService reactionService;
-    @Inject
-    MediaService mediaService;
+    private final PostService postService;
+    private final CommentService commentService;
+    private final ReactionService reactionService;
+    private final MediaService mediaService;
+
+    public PostController(PostService postService,
+                          CommentService commentService,
+                          ReactionService reactionService,
+                          MediaService mediaService) {
+        this.postService = postService;
+        this.commentService = commentService;
+        this.reactionService = reactionService;
+        this.mediaService = mediaService;
+    }
 
     @GET
     public Page<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {

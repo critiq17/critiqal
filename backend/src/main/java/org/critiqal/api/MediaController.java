@@ -5,7 +5,6 @@ import jakarta.ws.rs.*;
 import org.critiqal.api.dtos.PostDTO;
 import org.critiqal.domain.post_photo.PostPhotoService;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -27,10 +26,20 @@ import org.critiqal.domain.shared.exception.ForbiddenException;
 @Path("/api/media")
 public class MediaController {
 
-    @Inject MediaService mediaService;
-    @Inject UserService userService;
-    @Inject PostService postService;
-    @Inject PostPhotoService postPhotoService;
+    private final MediaService mediaService;
+    private final UserService userService;
+    private final PostService postService;
+    private final PostPhotoService postPhotoService;
+
+    public MediaController(MediaService mediaService,
+                           UserService userService,
+                           PostService postService,
+                           PostPhotoService postPhotoService) {
+        this.mediaService = mediaService;
+        this.userService = userService;
+        this.postService = postService;
+        this.postPhotoService = postPhotoService;
+    }
 
     @POST
     @Path("/avatar")

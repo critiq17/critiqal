@@ -12,8 +12,11 @@ import org.critiqal.domain.strava.StravaIntegration;
 @ApplicationScoped
 public class StravaTokenRefresher {
 
-    @Inject StravaOAuthClient oAuthClient;
+    private final StravaOAuthClient oAuthClient;
 
+    public StravaTokenRefresher(StravaOAuthClient oAuthClient) {
+        this.oAuthClient = oAuthClient;
+    }
 
     // If token is expired - update in DB and return new
     @Transactional

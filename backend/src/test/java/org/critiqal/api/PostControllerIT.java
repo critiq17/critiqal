@@ -56,7 +56,7 @@ public class PostControllerIT {
     }
 
     @Test
-    void deletePost_notOwner_returns400() {
+    void deletePost_notOwner_returns403() {
         var ownerSid = TestAuthHelper.registerAndGetSessionCookie("post_owner");
         var otherSid = TestAuthHelper.registerAndGetSessionCookie("post_other");
 
@@ -70,7 +70,7 @@ public class PostControllerIT {
         given()
                 .cookie(TestAuthHelper.COOKIE, otherSid)
                 .when().delete("/api/posts/" + postId)
-                .then().statusCode(400);
+                .then().statusCode(403);
     }
 
     @Test

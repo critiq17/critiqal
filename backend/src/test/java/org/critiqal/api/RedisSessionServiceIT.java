@@ -10,8 +10,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 @QuarkusTest
 public class RedisSessionServiceIT {
 
-    @Inject
-    SessionService sessions;
+    private final SessionService sessions;
+
+    public RedisSessionServiceIT(SessionService sessions) {
+        this.sessions = sessions;
+    }
 
     @Test
     void create_thenResolve_returnsUserId() {

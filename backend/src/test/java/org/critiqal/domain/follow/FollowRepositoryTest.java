@@ -18,7 +18,7 @@ class FollowRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        followService = new FollowService();
+        followService = new FollowService(followRepo, userService);
         injectField(followService, "followRepo", followRepo);
         injectField(followService, "userService", userService);
     }

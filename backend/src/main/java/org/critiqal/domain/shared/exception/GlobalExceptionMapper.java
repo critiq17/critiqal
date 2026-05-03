@@ -1,6 +1,5 @@
 package org.critiqal.domain.shared.exception;
 
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
@@ -24,9 +23,11 @@ public class GlobalExceptionMapper implements ExceptionMapper<DomainException> {
 class UnhandledExceptionMapper implements ExceptionMapper<Exception> {
 
     private static final Logger log = Logger.getLogger(UnhandledExceptionMapper.class);
+    private final AlertService alertService;
 
-    @Inject
-    AlertService alertService;
+    public UnhandledExceptionMapper(AlertService alertService) {
+        this.alertService = alertService;
+    }
 
     @Override
     public Response toResponse(Exception e) {

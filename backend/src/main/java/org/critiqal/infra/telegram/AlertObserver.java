@@ -2,7 +2,6 @@ package org.critiqal.infra.telegram;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.ObservesAsync;
-import jakarta.inject.Inject;
 import org.critiqal.domain.alert.ErrorEvent;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.user.UserRegisteredEvent;
@@ -10,7 +9,11 @@ import org.critiqal.domain.user.UserRegisteredEvent;
 @ApplicationScoped
 public class AlertObserver {
 
-    @Inject AlertService alertService;
+    private final AlertService alertService;
+
+    public AlertObserver(AlertService alertService) {
+        this.alertService = alertService;
+    }
 
     void onUserRegistered(@ObservesAsync UserRegisteredEvent event) {
         alertService.info(

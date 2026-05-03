@@ -15,8 +15,11 @@ public class AlertService {
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
-    @Inject TelegramClient telegramClient;
+    private final TelegramClient telegramClient;
 
+    public AlertService(TelegramClient telegramClient) {
+        this.telegramClient = telegramClient;
+    }
     /**
      *
      * @param level

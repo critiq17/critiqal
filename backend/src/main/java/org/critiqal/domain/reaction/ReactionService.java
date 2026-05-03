@@ -1,7 +1,6 @@
 package org.critiqal.domain.reaction;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.post.PostService;
 import org.critiqal.domain.user.UserService;
@@ -12,11 +11,17 @@ import java.util.Optional;
 @ApplicationScoped
 public class ReactionService {
 
-    @Inject
-    ReactionRepository reactRepo;
-    @Inject
-    PostService postService;
-    @Inject UserService userService;
+    private final ReactionRepository reactRepo;
+    private final PostService postService;
+    private final UserService userService;
+
+    public ReactionService(ReactionRepository reactRepo,
+                           PostService postService,
+                           UserService userService) {
+        this.reactRepo = reactRepo;
+        this.postService = postService;
+        this.userService = userService;
+    }
 
     public Map<ReactionType, Long> getReactions(Long postId) {
         return reactRepo.countByPost(postId);

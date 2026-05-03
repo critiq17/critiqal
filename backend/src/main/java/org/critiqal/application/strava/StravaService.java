@@ -27,7 +27,6 @@ public class StravaService {
     private final StravaTokenRefresher tokenRefresher;
     private final UserService userService;
 
-    @Inject
     public StravaService(StravaRepository stravaRepo,
                          StravaOAuthClient oAuthClient,
                          StravaApiClient apiClient,

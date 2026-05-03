@@ -2,7 +2,6 @@ package org.critiqal.domain.user;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.NotFoundException;
@@ -17,7 +16,6 @@ public class UserService {
     private final PasswordHash passwordHash;
     private final Event<UserRegisteredEvent> userRegisteredEvent;
 
-    @Inject
     public UserService(UserRepository userRepo, PasswordHash passwordHash, Event<UserRegisteredEvent> userRegisteredEvent) {
         this.userRepo = userRepo;
         this.passwordHash = passwordHash;

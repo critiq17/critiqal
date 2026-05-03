@@ -25,7 +25,7 @@ class AuthControllerIT {
     }
 
     @Test
-    void register_duplicateUsername_returns400() {
+    void register_duplicateUsername_returns409() {
         var body = "{\"username\":\"duplicate_user\",\"password\":\"pass123\"}";
 
         given().contentType(JSON).body(body)
@@ -33,7 +33,7 @@ class AuthControllerIT {
                 .then().statusCode(201);
         given().contentType(JSON).body(body)
                 .when().post("/api/auth/register")
-                .then().statusCode(400);
+                .then().statusCode(409);
     }
 
     @Test

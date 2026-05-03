@@ -2,7 +2,6 @@ package org.critiqal.domain.post;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.post_view.PostView;
 import org.critiqal.domain.post_view.PostViewId;
@@ -25,7 +24,6 @@ public class PostService {
     private final UserService userService;
     private final Event<PostCreatedEvent> postCreatedEvent;
 
-    @Inject
     public PostService(PostRepository postRepo,
                        UserService userService,
                        Event<PostCreatedEvent> postCreatedEvent) {

@@ -11,10 +11,14 @@ import java.util.List;
 @ApplicationScoped
 public class FollowService {
 
-    @Inject
-    FollowRepository followRepo;
-    @Inject
-    UserService userService;
+    private final FollowRepository followRepo;
+    private final UserService userService;
+
+    public FollowService(FollowRepository followRepo,
+                         UserService userService) {
+        this.followRepo = followRepo;
+        this.userService = userService;
+    }
 
     @Transactional
     public void follow(Long followerId, Long followingId) {

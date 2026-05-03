@@ -1,7 +1,6 @@
 package org.critiqal.api;
 
 import io.quarkus.security.Authenticated;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -23,14 +22,17 @@ import java.util.List;
 @Consumes(MediaType.APPLICATION_JSON)
 public class UserController {
 
-    @Inject
-    UserService userService;
+    private final UserService userService;
+    private final FollowService followService;
+    private final PostService postService;
 
-    @Inject
-    FollowService followService;
-
-    @Inject
-    PostService postService;
+    public UserController(UserService userService,
+                          FollowService followService,
+                          PostService postService) {
+        this.userService = userService;
+        this.followService = followService;
+        this.postService = postService;
+    }
 
     @GET
     @Path("/{username}")

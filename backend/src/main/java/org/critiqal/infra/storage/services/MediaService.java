@@ -1,7 +1,6 @@
 package org.critiqal.infra.storage.services;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post_photo.PostPhotoRepository;
 import org.critiqal.domain.shared.exception.DomainException;
@@ -19,7 +18,6 @@ public class MediaService {
     private final ImageProcessor imageProcessor;
     private final PostPhotoRepository postPhotoRepo;
 
-    @Inject
     public MediaService(R2StorageService r2,
                         ImageProcessor imageProcessor,
                         PostPhotoRepository postPhotoRepo) {

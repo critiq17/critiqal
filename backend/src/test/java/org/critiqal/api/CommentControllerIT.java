@@ -62,7 +62,7 @@ class CommentControllerIT {
     }
 
     @Test
-    void addReply_toReply_returns400() {
+    void addReply_toReply_returns409() {
         var sid = TestAuthHelper.registerAndGetSessionCookie("reply_to_reply_user");
         var postId = createPost(sid);
 
@@ -91,11 +91,11 @@ class CommentControllerIT {
             .contentType(JSON)
             .body("{\"content\":\"reply to reply\"}")
         .when().post("/api/posts/" + postId + "/comments/" + replyId + "/replies")
-        .then().statusCode(400);
+        .then().statusCode(409);
     }
 
     @Test
-    void deleteComment_notOwner_returns400() {
+    void deleteComment_notOwner_returns403() {
         var ownerSid = TestAuthHelper.registerAndGetSessionCookie("comment_owner_del");
         var otherSid = TestAuthHelper.registerAndGetSessionCookie("comment_other_del");
         var postId = createPost(ownerSid);
@@ -111,7 +111,7 @@ class CommentControllerIT {
         given()
             .cookie(TestAuthHelper.COOKIE, otherSid)
         .when().delete("/api/posts/" + postId + "/comments/" + commentId)
-        .then().statusCode(400);
+        .then().statusCode(403);
     }
 
     @Test

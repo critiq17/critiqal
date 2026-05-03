@@ -1,7 +1,6 @@
 package org.critiqal.domain.post_photo;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.post.PostService;
 import org.critiqal.domain.shared.exception.ForbiddenException;
@@ -15,9 +14,17 @@ import java.nio.file.Files;
 @ApplicationScoped
 public class PostPhotoService {
 
-    @Inject PostPhotoRepository postPhotoRepo;
-    @Inject PostService postService;
-    @Inject MediaService mediaService;
+    private final PostPhotoRepository postPhotoRepo;
+    private final PostService postService;
+    private final MediaService mediaService;
+
+    public PostPhotoService(PostPhotoRepository postPhotoRepo,
+                            PostService postService,
+                            MediaService mediaService) {
+        this.postPhotoRepo = postPhotoRepo;
+        this.postService = postService;
+        this.mediaService = mediaService;
+    }
 
     @Transactional
     public PostPhoto addPhoto(Long postId, Long userId, FileUpload file) throws IOException {
