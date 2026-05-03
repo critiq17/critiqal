@@ -12,7 +12,7 @@ No algorithms. No ads. No noise.
 
 - Profiles, follow/unfollow, chronological feed
 - Post text updates manually or auto-sync from integrations
-- Reactions (no comments in v1)
+- Reactions and comments
 - Notifications: followers, reactions
 
 **GitHub Integration**

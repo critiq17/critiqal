@@ -9,7 +9,7 @@ critiqal/
     pom.xml
     Dockerfile
     docker-compose*.yml
-    src/main/java/org/acme/
+    src/main/java/org/critiqal/
       api/                   # REST controllers and transport DTOs
       application/strava/    # Strava orchestration use case
       domain/                # Feature modules: entity + repo + service
@@ -85,7 +85,7 @@ The backend is feature-oriented. Each feature package keeps its entity, reposito
 - `post_view/`
 - `strava/`
 
-Important nuance: this is not a strict framework-free domain layer. The `domain/*` packages contain JPA/Panache entities and repositories alongside business services. Documentation and code should treat this as a pragmatic layered monolith, not pure DDD.
+Important nuance: this is not a strict framework-free domain layer. The `domain/*` packages contain JPA/Panache entities, Panache repositories, and business services side by side. Documentation and code should treat this as a pragmatic layered monolith, not pure DDD.
 
 #### `application/strava/`
 
@@ -108,6 +108,15 @@ Cross-cutting helpers that do not fit a feature module.
 - `PasswordHash`
 - `ImageProcessor`
 
+### Layer Rules
+
+- `api/` owns HTTP concerns only: routing, auth extraction, request parsing, DTO mapping, and response shaping.
+- `application/` is optional. Use it when a flow coordinates multiple feature services or external adapters. Do not create an application layer class for every simple use case by default.
+- `domain/<feature>/` is the default home for feature logic. Panache entities, Panache repositories, domain services, and feature-local exceptions can live together there.
+- `infra/` owns external adapters and platform-specific integration code that does not fit naturally into one feature package.
+- `utils/` is for small cross-cutting helpers only. It should not grow into a second generic business layer.
+- Dependency direction is pragmatic rather than strictly hexagonal. Domain services may call Panache repositories and selected infra services when that keeps the feature cohesive and easy to test.
+
 ### Backend Request Flow
 
 The normal request path is:
@@ -122,6 +131,18 @@ HTTP request
 ```
 
 Transactions are mostly handled at the service layer, with a few controller-level `@Transactional` entrypoints for multipart flows.
+
+### Architecture Decisions
+
+| Topic | Decision | Consequence |
+|---|---|---|
+| Backend style | Pragmatic layered monolith | Prefer local simplicity over theoretical purity |
+| Domain packages | Panache entities and repositories are allowed in `domain/*` | `domain/*` is not framework-free and should not be documented as such |
+| Application layer | Optional and sparse | Use it only for orchestration flows such as Strava integration |
+| Controllers | Thin transport layer | Business rules and state changes stay in services |
+| Exceptions | Use `DomainException` and specific subclasses | API semantics should distinguish `400`, `403`, `404`, and `409` |
+| Dependency injection | Constructor injection in production code | Dependencies stay explicit and unit tests stay simple |
+| Entity mutation | Managed Panache/JPA entities are mutable | Enforce invariants before mutating entity state inside transactions |
 
 ### Key Backend Flows
 
@@ -353,6 +374,14 @@ Backend tests are split between:
 
 - domain/repository tests in `backend/src/test/java/org/critiqal/domain`
 - API/security integration tests in `backend/src/test/java/org/critiqal/api`
+
+## Comment Style
+
+- Prefer no comment over a comment that simply repeats the code.
+- Use short `//` comments for intent, invariants, or non-obvious tradeoffs.
+- Avoid banner comments, decorative separators, and boilerplate JavaDoc on internal classes or methods.
+- When touching legacy files, remove stale comments that no longer describe the behavior.
+- Write comments so they survive refactors: explain why a rule exists, not each line of mechanics.
 
 ## Where New Code Should Go
 
