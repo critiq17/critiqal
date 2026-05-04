@@ -10,7 +10,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.critiqal.application.auth.SessionService;
+import org.critiqal.domain.auth.session.SessionService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Set;

@@ -4,7 +4,7 @@ import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.GetExArgs;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.critiqal.application.auth.SessionService;
+import org.critiqal.domain.auth.session.SessionService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.security.SecureRandom;

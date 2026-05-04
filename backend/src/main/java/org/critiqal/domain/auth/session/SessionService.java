@@ -1,4 +1,4 @@
-package org.critiqal.application.auth;
+package org.critiqal.domain.auth.session;
 
 import java.util.Optional;
 

@@ -9,7 +9,7 @@ import jakarta.ws.rs.core.SecurityContext;
 import org.critiqal.api.dtos.LoginRequest;
 import org.critiqal.api.dtos.RegisterRequest;
 import org.critiqal.api.dtos.UserDTO;
-import org.critiqal.application.auth.SessionService;
+import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.auth.SessionFactoryCookie;
