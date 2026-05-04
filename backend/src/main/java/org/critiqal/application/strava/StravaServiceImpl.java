@@ -6,10 +6,11 @@ import org.critiqal.api.dtos.strava.StravaActivityDTO;
 import org.critiqal.api.dtos.strava.StravaConnectionDTO;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.strava.StravaIntegration;
+import org.critiqal.domain.strava.service.StravaService;
 import org.critiqal.domain.user.service.UserService;
-import org.critiqal.infra.postgres.StravaRepository;
+import org.critiqal.domain.strava.repository.StravaRepositoryImpl;
 import org.critiqal.infra.strava.StravaApiClient;
-import org.critiqal.infra.strava.StravaOAuthClient;
+import org.critiqal.infra.strava.StravaOAuthClientImpl;
 import org.critiqal.infra.strava.StravaTokenRefresher;
 import java.util.List;
 import java.util.Optional;
@@ -18,19 +19,19 @@ import java.util.Optional;
     StravaService
  */
 @ApplicationScoped
-public class StravaService {
+public class StravaServiceImpl implements StravaService {
 
-    private final StravaRepository stravaRepo;
-    private final StravaOAuthClient oAuthClient;
+    private final StravaRepositoryImpl stravaRepo;
+    private final StravaOAuthClientImpl oAuthClient;
     private final StravaApiClient apiClient;
     private final StravaTokenRefresher tokenRefresher;
     private final UserService userService;
 
-    public StravaService(StravaRepository stravaRepo,
-                         StravaOAuthClient oAuthClient,
-                         StravaApiClient apiClient,
-                         StravaTokenRefresher tokenRefresher,
-                         UserService userService) {
+    public StravaServiceImpl(StravaRepositoryImpl stravaRepo,
+                             StravaOAuthClientImpl oAuthClient,
+                             StravaApiClient apiClient,
+                             StravaTokenRefresher tokenRefresher,
+                             UserService userService) {
         this.stravaRepo = stravaRepo;
         this.oAuthClient = oAuthClient;
         this.apiClient = apiClient;

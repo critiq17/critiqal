@@ -12,9 +12,9 @@ import org.critiqal.domain.strava.StravaIntegration;
 @ApplicationScoped
 public class StravaTokenRefresher {
 
-    private final StravaOAuthClient oAuthClient;
+    private final StravaOAuthClientImpl oAuthClient;
 
-    public StravaTokenRefresher(StravaOAuthClient oAuthClient) {
+    public StravaTokenRefresher(StravaOAuthClientImpl oAuthClient) {
         this.oAuthClient = oAuthClient;
     }
 

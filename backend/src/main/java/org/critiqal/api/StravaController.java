@@ -7,7 +7,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.critiqal.api.dtos.strava.StravaActivityDTO;
-import org.critiqal.application.strava.StravaService;
+import org.critiqal.application.strava.StravaServiceImpl;
 
 import java.net.URI;
 import java.util.List;
@@ -21,9 +21,9 @@ import java.util.Map;
 @Produces(MediaType.APPLICATION_JSON)
 public class StravaController {
 
-    private final StravaService stravaService;
+    private final StravaServiceImpl stravaService;
 
-    public StravaController(StravaService stravaService) {
+    public StravaController(StravaServiceImpl stravaService) {
         this.stravaService = stravaService;
     }
 

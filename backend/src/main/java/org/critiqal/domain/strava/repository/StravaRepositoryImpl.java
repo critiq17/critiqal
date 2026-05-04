@@ -1,4 +1,4 @@
-package org.critiqal.infra.postgres;
+package org.critiqal.domain.strava.repository;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -10,7 +10,7 @@ import java.util.Optional;
     StravaRepository
  */
 @ApplicationScoped
-public class StravaRepository implements PanacheRepository<StravaIntegration> {
+public class StravaRepositoryImpl implements StravaRepository, PanacheRepository<StravaIntegration> {
 
     public Optional<StravaIntegration> findByUserId(Long userId) {
         return find("user.id", userId).firstResultOptional();

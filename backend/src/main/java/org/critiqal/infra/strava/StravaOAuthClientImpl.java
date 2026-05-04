@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.critiqal.domain.shared.exception.strava.StravaException;
+import org.critiqal.domain.strava.gateway.Strava0AuthClient;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.net.URI;
@@ -18,7 +19,7 @@ import java.time.Duration;
  */
 
 @ApplicationScoped
-public class StravaOAuthClient {
+public class StravaOAuthClientImpl implements Strava0AuthClient {
 
     // URLs which make tokens
     private static final String TOKEN_URL = "https://www.strava.com/oauth/token";
