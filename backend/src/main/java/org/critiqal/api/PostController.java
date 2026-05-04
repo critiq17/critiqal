@@ -7,9 +7,9 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.critiqal.api.dtos.*;
-import org.critiqal.domain.comment.CommentService;
-import org.critiqal.domain.post.PostService;
-import org.critiqal.domain.reaction.ReactionService;
+import org.critiqal.domain.comment.service.CommentService;
+import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.reaction.service.ReactionService;
 import org.critiqal.domain.reaction.ReactionType;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
@@ -98,7 +98,7 @@ public class PostController {
     @Path("/{id}/comments/{commentId}/replies")
     public List<CommentDTO> getReplies(@PathParam("id") Long postId,
                                        @PathParam("commentId") Long commentId) {
-        return commentService.getReplies(commentId).stream()
+        return commentService.getReplies(postId, commentId).stream()
                 .map(CommentDTO::from)
                 .toList();
     }
@@ -131,7 +131,7 @@ public class PostController {
     public Response deleteComment(@Context SecurityContext ctx,
                                   @PathParam("id") Long postId,
                                   @PathParam("commentId") Long commentId) {
-        commentService.deleteComment(commentId, extractUserId(ctx));
+        commentService.deleteComment(postId, commentId, extractUserId(ctx));
         return Response.noContent().build();
     }
 
@@ -166,7 +166,7 @@ public class PostController {
     @Path("/{id}/reactions")
     @Authenticated
     public Response removeReaction(@Context SecurityContext ctx, @PathParam("id") Long postId) {
-        reactionService.removeReact(extractUserId(ctx), postId);
+        reactionService.removeReaction(extractUserId(ctx), postId);
         return Response.noContent().build();
     }
 

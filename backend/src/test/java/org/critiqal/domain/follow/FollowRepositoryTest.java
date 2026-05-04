@@ -1,9 +1,11 @@
 package org.critiqal.domain.follow;
 
+import org.critiqal.domain.follow.repository.FollowRepository;
+import org.critiqal.domain.follow.service.FollowService;
+import org.critiqal.domain.follow.service.FollowServiceImpl;
 import org.critiqal.domain.user.User;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.user.service.UserService;
 import org.critiqal.domain.shared.exception.DomainException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -14,24 +16,7 @@ class FollowRepositoryTest {
     private final FollowRepository followRepo = mock(FollowRepository.class);
     private final UserService userService = mock(UserService.class);
 
-    private FollowService followService;
-
-    @BeforeEach
-    void setUp() {
-        followService = new FollowService(followRepo, userService);
-        injectField(followService, "followRepo", followRepo);
-        injectField(followService, "userService", userService);
-    }
-
-    private void injectField(Object target, String fieldName, Object value) {
-        try {
-            var field = target.getClass().getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(target, value);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final FollowService followService = new FollowServiceImpl(followRepo, userService);
 
     @Test
     void follow_self_throws() {
@@ -39,8 +24,6 @@ class FollowRepositoryTest {
         user.id = 1L;
 
         when(userService.getById(1L)).thenReturn(user);
-        doThrow(new DomainException("Cannot follow yourself"))
-                .when(followRepo).follow(user, user);
 
         assertThrows(DomainException.class,
                 () -> followService.follow(1L, 1L));
@@ -58,13 +41,13 @@ class FollowRepositoryTest {
 
         followService.follow(1L, 2L);
 
-        verify(followRepo).follow(follower, following);
+        verify(followRepo).save(any(Follow.class));
     }
 
     @Test
     void unfollow_callsRepo() {
         followService.unfollow(1L, 2L);
 
-        verify(followRepo).unfollow(1L, 2L);
+        verify(followRepo).deleteByUsers(1L, 2L);
     }
 }

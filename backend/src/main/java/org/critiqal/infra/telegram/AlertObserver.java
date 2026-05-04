@@ -4,7 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.ObservesAsync;
 import org.critiqal.domain.alert.ErrorEvent;
 import org.critiqal.domain.post.PostCreatedEvent;
-import org.critiqal.domain.user.UserRegisteredEvent;
+import org.critiqal.domain.user.event.UserRegisteredEvent;
 
 @ApplicationScoped
 public class AlertObserver {

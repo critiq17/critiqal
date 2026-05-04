@@ -1,8 +1,8 @@
 package org.critiqal.infra.storage.services;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.critiqal.domain.post_photo.repository.PostPhotoRepository;
 import org.critiqal.domain.post.Post;
-import org.critiqal.domain.post_photo.PostPhotoRepository;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.infra.storage.s3.R2StorageService;
 import org.critiqal.utils.ImageProcessor;

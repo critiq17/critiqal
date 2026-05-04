@@ -10,7 +10,8 @@ import org.critiqal.api.dtos.LoginRequest;
 import org.critiqal.api.dtos.RegisterRequest;
 import org.critiqal.api.dtos.UserDTO;
 import org.critiqal.application.auth.SessionService;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.user.Username;
+import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.auth.SessionFactoryCookie;
 
 @Path("/api/auth")
@@ -33,7 +34,8 @@ public class AuthController {
 
     @POST @Path("/register")
     public Response register(RegisterRequest req) {
-        var user = userService.register(req.username(), req.password());
+        var username = Username.of(req.username());
+        var user = userService.register(username, req.password());
         var sid = sessions.create(user.id);
         return Response.status(Response.Status.CREATED)
                 .entity(UserDTO.from(user))
@@ -43,10 +45,12 @@ public class AuthController {
 
     @POST @Path("/login")
     public Response login(LoginRequest req) {
-        if (!userService.checkPassword(req.username(), req.password())) {
+        var username = Username.of(req.username());
+
+        if (!userService.checkPassword(username, req.password())) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        var user = userService.getByUsername(req.username());
+        var user = userService.getByUsername(username);
         var sid = sessions.create(user.id);
         return Response.ok(UserDTO.from(user))
                 .cookie(cookies.issue(sid))

@@ -1,19 +1,18 @@
-package org.critiqal.domain.post;
+package org.critiqal.domain.post.repository;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import org.critiqal.domain.user.User;
+import org.critiqal.domain.post.Post;
+import org.critiqal.domain.post.PostStatus;
 
 import java.util.List;
-
-/*
-    PostRepository - impl methods for Post to postgres
- */
+import java.util.Optional;
 
 @ApplicationScoped
-public class PostRepository implements PanacheRepository<Post> {
+public class PostRepositoryImpl implements PostRepository, PanacheRepository<Post> {
 
+    @Override
     public List<Long> findLatestIds(int page, int size) {
         return getEntityManager()
                 .createQuery("""
@@ -27,10 +26,12 @@ public class PostRepository implements PanacheRepository<Post> {
                 .getResultList();
     }
 
+    @Override
     public long countPublished() {
         return count("status", PostStatus.PUBLISHED);
     }
 
+    @Override
     public List<Long> findByAuthorIds(Long authorId, int page, int size) {
         return getEntityManager()
                 .createQuery("""
@@ -45,27 +46,12 @@ public class PostRepository implements PanacheRepository<Post> {
                 .getResultList();
     }
 
+    @Override
     public long countByAuthor(Long authorId) {
         return count("author.id = ?1 AND status = ?2", authorId, PostStatus.PUBLISHED);
     }
 
-    /*
-    public List<Post> search(String query, int page, int size) {
-        return getEntityManager()
-                .createQuery("""
-                        SELECT DISTINCT p FROM Post p
-                        LEFT JOIN FETCH p.author
-                        LEFT JOIN FETCH p.photos
-                        WHERE LOWER(p.content) LIKE :query AND p.status = :status
-                        ORDER BY p.createdAt DESC
-                        """, Post.class)
-                .setParameter("query", "%" + query.toLowerCase() + "%")
-                .setParameter("status", PostStatus.PUBLISHED)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-*/
+    @Override
     public List<Long> searchIds(String query, int page, int size) {
         return getEntityManager()
                 .createQuery("""
@@ -82,6 +68,13 @@ public class PostRepository implements PanacheRepository<Post> {
                 .getResultList();
     }
 
+    @Override
+    public long countSearch(String query) {
+        return count("LOWER(content) LIKE ?1 AND status = ?2",
+                "%" + query.toLowerCase() + "%", PostStatus.PUBLISHED);
+    }
+
+    @Override
     public List<Long> findFollowingFeedIds(Long userId, int page, int size) {
         return getEntityManager()
                 .createQuery("""
@@ -100,6 +93,7 @@ public class PostRepository implements PanacheRepository<Post> {
                 .getResultList();
     }
 
+    @Override
     public long countFollowingFeed(Long userId) {
         return getEntityManager()
                 .createQuery("""
@@ -115,8 +109,11 @@ public class PostRepository implements PanacheRepository<Post> {
                 .getSingleResult();
     }
 
+    @Override
     public List<Post> findByIdsWithRelations(List<Long> ids) {
-        if (ids.isEmpty()) return List.of();
+        if (ids.isEmpty()) {
+            return List.of();
+        }
 
         return getEntityManager()
                 .createQuery("""
@@ -129,20 +126,20 @@ public class PostRepository implements PanacheRepository<Post> {
                 .setParameter("ids", ids)
                 .getResultList();
     }
-    public long countSearch(String query) {
-        return count("LOWER(content) LIKE ?1 AND status = ?2",
-                "%" + query.toLowerCase() + "%", PostStatus.PUBLISHED);
+
+    @Override
+    public Optional<Post> findByIdOptional(Long postId) {
+        return find("id", postId).firstResultOptional();
     }
 
+    @Override
     @Transactional
-    public Post createPost(User author, String content) {
-        var post = new Post();
-        post.author = author;
-        post.content = content;
+    public Post save(Post post) {
         persist(post);
         return post;
     }
 
+    @Override
     @Transactional
     public void incrementViews(Long postId) {
         update("viewCount = viewCount + 1 WHERE id = ?1", postId);

@@ -11,9 +11,10 @@ import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.api.dtos.PostDTO;
 import org.critiqal.api.dtos.UpdateProfileRequest;
 import org.critiqal.api.dtos.UserDTO;
-import org.critiqal.domain.follow.FollowService;
-import org.critiqal.domain.post.PostService;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.follow.service.FollowService;
+import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.user.Username;
+import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
 
@@ -37,7 +38,7 @@ public class UserController {
     @GET
     @Path("/{username}")
     public UserDTO getProfile(@PathParam("username") String username) {
-        return UserDTO.from(userService.getByUsername(username));
+        return UserDTO.from(userService.getByUsername(Username.of(username)));
     }
 
     @GET
@@ -120,7 +121,7 @@ public class UserController {
     public Page<PostDTO> getUserPosts(
             @PathParam("username") String username,
             @BeanParam PageRequest pageRequest) {
-        var user = userService.getByUsername(username);
+        var user = userService.getByUsername(Username.of(username));
         return postService.getUserPost(user.id, pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
     }

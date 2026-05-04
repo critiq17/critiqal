@@ -8,7 +8,6 @@ import org.critiqal.domain.post.Post;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 @Entity
 @Table(name = "users")
@@ -36,9 +35,4 @@ public class User extends PanacheEntity {
 
     @OneToMany(mappedBy = "follower")
     public List<Follow> following;
-
-    public static Optional<User> findByUsername(String username) {
-        return find("username", username).firstResultOptional();
-    }
 }
-

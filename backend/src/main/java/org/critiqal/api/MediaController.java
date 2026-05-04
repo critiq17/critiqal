@@ -3,14 +3,14 @@ package org.critiqal.api;
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
 import org.critiqal.api.dtos.PostDTO;
-import org.critiqal.domain.post_photo.PostPhotoService;
+import org.critiqal.domain.post_photo.service.PostPhotoService;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
-import org.critiqal.domain.post.PostService;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.storage.services.MediaService;
 import org.jboss.resteasy.reactive.RestForm;
 

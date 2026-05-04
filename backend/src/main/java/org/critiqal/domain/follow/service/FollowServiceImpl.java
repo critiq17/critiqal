@@ -1,53 +1,70 @@
-package org.critiqal.domain.follow;
+package org.critiqal.domain.follow.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.follow.Follow;
+import org.critiqal.domain.follow.repository.FollowRepository;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.User;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
 
 @ApplicationScoped
-public class FollowService {
+public class FollowServiceImpl implements FollowService {
 
     private final FollowRepository followRepo;
     private final UserService userService;
 
-    public FollowService(FollowRepository followRepo,
-                         UserService userService) {
+    public FollowServiceImpl(FollowRepository followRepo,
+                             UserService userService) {
         this.followRepo = followRepo;
         this.userService = userService;
     }
 
+    @Override
     @Transactional
     public void follow(Long followerId, Long followingId) {
         var follower = userService.getById(followerId);
         var following = userService.getById(followingId);
-        followRepo.follow(follower, following);
+
+        if (follower.id.equals(following.id)) {
+            throw new DomainException("Cannot follow yourself");
+        }
+        if (followRepo.isFollowing(follower.id, following.id)) {
+            return;
+        }
+
+        var follow = new Follow();
+        follow.follower = follower;
+        follow.following = following;
+        followRepo.save(follow);
     }
 
+    @Override
     @Transactional
     public void unfollow(Long followerId, Long followingId) {
-        followRepo.unfollow(followerId, followingId);
+        followRepo.deleteByUsers(followerId, followingId);
     }
 
+    @Override
     public List<User> getFollowers(Long userId) {
         return followRepo.findFollowers(userId);
     }
 
+    @Override
     public List<User> getFollowing(Long userId) {
         return followRepo.findFollowing(userId);
     }
 
+    @Override
     public boolean isFollowing(Long followerId, Long followingId) {
         return followRepo.isFollowing(followerId, followingId);
     }
 
-    public record FollowStats(long followers, long following) {}
-
-    public FollowStats getStats(Long userId) {
-        return new FollowStats(
+    @Override
+    public FollowService.FollowStats getStats(Long userId) {
+        return new FollowService.FollowStats(
                 followRepo.countFollowers(userId),
                 followRepo.countFollowing(userId)
         );

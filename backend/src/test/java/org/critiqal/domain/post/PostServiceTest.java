@@ -1,8 +1,11 @@
 package org.critiqal.domain.post;
 
 import jakarta.enterprise.event.Event;
+import org.critiqal.domain.post.repository.PostRepository;
+import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.post.service.PostServiceImpl;
 import org.critiqal.domain.user.User;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.user.service.UserService;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.ForbiddenException;
 import org.critiqal.domain.shared.exception.NotFoundException;
@@ -24,7 +27,7 @@ class PostServiceTest {
     private final UserService userService = mock(UserService.class);
     private final Event<PostCreatedEvent> event = mock(Event.class);
 
-    private final PostService postService = new PostService(postRepo, userService, event);
+    private final PostService postService = new PostServiceImpl(postRepo, userService, event);
 
     @Test
     void createPost_blankContent_throwsException() {

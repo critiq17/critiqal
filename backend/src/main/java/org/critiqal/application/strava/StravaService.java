@@ -1,13 +1,12 @@
 package org.critiqal.application.strava;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.api.dtos.strava.StravaActivityDTO;
 import org.critiqal.api.dtos.strava.StravaConnectionDTO;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.strava.StravaIntegration;
-import org.critiqal.domain.user.UserService;
+import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.postgres.StravaRepository;
 import org.critiqal.infra.strava.StravaApiClient;
 import org.critiqal.infra.strava.StravaOAuthClient;
