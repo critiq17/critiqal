@@ -1,4 +1,4 @@
-package org.critiqal.infra.auth;
+package org.critiqal.infra.auth.session;
 
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.GetExArgs;

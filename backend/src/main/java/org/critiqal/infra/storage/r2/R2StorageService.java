@@ -1,7 +1,8 @@
-package org.critiqal.infra.storage.s3;
+package org.critiqal.infra.storage.r2;
 
 
 import jakarta.enterprise.context.ApplicationScoped;
+import org.critiqal.domain.media.storage.MediaStorage;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
@@ -14,7 +15,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.net.URI;
 
 @ApplicationScoped
-public class R2StorageService {
+public class R2StorageService implements MediaStorage {
 
     private final S3Client s3;
 

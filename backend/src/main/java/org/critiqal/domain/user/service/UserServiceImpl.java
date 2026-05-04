@@ -9,7 +9,7 @@ import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.event.UserRegisteredEvent;
 import org.critiqal.domain.user.repository.UserRepository;
-import org.critiqal.utils.PasswordHash;
+import org.critiqal.domain.auth.password.PasswordHash;
 
 import java.util.List;
 

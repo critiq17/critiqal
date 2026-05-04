@@ -13,7 +13,7 @@ import org.critiqal.domain.reaction.service.ReactionService;
 import org.critiqal.domain.reaction.ReactionType;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
-import org.critiqal.infra.storage.services.MediaService;
+import org.critiqal.domain.media.service.MediaService;
 
 import java.util.List;
 import java.util.Map;

@@ -7,7 +7,7 @@ import org.critiqal.domain.user.event.UserRegisteredEvent;
 import org.critiqal.domain.user.repository.UserRepository;
 import org.critiqal.domain.user.service.UserService;
 import org.critiqal.domain.user.service.UserServiceImpl;
-import org.critiqal.utils.PasswordHash;
+import org.critiqal.domain.auth.password.PasswordHash;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -1,24 +1,24 @@
-package org.critiqal.infra.storage.services;
+package org.critiqal.domain.media.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.critiqal.domain.post_photo.repository.PostPhotoRepository;
 import org.critiqal.domain.post.Post;
+import org.critiqal.domain.post_photo.repository.PostPhotoRepository;
 import org.critiqal.domain.shared.exception.DomainException;
-import org.critiqal.infra.storage.s3.R2StorageService;
-import org.critiqal.utils.ImageProcessor;
+import org.critiqal.infra.storage.r2.R2StorageService;
+import org.critiqal.infra.storage.image.ImageProcessor;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
 @ApplicationScoped
-public class MediaService {
+public class MediaServiceImpl implements MediaService {
 
     private final R2StorageService r2;
     private final ImageProcessor imageProcessor;
     private final PostPhotoRepository postPhotoRepo;
 
-    public MediaService(R2StorageService r2,
+    public MediaServiceImpl(R2StorageService r2,
                         ImageProcessor imageProcessor,
                         PostPhotoRepository postPhotoRepo) {
         this.r2 = r2;

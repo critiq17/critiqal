@@ -1,4 +1,4 @@
-package org.critiqal.infra.auth;
+package org.critiqal.infra.auth.session;
 
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;

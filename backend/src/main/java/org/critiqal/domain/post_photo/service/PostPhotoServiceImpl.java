@@ -7,7 +7,7 @@ import org.critiqal.domain.post_photo.PostPhoto;
 import org.critiqal.domain.post_photo.repository.PostPhotoRepository;
 import org.critiqal.domain.shared.exception.ForbiddenException;
 import org.critiqal.domain.shared.exception.NotFoundException;
-import org.critiqal.infra.storage.services.MediaService;
+import org.critiqal.domain.media.service.MediaService;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package org.critiqal.utils;
+package org.critiqal.infra.storage.image;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import net.coobird.thumbnailator.Thumbnails;

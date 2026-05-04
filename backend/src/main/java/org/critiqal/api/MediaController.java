@@ -11,7 +11,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.user.service.UserService;
-import org.critiqal.infra.storage.services.MediaService;
+import org.critiqal.domain.media.service.MediaService;
 import org.jboss.resteasy.reactive.RestForm;
 
 import jakarta.transaction.Transactional;

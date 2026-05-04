@@ -1,4 +1,4 @@
-package org.critiqal.infra.auth;
+package org.critiqal.infra.auth.session;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.NewCookie;

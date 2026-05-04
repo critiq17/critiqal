@@ -12,7 +12,7 @@ import org.critiqal.api.dtos.UserDTO;
 import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
-import org.critiqal.infra.auth.SessionFactoryCookie;
+import org.critiqal.infra.auth.session.SessionFactoryCookie;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
