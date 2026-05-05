@@ -5,6 +5,7 @@ import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.strava.StravaIntegration;
 import org.critiqal.domain.strava.gateway.Strava0AuthClient;
 import org.critiqal.domain.strava.repository.StravaRepository;
+import org.critiqal.domain.strava.service.StravaServiceImpl;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.strava.StravaActivity;

@@ -6,7 +6,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.strava.response.StravaActivity;
-import org.critiqal.application.strava.StravaServiceImpl;
+import org.critiqal.domain.strava.service.StravaServiceImpl;
 
 import java.net.URI;
 import java.util.List;
