@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.infra.auth.session;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.critiqal.domain.auth.session.SessionService;

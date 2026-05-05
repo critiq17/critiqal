@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.api.auth;
 
 import io.quarkus.test.junit.QuarkusTest;
 import org.critiqal.support.TestAuthHelper;
