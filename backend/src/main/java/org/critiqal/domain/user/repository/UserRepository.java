@@ -6,6 +6,10 @@ import org.critiqal.domain.user.Username;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Defines persistence operations for users.
+ * Supports lookup, search, and storage.
+ */
 public interface UserRepository {
 
     Optional<User> findByIdOptional(Long id);

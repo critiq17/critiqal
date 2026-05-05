@@ -4,6 +4,10 @@ import org.critiqal.domain.comment.Comment;
 
 import java.util.List;
 
+/**
+ * Defines comment management operations for posts.
+ * Handles top-level comments, replies, and deletion rules.
+ */
 public interface CommentService {
 
     List<Comment> getPostComments(Long postId);

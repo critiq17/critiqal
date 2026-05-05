@@ -13,11 +13,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
-/*
-    StravaOAuthClient - strava OAuth client
-    Implement methods for authorize users
+/**
+ * HTTP-based implementation of {@link Strava0AuthClient}.
+ * Exchanges authorization codes and refresh tokens with Strava.
  */
-
 @ApplicationScoped
 public class StravaOAuthClientImpl implements Strava0AuthClient {
 

@@ -13,6 +13,10 @@ import org.critiqal.domain.auth.password.PasswordHash;
 
 import java.util.List;
 
+/**
+ * Default implementation of {@link UserService}.
+ * Coordinates registration, profile changes, and credential checks.
+ */
 @ApplicationScoped
 public class UserServiceImpl implements UserService {
 

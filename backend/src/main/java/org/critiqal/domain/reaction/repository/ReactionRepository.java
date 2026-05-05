@@ -6,6 +6,10 @@ import org.critiqal.domain.reaction.ReactionType;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Defines persistence operations for post reactions.
+ * Supports per-user lookup, aggregation, and mutation.
+ */
 public interface ReactionRepository {
 
     Optional<Reaction> findByPostAndUser(Long postId, Long userId);

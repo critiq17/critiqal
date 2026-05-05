@@ -8,6 +8,10 @@ import org.critiqal.domain.post_photo.PostPhoto;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Panache-backed implementation of {@link PostPhotoRepository}.
+ * Persists post photo records and per-post deletion queries.
+ */
 @ApplicationScoped
 public class PostPhotoRepositoryImpl implements PostPhotoRepository, PanacheRepository<PostPhoto> {
 

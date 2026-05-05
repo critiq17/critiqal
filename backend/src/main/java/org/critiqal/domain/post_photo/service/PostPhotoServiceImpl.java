@@ -13,6 +13,10 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 import java.io.IOException;
 import java.nio.file.Files;
 
+/**
+ * Default implementation of {@link PostPhotoService}.
+ * Enforces post photo ownership, limits, and storage lifecycle.
+ */
 @ApplicationScoped
 public class PostPhotoServiceImpl implements PostPhotoService {
     private final PostPhotoRepository postPhotoRepo;

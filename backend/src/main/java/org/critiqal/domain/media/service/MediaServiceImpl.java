@@ -11,6 +11,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 
+/**
+ * Default implementation of {@link MediaService}.
+ * Coordinates image processing, storage, and media record cleanup.
+ */
 @ApplicationScoped
 public class MediaServiceImpl implements MediaService {
 

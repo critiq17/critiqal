@@ -10,6 +10,10 @@ import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
 
+/**
+ * Default implementation of {@link FollowService}.
+ * Applies follow domain rules and computes follow statistics.
+ */
 @ApplicationScoped
 public class FollowServiceImpl implements FollowService {
 

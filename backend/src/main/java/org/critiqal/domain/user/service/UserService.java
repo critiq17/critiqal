@@ -5,6 +5,10 @@ import org.critiqal.domain.user.Username;
 
 import java.util.List;
 
+/**
+ * Defines user management operations.
+ * Handles registration, lookup, profile updates, and password checks.
+ */
 public interface UserService {
 
     User register(Username username, String password);

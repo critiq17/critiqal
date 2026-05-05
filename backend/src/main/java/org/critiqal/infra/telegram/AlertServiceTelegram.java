@@ -21,12 +21,7 @@ public class AlertServiceTelegram implements AlertService {
     public AlertServiceTelegram(TelegramClient telegramClient) {
         this.telegramClient = telegramClient;
     }
-    /**
-     *
-     * @param level
-     * @param title
-     * @param details
-     */
+
     public void send(AlertLevel level, String title, String details) {
         var time = ZonedDateTime.now(ZoneId.of("UTC")).format(FMT);
         var sb = new StringBuilder();

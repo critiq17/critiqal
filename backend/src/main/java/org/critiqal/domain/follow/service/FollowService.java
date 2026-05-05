@@ -4,6 +4,10 @@ import org.critiqal.domain.user.User;
 
 import java.util.List;
 
+/**
+ * Defines follow management operations between users.
+ * Handles follow state changes, lookups, and statistics.
+ */
 public interface FollowService {
 
     void follow(Long followerId, Long followingId);

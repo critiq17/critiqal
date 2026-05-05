@@ -10,6 +10,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Panache-backed implementation of {@link ReactionRepository}.
+ * Persists reactions and aggregates counts per post.
+ */
 @ApplicationScoped
 public class ReactionRepositoryImpl implements ReactionRepository, PanacheRepository<Reaction> {
 

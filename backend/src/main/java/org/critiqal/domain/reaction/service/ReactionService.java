@@ -6,6 +6,10 @@ import org.critiqal.domain.reaction.ReactionType;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Defines reaction management operations for posts.
+ * Handles aggregation, current-user state, and reaction updates.
+ */
 public interface ReactionService {
 
     Map<ReactionType, Long> getReactions(Long postId);

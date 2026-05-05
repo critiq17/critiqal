@@ -5,6 +5,10 @@ import org.critiqal.domain.user.User;
 
 import java.util.List;
 
+/**
+ * Defines persistence operations for follow relationships.
+ * Supports follower lookups, counts, and follow lifecycle changes.
+ */
 public interface FollowRepository {
 
     List<User> findFollowing(Long userId);

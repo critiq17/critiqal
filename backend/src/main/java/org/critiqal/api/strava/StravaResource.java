@@ -12,10 +12,9 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
-/*
-    StravaController
+/**
+ * Exposes REST endpoints for connecting Strava accounts and reading integration data.
  */
-
 @Path("/api/integrations/strava")
 @Produces(MediaType.APPLICATION_JSON)
 public class StravaResource {

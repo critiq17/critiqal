@@ -4,6 +4,10 @@ import org.critiqal.domain.strava.StravaIntegration;
 
 import java.util.Optional;
 
+/**
+ * Defines persistence operations for Strava integrations.
+ * Supports lookup, existence checks, and lifecycle changes per user.
+ */
 public interface StravaRepository {
     Optional<StravaIntegration> findByUserId(Long userId);
 

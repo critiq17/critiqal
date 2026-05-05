@@ -11,6 +11,10 @@ import org.critiqal.domain.user.service.UserService;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Default implementation of {@link ReactionService}.
+ * Handles reaction creation, replacement, and removal for posts.
+ */
 @ApplicationScoped
 public class ReactionServiceImpl implements ReactionService {
 

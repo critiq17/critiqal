@@ -14,11 +14,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/*
-    StravaApiClient
-    Get user activities info
+/**
+ * Fetches athlete activity data from the Strava REST API.
  */
-
 @ApplicationScoped
 public class StravaApiClient {
 

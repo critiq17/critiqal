@@ -9,6 +9,10 @@ import org.critiqal.domain.post.PostStatus;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Panache-backed implementation of {@link PostRepository}.
+ * Executes feed, search, and relation-aware post queries.
+ */
 @ApplicationScoped
 public class PostRepositoryImpl implements PostRepository, PanacheRepository<Post> {
 

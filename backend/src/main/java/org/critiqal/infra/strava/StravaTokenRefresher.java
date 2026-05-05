@@ -5,10 +5,9 @@ import jakarta.transaction.Transactional;
 import org.critiqal.domain.strava.StravaIntegration;
 import org.critiqal.domain.strava.gateway.Strava0AuthClient;
 
-/*
-    StravaTokenRefresher - refresher authorization token
+/**
+ * Refreshes expired Strava access tokens and persists updated credentials.
  */
-
 @ApplicationScoped
 public class StravaTokenRefresher {
 

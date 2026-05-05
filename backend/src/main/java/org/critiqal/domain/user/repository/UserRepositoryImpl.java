@@ -8,6 +8,10 @@ import org.critiqal.domain.user.Username;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Panache-backed implementation of {@link UserRepository}.
+ * Persists users and executes lookup or search queries.
+ */
 @ApplicationScoped
 public class UserRepositoryImpl implements UserRepository, PanacheRepository<User> {
 

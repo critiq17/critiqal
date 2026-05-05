@@ -13,6 +13,10 @@ import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
 
+/**
+ * Default implementation of {@link CommentService}.
+ * Applies comment validation, reply rules, and authorization checks.
+ */
 @ApplicationScoped
 public class CommentServiceImpl implements CommentService {
 

@@ -8,6 +8,10 @@ import org.critiqal.domain.comment.Comment;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Panache-backed implementation of {@link CommentRepository}.
+ * Persists comments and reply lookups for posts.
+ */
 @ApplicationScoped
 public class CommentRepositoryImpl implements CommentRepository, PanacheRepository<Comment> {
 

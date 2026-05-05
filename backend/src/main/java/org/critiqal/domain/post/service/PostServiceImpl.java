@@ -22,6 +22,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Default implementation of {@link PostService}.
+ * Applies post domain rules and assembles feed query results.
+ */
 @ApplicationScoped
 public class PostServiceImpl implements PostService {
 

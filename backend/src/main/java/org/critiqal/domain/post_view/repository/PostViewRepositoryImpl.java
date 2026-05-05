@@ -7,6 +7,10 @@ import org.critiqal.domain.post_view.PostViewId;
 
 import java.util.Optional;
 
+/**
+ * Panache-backed implementation of {@link PostViewRepository}.
+ * Persists post view records keyed by post and user.
+ */
 @ApplicationScoped
 public class PostViewRepositoryImpl implements PostViewRepository, PanacheRepositoryBase<PostView, PostViewId> {
 

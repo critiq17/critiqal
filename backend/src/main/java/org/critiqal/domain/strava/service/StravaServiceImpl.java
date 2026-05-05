@@ -14,8 +14,9 @@ import org.critiqal.infra.strava.StravaTokenRefresher;
 import java.util.List;
 import java.util.Optional;
 
-/*
-    StravaService
+/**
+ * Default implementation of {@link StravaService}.
+ * Coordinates OAuth state, token refresh, and activity retrieval.
  */
 @ApplicationScoped
 public class StravaServiceImpl implements StravaService {

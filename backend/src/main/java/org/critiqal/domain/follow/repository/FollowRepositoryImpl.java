@@ -8,6 +8,10 @@ import org.critiqal.domain.user.User;
 
 import java.util.List;
 
+/**
+ * Panache-backed implementation of {@link FollowRepository}.
+ * Persists follow relationships and related lookup queries.
+ */
 @ApplicationScoped
 public class FollowRepositoryImpl implements FollowRepository, PanacheRepository<Follow> {
 

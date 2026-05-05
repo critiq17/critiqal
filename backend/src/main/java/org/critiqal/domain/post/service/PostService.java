@@ -3,6 +3,10 @@ package org.critiqal.domain.post.service;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.shared.pagination.Page;
 
+/**
+ * Defines post management operations.
+ * Handles creation, retrieval, feed queries, search, and view tracking.
+ */
 public interface PostService {
 
     Post createPost(Long authorId, String content);
