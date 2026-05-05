@@ -13,9 +13,25 @@ public class GlobalExceptionMapper implements ExceptionMapper<DomainException> {
 
     @Override
     public Response toResponse(DomainException e) {
-        return Response.status(e.status())
-                .entity(Map.of("error", e.getMessage()))
+        return error(e.status(), e.getMessage());
+    }
+
+    static Response error(Response.StatusType status, String message) {
+        var errorMessage = message == null || message.isBlank()
+                ? status.getReasonPhrase()
+                : message;
+        return Response.status(status)
+                .entity(Map.of("error", errorMessage))
                 .build();
+    }
+}
+
+@Provider
+class IllegalArgumentExceptionMapper implements ExceptionMapper<IllegalArgumentException> {
+
+    @Override
+    public Response toResponse(IllegalArgumentException e) {
+        return GlobalExceptionMapper.error(Response.Status.BAD_REQUEST, e.getMessage());
     }
 }
 
@@ -33,8 +49,6 @@ class UnhandledExceptionMapper implements ExceptionMapper<Exception> {
     public Response toResponse(Exception e) {
         log.error("Unhandled exception", e);
         alertService.error("Unhandled server error", e);
-        return Response.serverError()
-                .entity(Map.of("error", "Internal server error"))
-                .build();
+        return GlobalExceptionMapper.error(Response.Status.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 }

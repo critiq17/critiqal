@@ -2,10 +2,9 @@ package org.critiqal.api.auth;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.api.auth.request.LoginRequest;
 import org.critiqal.api.auth.request.RegisterRequest;
 import org.critiqal.api.user.response.UserDTO;
@@ -23,13 +22,16 @@ public class AuthResource {
     private final UserService userService;
     private final SessionService sessions;
     private final SessionFactoryCookie cookies;
+    private final CurrentUser currentUser;
 
     public AuthResource(UserService userService,
                         SessionService sessions,
-                        SessionFactoryCookie cookies) {
+                        SessionFactoryCookie cookies,
+                        CurrentUser currentUser) {
         this.userService = userService;
         this.sessions = sessions;
         this.cookies = cookies;
+        this.currentUser = currentUser;
     }
 
     @POST @Path("/register")
@@ -67,17 +69,15 @@ public class AuthResource {
 
     @GET @Path("/me")
     @Authenticated
-    public Response me(@Context SecurityContext ctx) {
-        var userId = Long.parseLong(ctx.getUserPrincipal().getName());
-        return Response.ok(UserDTO.from(userService.getById(userId))).build();
+    public Response me() {
+        return Response.ok(UserDTO.from(userService.getById(currentUser.id()))).build();
     }
 
     @DELETE @Path("/sessions/{id}")
     @Consumes(MediaType.WILDCARD)
     @Authenticated
-    public Response revokeSession(@PathParam("id") String sessionId,
-                                  @Context SecurityContext ctx) {
-        var callerId = Long.parseLong(ctx.getUserPrincipal().getName());
+    public Response revokeSession(@PathParam("id") String sessionId) {
+        var callerId = currentUser.id();
         var owner = sessions.resolve(sessionId);
         if (owner.isEmpty() || !owner.get().equals(callerId)) {
             return Response.status(Response.Status.FORBIDDEN).build();

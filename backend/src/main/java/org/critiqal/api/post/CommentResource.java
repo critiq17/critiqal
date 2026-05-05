@@ -2,10 +2,9 @@ package org.critiqal.api.post;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.request.AddCommentRequest;
 import org.critiqal.api.post.response.CommentDTO;
 import org.critiqal.domain.comment.service.CommentService;
@@ -18,18 +17,20 @@ import java.util.List;
 public class CommentResource {
 
     private final CommentService commentService;
+    private final CurrentUser currentUser;
 
-    public CommentResource(CommentService commentService) {
+    public CommentResource(CommentService commentService,
+                           CurrentUser currentUser) {
         this.commentService = commentService;
+        this.currentUser = currentUser;
     }
 
     @POST
     @Path("/{id}/comments")
     @Authenticated
-    public Response addComment(@Context SecurityContext ctx,
-                               @PathParam("id") Long postId,
+    public Response addComment(@PathParam("id") Long postId,
                                AddCommentRequest req) {
-        var comment = commentService.addComment(extractUserId(ctx), postId, req.content());
+        var comment = commentService.addComment(currentUser.id(), postId, req.content());
         return  Response.status(Response.Status.CREATED)
                 .entity(CommentDTO.from(comment))
                 .build();
@@ -47,11 +48,10 @@ public class CommentResource {
     @POST
     @Path("/{id}/comments/{commentId}/replies")
     @Authenticated
-    public Response addReply(@Context SecurityContext ctx,
-                             @PathParam("id") Long postId,
+    public Response addReply(@PathParam("id") Long postId,
                              @PathParam("commentId") Long commentId,
                              AddCommentRequest req) {
-        var reply = commentService.addReply(extractUserId(ctx), postId, commentId, req.content());
+        var reply = commentService.addReply(currentUser.id(), postId, commentId, req.content());
         return Response.status(Response.Status.CREATED)
                 .entity(CommentDTO.from(reply))
                 .build();
@@ -69,14 +69,9 @@ public class CommentResource {
     @DELETE
     @Path("/{id}/comments/{commentId}")
     @Authenticated
-    public Response deleteComment(@Context SecurityContext ctx,
-                                  @PathParam("id") Long postId,
+    public Response deleteComment(@PathParam("id") Long postId,
                                   @PathParam("commentId") Long commentId) {
-        commentService.deleteComment(postId, commentId, extractUserId(ctx));
+        commentService.deleteComment(postId, commentId, currentUser.id());
         return Response.noContent().build();
-    }
-
-    private Long extractUserId(SecurityContext ctx) {
-        return Long.parseLong(ctx.getUserPrincipal().getName());
     }
 }

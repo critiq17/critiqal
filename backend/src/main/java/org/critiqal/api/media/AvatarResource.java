@@ -2,10 +2,9 @@ package org.critiqal.api.media;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.service.UserService;
@@ -22,10 +21,14 @@ public class AvatarResource {
 
     private final MediaService mediaService;
     private final UserService userService;
+    private final CurrentUser currentUser;
 
-    public AvatarResource(MediaService mediaService, UserService userService) {
+    public AvatarResource(MediaService mediaService,
+                          UserService userService,
+                          CurrentUser currentUser) {
         this.mediaService = mediaService;
         this.userService = userService;
+        this.currentUser = currentUser;
     }
 
     @POST
@@ -34,12 +37,11 @@ public class AvatarResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     public Response uploadAvatar(
-            @Context SecurityContext ctx,
             @RestForm("file") FileUpload file
     ) throws IOException {
         validateImage(file);
 
-        Long userId = extractUserId(ctx);
+        Long userId = currentUser.id();
         var user = userService.getById(userId);
 
         if (user.avatarUrl != null) {
@@ -55,8 +57,8 @@ public class AvatarResource {
     @DELETE
     @Path("/avatar")
     @Authenticated
-    public Response deleteAvatar(@Context SecurityContext ctx) {
-        Long userId = extractUserId(ctx);
+    public Response deleteAvatar() {
+        Long userId = currentUser.id();
         var user = userService.getById(userId);
 
         if (user.avatarUrl != null) {
@@ -75,10 +77,6 @@ public class AvatarResource {
         if (file.size() > 10 * 1024 * 1024) {
             throw new DomainException("Max file size is 10MB");
         }
-    }
-
-    private Long extractUserId(SecurityContext ctx) {
-        return Long.parseLong(ctx.getUserPrincipal().getName());
     }
 
 }

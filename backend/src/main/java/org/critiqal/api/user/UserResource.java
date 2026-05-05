@@ -2,10 +2,9 @@ package org.critiqal.api.user;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.api.post.response.PostDTO;
@@ -26,13 +25,16 @@ public class UserResource {
     private final UserService userService;
     private final FollowService followService;
     private final PostService postService;
+    private final CurrentUser currentUser;
 
     public UserResource(UserService userService,
                         FollowService followService,
-                        PostService postService) {
+                        PostService postService,
+                        CurrentUser currentUser) {
         this.userService = userService;
         this.followService = followService;
         this.postService = postService;
+        this.currentUser = currentUser;
     }
 
     @GET
@@ -52,8 +54,8 @@ public class UserResource {
     @PUT
     @Path("/me")
     @Authenticated
-    public UserDTO updateProfile(@Context SecurityContext ctx, UpdateProfileRequest req) {
-        Long userId = extractUserId(ctx);
+    public UserDTO updateProfile(UpdateProfileRequest req) {
+        Long userId = currentUser.id();
         return UserDTO.from(userService.updateProfile(userId, req.name(), req.bio()));
     }
 
@@ -61,8 +63,8 @@ public class UserResource {
     @Path("/{id}/follow")
     @Authenticated
     @Consumes(MediaType.WILDCARD)
-    public Response follow(@Context SecurityContext ctx, @PathParam("id") Long targetId) {
-        Long followerId = extractUserId(ctx);
+    public Response follow(@PathParam("id") Long targetId) {
+        Long followerId = currentUser.id();
         followService.follow(followerId, targetId);
         return Response.ok().build();
     }
@@ -70,8 +72,8 @@ public class UserResource {
     @DELETE
     @Path("/{id}/follow")
     @Authenticated
-    public Response unfollow(@Context SecurityContext ctx, @PathParam("id") Long targetId) {
-        Long followerId = extractUserId(ctx);
+    public Response unfollow(@PathParam("id") Long targetId) {
+        Long followerId = currentUser.id();
         followService.unfollow(followerId, targetId);
         return Response.noContent().build();
     }
@@ -83,8 +85,8 @@ public class UserResource {
     @GET
     @Path("/notifications")
     @Authenticated
-    public Response getNotificationsInfo(@Context SecurityContext ctx) {
-        Long userId = extractUserId(ctx);
+    public Response getNotificationsInfo() {
+        Long userId = currentUser.id();
         var stats = followService.getStats(userId);
         return Response.ok(stats).build();
     }
@@ -92,10 +94,8 @@ public class UserResource {
     @GET
     @Path("/notifications/posts")
     @Authenticated
-    public Page<PostDTO> getFollowingFeed(
-            @Context SecurityContext ctx,
-            @BeanParam PageRequest pageRequest) {
-        Long userId = extractUserId(ctx);
+    public Page<PostDTO> getFollowingFeed(@BeanParam PageRequest pageRequest) {
+        Long userId = currentUser.id();
         return postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
     }
@@ -125,9 +125,4 @@ public class UserResource {
         return postService.getUserPost(user.id, pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
     }
-
-    private Long extractUserId(SecurityContext ctx) {
-        return Long.parseLong(ctx.getUserPrincipal().getName());
-    }
-
 }

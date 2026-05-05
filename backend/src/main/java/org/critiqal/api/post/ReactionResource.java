@@ -2,10 +2,9 @@ package org.critiqal.api.post;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.request.ReactionRequest;
 import org.critiqal.domain.reaction.ReactionType;
 import org.critiqal.domain.reaction.service.ReactionService;
@@ -18,9 +17,12 @@ import java.util.Map;
 public class ReactionResource {
 
     private final ReactionService reactionService;
+    private final CurrentUser currentUser;
 
-    public ReactionResource(ReactionService reactionService) {
+    public ReactionResource(ReactionService reactionService,
+                            CurrentUser currentUser) {
         this.reactionService = reactionService;
+        this.currentUser = currentUser;
     }
     @GET
     @Path("/{id}/reactions")
@@ -31,8 +33,8 @@ public class ReactionResource {
     @GET
     @Path("/{id}/reactions/mine")
     @Authenticated
-    public Response getMyReaction(@Context SecurityContext ctx, @PathParam("id") Long postId) {
-        Long userId = extractUserId(ctx);
+    public Response getMyReaction(@PathParam("id") Long postId) {
+        Long userId = currentUser.id();
         return reactionService.getMyReaction(postId, userId)
                 .map(type -> Response.ok(type).build())
                 .orElse(Response.noContent().build());
@@ -41,10 +43,9 @@ public class ReactionResource {
     @POST
     @Path("/{id}/reactions")
     @Authenticated
-    public Response react(@Context SecurityContext ctx,
-                          @PathParam("id") Long postId,
+    public Response react(@PathParam("id") Long postId,
                           ReactionRequest req) {
-        reactionService.react(extractUserId(ctx), postId, req.type());
+        reactionService.react(currentUser.id(), postId, req.type());
         return Response.ok().build();
     }
 
@@ -52,12 +53,8 @@ public class ReactionResource {
     @DELETE
     @Path("/{id}/reactions")
     @Authenticated
-    public Response removeReaction(@Context SecurityContext ctx, @PathParam("id") Long postId) {
-        reactionService.removeReaction(extractUserId(ctx), postId);
+    public Response removeReaction(@PathParam("id") Long postId) {
+        reactionService.removeReaction(currentUser.id(), postId);
         return Response.noContent().build();
-    }
-
-    private Long extractUserId(SecurityContext ctx) {
-        return Long.parseLong(ctx.getUserPrincipal().getName());
     }
 }

@@ -2,10 +2,9 @@ package org.critiqal.api.strava;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.SecurityContext;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.api.strava.response.StravaActivity;
 import org.critiqal.application.strava.StravaServiceImpl;
 
@@ -22,17 +21,20 @@ import java.util.Map;
 public class StravaResource {
 
     private final StravaServiceImpl stravaService;
+    private final CurrentUser currentUser;
 
-    public StravaResource(StravaServiceImpl stravaService) {
+    public StravaResource(StravaServiceImpl stravaService,
+                          CurrentUser currentUser) {
         this.stravaService = stravaService;
+        this.currentUser = currentUser;
     }
 
     // create OAuth link for connect account
     @GET
     @Path("/connect")
     @Authenticated
-    public Response connect(@Context SecurityContext ctx) {
-        var userId = extractUserId(ctx);
+    public Response connect() {
+        var userId = currentUser.id();
         var url = stravaService.getAuthorizationUrl(userId);
         return Response.ok(Map.of("url", url)).build();
     }
@@ -60,15 +62,15 @@ public class StravaResource {
     // Disconnected strava account
     @DELETE
     @Authenticated
-    public Response disconnect(@Context SecurityContext ctx) {
-        stravaService.disconnect(extractUserId(ctx));
+    public Response disconnect() {
+        stravaService.disconnect(currentUser.id());
         return Response.noContent().build();
     }
 
     @GET
     @Authenticated
-    public Response getConnection(@Context SecurityContext ctx) {
-        return stravaService.getConnection(extractUserId(ctx))
+    public Response getConnection() {
+        return stravaService.getConnection(currentUser.id())
                 .map(dto -> Response.ok(dto).build())
                 .orElse(Response.noContent().build());
     }
@@ -77,11 +79,8 @@ public class StravaResource {
     @GET
     @Path("/activities")
     @Authenticated
-    public List<StravaActivity> getActivities(
-            @Context SecurityContext ctx,
-            @QueryParam("limit") @DefaultValue("5") int limit
-    ) {
-        return stravaService.getRecentActivities(extractUserId(ctx), Math.min(limit, 20));
+    public List<StravaActivity> getActivities(@QueryParam("limit") @DefaultValue("5") int limit) {
+        return stravaService.getRecentActivities(currentUser.id(), Math.min(limit, 20));
     }
 
     // Return public user account
@@ -93,7 +92,4 @@ public class StravaResource {
                 .orElse(Response.noContent().build());
     }
 
-    private Long extractUserId(SecurityContext ctx) {
-        return Long.parseLong(ctx.getUserPrincipal().getName());
-    }
 }
