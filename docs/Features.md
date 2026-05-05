@@ -6,6 +6,7 @@
 - User profiles (avatar, bio, links)
 - Follow / unfollow users
 - Post text updates
+- Comments with single-level replies
 - Feed: chronological posts from followed users
 - Notifications: new follower, post reaction
 
@@ -58,7 +59,6 @@ Anti-abuse:
 ## Phase 5 — Polish
 
 - Real-time feed updates via SSE
-- Post reactions (no comments in v1 — KISS)
 - Dark / light theme
 - Mobile-responsive layout
 - Push notifications (web push)

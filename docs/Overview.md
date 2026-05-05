@@ -26,13 +26,14 @@ Developers and athletes who want a low-noise space to share progress with people
 | Database     | PostgreSQL 16                           |
 | Media        | Cloudflare R2                           |
 | Integrations | Strava API                              |
-| Auth         | JWT bearer auth                         |
+| Auth         | HttpOnly cookie sessions backed by Redis |
 | Infra        | Docker Compose, GitHub Actions          |
 
 ## Architecture Principles
 
 - **Layered monolith** — one Quarkus API and one SvelteKit app in a single repo
 - **Feature-oriented packages** — backend code is grouped by feature (`post`, `user`, `comment`, etc.)
+- **Pragmatic domain packages** — `domain/*` may contain Panache entities, repositories, and services together
 - **Thin transport layers** — controllers and frontend services stay close to HTTP concerns
 - **Pragmatic boundaries** — repositories, entities, and services can live in the same feature package when that keeps the code simpler
 
