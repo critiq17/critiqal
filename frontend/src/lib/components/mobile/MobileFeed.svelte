@@ -1,13 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
+	import { openMobileComments } from '$lib/stores/mobile-comments.store';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import CommentSheet from './CommentSheet.svelte';
 	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
-
-	// Comment sheet
-	let openCommentSheetPostId = $state<number | null>(null);
 
 	// Pull-to-refresh
 	let isPulling = $state(false);
@@ -23,7 +20,7 @@
 	let isRefreshing = $state(false);
 
 	function openComments(postId: number): void {
-		openCommentSheetPostId = postId;
+		openMobileComments(postId);
 	}
 
 	async function fetchFeed(options: { force?: boolean } = {}): Promise<void> {
@@ -177,13 +174,6 @@
 		{/if}
 	{/if}
 </div>
-
-<!-- Comment sheet -->
-<CommentSheet
-	postId={openCommentSheetPostId ?? 0}
-	open={openCommentSheetPostId !== null}
-	onClose={() => (openCommentSheetPostId = null)}
-/>
 
 
 <style>

@@ -2,14 +2,35 @@ import type { User } from '$lib/types';
 import { isTelegramMiniApp, cloudStorage } from '$lib/telegram';
 import { apiClient } from '$lib/api/client';
 
+const AUTH_USER_KEY = 'auth_user';
+const LEGACY_TOKEN_KEY = 'auth_token';
+
 // ── user cache helpers ─────────────────────────────────────────────────────
 // The user object is cached for optimistic rendering only — the session itself
 // lives exclusively in the HttpOnly cookie set by the backend.
 
+function isUser(value: unknown): value is User {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).id === 'number' &&
+    typeof (value as Record<string, unknown>).username === 'string'
+  );
+}
+
+function parseCachedUser(raw: string | null): User | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return isUser(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 function getCachedUser(): User | null {
   try {
-    const raw = localStorage.getItem('auth_user');
-    return raw ? (JSON.parse(raw) as User) : null;
+    return parseCachedUser(localStorage.getItem(AUTH_USER_KEY));
   } catch {
     return null;
   }
@@ -18,12 +39,20 @@ function getCachedUser(): User | null {
 function setCachedUser(user: User | null): void {
   try {
     if (user) {
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
     } else {
-      localStorage.removeItem('auth_user');
+      localStorage.removeItem(AUTH_USER_KEY);
     }
   } catch {
     // ignore — localStorage not available (private mode on some browsers)
+  }
+}
+
+function clearLegacyLocalAuth(): void {
+  try {
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  } catch {
+    // ignore
   }
 }
 
@@ -35,8 +64,12 @@ function readCachedUserSync(): User | null {
   // localStorage here; init() will refresh from cloudStorage shortly after.
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem('auth_user');
-    return raw ? (JSON.parse(raw) as User) : null;
+    const parsed = parseCachedUser(localStorage.getItem(AUTH_USER_KEY));
+    if (!parsed) {
+      localStorage.removeItem(AUTH_USER_KEY);
+    }
+    clearLegacyLocalAuth();
+    return parsed;
   } catch {
     return null;
   }
@@ -71,6 +104,7 @@ function createAuthStore() {
   }
 
   async function _initWeb(): Promise<void> {
+    clearLegacyLocalAuth();
     const cached = getCachedUser();
 
     // Optimistic: render with cached user immediately.
@@ -78,6 +112,11 @@ function createAuthStore() {
 
     try {
       const verified = await apiClient.get<User>('/api/auth/me');
+      if (!isUser(verified)) {
+        setCachedUser(null);
+        state = { user: null, isLoading: false };
+        return;
+      }
       state = { user: verified, isLoading: false };
       setCachedUser(verified);
     } catch (err) {
@@ -96,19 +135,28 @@ function createAuthStore() {
   }
 
   async function _initTMA(): Promise<void> {
-    const userRaw = await cloudStorage.get('auth_user');
-    const cached = _tryParse<User>(userRaw);
+    clearLegacyLocalAuth();
+    cloudStorage.remove(LEGACY_TOKEN_KEY).catch(() => {});
+
+    const userRaw = await cloudStorage.get(AUTH_USER_KEY);
+    const cached = _tryParseUser(userRaw);
 
     if (cached) state = { user: cached, isLoading: false };
+    else if (userRaw) cloudStorage.remove(AUTH_USER_KEY).catch(() => {});
 
     try {
       const verified = await apiClient.get<User>('/api/auth/me');
+      if (!isUser(verified)) {
+        cloudStorage.remove(AUTH_USER_KEY).catch(() => {});
+        state = { user: null, isLoading: false };
+        return;
+      }
       state = { user: verified, isLoading: false };
-      cloudStorage.set('auth_user', JSON.stringify(verified)).catch(() => {});
+      cloudStorage.set(AUTH_USER_KEY, JSON.stringify(verified)).catch(() => {});
     } catch (err) {
       const status = (err as { status?: number } | null)?.status;
       if (status === 401 || status === 403) {
-        cloudStorage.remove('auth_user').catch(() => {});
+        cloudStorage.remove(AUTH_USER_KEY).catch(() => {});
         state = { user: null, isLoading: false };
       } else if (!cached) {
         state = { user: null, isLoading: false };
@@ -120,8 +168,10 @@ function createAuthStore() {
   // ── public API ────────────────────────────────────────────────────────────
 
   async function login(user: User): Promise<void> {
+    clearLegacyLocalAuth();
     if (isTelegramMiniApp()) {
-      await cloudStorage.set('auth_user', JSON.stringify(user));
+      await cloudStorage.remove(LEGACY_TOKEN_KEY).catch(() => {});
+      await cloudStorage.set(AUTH_USER_KEY, JSON.stringify(user));
     }
     setCachedUser(user);
     state = { user, isLoading: false };
@@ -129,17 +179,19 @@ function createAuthStore() {
 
   async function logout(): Promise<void> {
     try {
-      await apiClient.post<void>('/api/auth/logout', {});
+      await apiClient.post<void>('/api/auth/logout', {}, { skipUnauthorizedHandler: true });
     } catch {
       // Idempotent — clear local state regardless of backend response.
     }
 
     if (isTelegramMiniApp()) {
-      await cloudStorage.remove('auth_user').catch(() => {});
+      await cloudStorage.remove(AUTH_USER_KEY).catch(() => {});
+      await cloudStorage.remove(LEGACY_TOKEN_KEY).catch(() => {});
     }
 
+    clearLegacyLocalAuth();
     setCachedUser(null);
-    state = { ...state, user: null };
+    state = { user: null, isLoading: false };
   }
 
   function updateUser(user: User): void {
@@ -147,13 +199,8 @@ function createAuthStore() {
     state = { ...state, user };
   }
 
-  function _tryParse<T>(raw: string | null | undefined): T | null {
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as T;
-    } catch {
-      return null;
-    }
+  function _tryParseUser(raw: string | null | undefined): User | null {
+    return parseCachedUser(raw ?? null);
   }
 
   // Expose initializing flag so the global 401 handler can check it.

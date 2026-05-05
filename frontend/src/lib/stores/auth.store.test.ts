@@ -16,13 +16,23 @@ vi.mock('$lib/telegram', () => ({
   },
 }));
 
-const mockApiClientGet = vi.fn(async (_path: string) => null);
-const mockApiClientPost = vi.fn(async (_path: string, _body: unknown) => undefined);
+const mockApiClientGet = vi.fn(async (_path: string): Promise<unknown> => null);
+const mockApiClientPost = vi.fn(
+  async (
+    _path: string,
+    _body: unknown,
+    _options?: { skipUnauthorizedHandler?: boolean }
+  ): Promise<unknown> => undefined
+);
 
 vi.mock('$lib/api/client', () => ({
   apiClient: {
     get: (path: string) => mockApiClientGet(path),
-    post: (path: string, body: unknown) => mockApiClientPost(path, body),
+    post: (
+      path: string,
+      body: unknown,
+      options?: { skipUnauthorizedHandler?: boolean }
+    ) => mockApiClientPost(path, body, options),
   },
 }));
 
@@ -174,7 +184,9 @@ describe('logout()', () => {
 
     await authStore.logout();
 
-    expect(mockApiClientPost).toHaveBeenLastCalledWith('/api/auth/logout', {});
+    expect(mockApiClientPost).toHaveBeenLastCalledWith('/api/auth/logout', {}, {
+      skipUnauthorizedHandler: true,
+    });
     expect(authStore.user).toBeNull();
     expect(authStore.isAuthenticated).toBe(false);
     expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
@@ -198,6 +210,17 @@ describe('logout()', () => {
 
     expect(mockCloudStorageRemove).toHaveBeenCalledWith(AUTH_USER_KEY);
     expect(authStore.user).toBeNull();
+  });
+
+  it('clears legacy auth_token from localStorage during init', async () => {
+    localStorage.setItem('auth_token', 'legacy-jwt');
+    const err = Object.assign(new Error('Unauthorized'), { status: 401 });
+    mockApiClientGet.mockRejectedValue(err);
+
+    await authStore.init();
+
+    expect(localStorage.getItem('auth_token')).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
   });
 });
 
@@ -261,5 +284,20 @@ describe('init() TMA', () => {
     await authStore.init();
 
     expect(authStore.user).toBeNull();
+  });
+
+  it('treats an empty successful auth payload as logged out instead of authenticated', async () => {
+    mockIsTelegramMiniApp.mockReturnValue(true);
+    mockCloudStorageGet.mockImplementation(async (key: string) => {
+      if (key === AUTH_USER_KEY) return JSON.stringify(mockUser);
+      return null;
+    });
+    mockApiClientGet.mockResolvedValue(undefined);
+
+    await authStore.init();
+
+    expect(authStore.user).toBeNull();
+    expect(authStore.isAuthenticated).toBe(false);
+    expect(mockCloudStorageRemove).toHaveBeenCalledWith(AUTH_USER_KEY);
   });
 });
