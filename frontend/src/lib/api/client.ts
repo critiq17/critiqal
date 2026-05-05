@@ -64,14 +64,29 @@ function getUnexpectedResponseMessage(response: Response, text: string): string 
   return 'Unexpected non-JSON response from API';
 }
 
-async function parseResponse<T>(response: Response): Promise<T> {
+async function parseResponse<T>(
+  response: Response,
+  options: { notifyUnauthorized?: boolean } = {}
+): Promise<T> {
+  const { notifyUnauthorized = true } = options;
+
   if (response.status === 204) {
     return undefined as T;
   }
 
   const text = await response.text();
 
+  if (!response.ok && response.status === 401 && notifyUnauthorized) {
+    onUnauthorized?.();
+  }
+
   if (!text) {
+    if (!response.ok) {
+      throw new ApiError(
+        response.status,
+        response.statusText || `Request failed with status ${response.status}`
+      );
+    }
     return undefined as T;
   }
 
@@ -83,10 +98,6 @@ async function parseResponse<T>(response: Response): Promise<T> {
   }
 
   if (!response.ok) {
-    // Any 401 means the session is dead — trigger global logout.
-    if (response.status === 401) {
-      onUnauthorized?.();
-    }
     const message =
       typeof data === 'object' && data !== null && 'message' in data
         ? String((data as Record<string, unknown>).message)
@@ -99,10 +110,11 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 interface RequestOptions {
   body?: unknown;
+  skipUnauthorizedHandler?: boolean;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
-  const { body } = options;
+  const { body, skipUnauthorizedHandler = false } = options;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -116,7 +128,9 @@ async function request<T>(method: string, path: string, options: RequestOptions 
       signal: controller.signal,
     });
 
-    return parseResponse<T>(response);
+    return parseResponse<T>(response, {
+      notifyUnauthorized: !skipUnauthorizedHandler,
+    });
   } catch (error) {
     if (isAbortError(error)) {
       throw new ApiError(408, 'Request timed out. Please try again.');
@@ -156,8 +170,12 @@ export const apiClient = {
     return request<T>('GET', path);
   },
 
-  post<T>(path: string, body: unknown): Promise<T> {
-    return request<T>('POST', path, { body });
+  post<T>(
+    path: string,
+    body: unknown,
+    options: { skipUnauthorizedHandler?: boolean } = {}
+  ): Promise<T> {
+    return request<T>('POST', path, { body, ...options });
   },
 
   put<T>(path: string, body: unknown): Promise<T> {

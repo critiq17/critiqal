@@ -4,6 +4,7 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { profileNavStore } from '$lib/stores/profile-nav.store.svelte';
+	import { mobileComments } from '$lib/stores/mobile-comments.store';
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
 	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
@@ -16,6 +17,7 @@
 	import MobileExplore from './MobileExplore.svelte';
 	import MobileProfile from './MobileProfile.svelte';
 	import UserProfileOverlay from './UserProfileOverlay.svelte';
+	import MobileCommentsSheet from './MobileCommentsSheet.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 
@@ -142,7 +144,7 @@
 				{/if}
 			</div>
 		</div>
-		{#if !sheetStore.anyOpen}
+		{#if !sheetStore.anyOpen && !$mobileComments.open}
 			<BottomNav />
 		{/if}
 	{/if}
@@ -151,6 +153,8 @@
 {#if profileNavStore.username}
 	<UserProfileOverlay username={profileNavStore.username} />
 {/if}
+
+<MobileCommentsSheet />
 
 {#if MobilePostComposer && composeStore.open}
 	<MobilePostComposer

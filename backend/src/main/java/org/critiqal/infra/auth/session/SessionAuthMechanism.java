@@ -31,6 +31,10 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
     @Override
     public Uni<SecurityIdentity> authenticate(RoutingContext context,
             IdentityProviderManager idm) {
+        if (shouldSkipAuthentication(context)) {
+            return Uni.createFrom().nullItem();
+        }
+
         var cookie = context.request().getCookie(cookieName);
         if (cookie == null)
             return Uni.createFrom().nullItem();
@@ -54,5 +58,19 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
     @Override
     public Set<Class<? extends AuthenticationRequest>> getCredentialTypes() {
         return Set.of();
+    }
+
+    private boolean shouldSkipAuthentication(RoutingContext context) {
+        if (!"GET".equalsIgnoreCase(context.request().method().name())) {
+            return false;
+        }
+
+        var path = context.normalizedPath();
+        if (path == null) {
+            return false;
+        }
+
+        return path.matches("^/api/posts/\\d+/comments$") ||
+                path.matches("^/api/posts/\\d+/comments/\\d+/replies$");
     }
 }

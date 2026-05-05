@@ -39,7 +39,7 @@ describe('apiClient', () => {
 
     await apiClient.get('/api/posts');
 
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     const headers = init.headers as Record<string, string>;
     expect(headers).not.toHaveProperty('Authorization');
   });
@@ -58,6 +58,40 @@ describe('apiClient', () => {
 
     await expect(apiClient.get('/api/protected')).rejects.toMatchObject({ status: 401 });
     expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers the onUnauthorized handler on a 401 response with an empty body', async () => {
+    const handler = vi.fn();
+    registerUnauthorizedHandler(handler);
+
+    const fetchMock = vi.fn(async () => {
+      return new Response(null, {
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(apiClient.get('/api/protected')).rejects.toMatchObject({ status: 401 });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('can suppress the global unauthorized handler for explicit logout flows', async () => {
+    const handler = vi.fn();
+    registerUnauthorizedHandler(handler);
+
+    const fetchMock = vi.fn(async () => {
+      return new Response(null, {
+        status: 401,
+        statusText: 'Unauthorized',
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      apiClient.post('/api/auth/logout', {}, { skipUnauthorizedHandler: true })
+    ).rejects.toMatchObject({ status: 401 });
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('does NOT trigger onUnauthorized on a 5xx response', async () => {

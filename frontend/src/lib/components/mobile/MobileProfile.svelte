@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { fly, fade } from 'svelte/transition';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { openMobileComments } from '$lib/stores/mobile-comments.store';
 	import { openSheet } from '$lib/stores/sheet.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
@@ -11,7 +12,6 @@
 	import ProfilePostsList from '$lib/components/profile/ProfilePostsList.svelte';
 	import FollowersSheet from '$lib/components/profile/FollowersSheet.svelte';
 	import MobileSettingsSheet from './MobileSettingsSheet.svelte';
-	import CommentSheet from './CommentSheet.svelte';
 
 	const profile = new UseProfile();
 
@@ -19,7 +19,6 @@
 	let sentinelEl = $state<HTMLElement | null>(null);
 
 	let statsSheetType = $state<'followers' | 'following' | null>(null);
-	let openCommentSheetPostId = $state<number | null>(null);
 	let settingsOpen = $state(false);
 	let stravaNotification = $state<'connected' | 'denied' | null>(null);
 
@@ -56,6 +55,10 @@
 		settingsOpen = false;
 		closeSettings_?.();
 		closeSettings_ = null;
+	}
+
+	function openComments(postId: number): void {
+		openMobileComments(postId);
 	}
 
 	async function handleAvatarChange(e: Event): Promise<void> {
@@ -221,17 +224,11 @@
 			posts={profile.posts}
 			postsLoading={profile.postsLoading}
 			postsError={profile.profileError}
-			onOpenComments={(id) => { openCommentSheetPostId = id; }}
+			onOpenComments={openComments}
 			onRetry={() => profile.load()}
 		/>
 	{/if}
 </div>
-
-<CommentSheet
-	postId={openCommentSheetPostId ?? 0}
-	open={openCommentSheetPostId !== null}
-	onClose={() => { openCommentSheetPostId = null; }}
-/>
 
 <FollowersSheet
 	open={statsSheetType !== null}
