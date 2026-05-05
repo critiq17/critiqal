@@ -1,4 +1,4 @@
-package org.critiqal.auth;
+package org.critiqal.support;
 
 import io.restassured.response.Response;
 

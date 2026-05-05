@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.support;
 
 import org.critiqal.domain.auth.session.SessionService;
 

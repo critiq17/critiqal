@@ -1,7 +1,7 @@
 package org.critiqal.api;
 
 import io.quarkus.test.junit.QuarkusTest;
-import org.critiqal.auth.TestAuthHelper;
+import org.critiqal.support.TestAuthHelper;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
