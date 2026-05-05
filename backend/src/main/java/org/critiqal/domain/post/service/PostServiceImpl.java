@@ -9,6 +9,7 @@ import org.critiqal.domain.post.PostStatus;
 import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post_view.PostView;
 import org.critiqal.domain.post_view.PostViewId;
+import org.critiqal.domain.post_view.repository.PostViewRepository;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.ForbiddenException;
 import org.critiqal.domain.shared.exception.NotFoundException;
@@ -25,13 +26,16 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService {
 
     private final PostRepository postRepo;
+    private final PostViewRepository postViewRepo;
     private final UserService userService;
     private final Event<PostCreatedEvent> postCreatedEvent;
 
     public PostServiceImpl(PostRepository postRepo,
+                           PostViewRepository postViewRepo,
                            UserService userService,
                            Event<PostCreatedEvent> postCreatedEvent) {
         this.postRepo = postRepo;
+        this.postViewRepo = postViewRepo;
         this.userService = userService;
         this.postCreatedEvent = postCreatedEvent;
     }
@@ -115,17 +119,17 @@ public class PostServiceImpl implements PostService {
         }
 
         var viewId = new PostViewId(postId, userId);
-        var existing = PostView.findById(viewId);
+        var existing = postViewRepo.findByIdOptional(viewId);
 
-        if (existing == null) {
+        if (existing.isEmpty()) {
             var view = new PostView();
             view.id = viewId;
-            view.persist();
+            postViewRepo.save(view);
             postRepo.incrementViews(postId);
             return;
         }
 
-        var view = (PostView) existing;
+        var view = existing.get();
         var oneHourAgo = Instant.now().minus(1, ChronoUnit.HOURS);
         if (view.lastViewedAt.isBefore(oneHourAgo)) {
             view.lastViewedAt = Instant.now();

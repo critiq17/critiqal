@@ -1,9 +1,9 @@
 package org.critiqal.infra.strava;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.strava.StravaIntegration;
+import org.critiqal.domain.strava.gateway.Strava0AuthClient;
 
 /*
     StravaTokenRefresher - refresher authorization token
@@ -12,9 +12,9 @@ import org.critiqal.domain.strava.StravaIntegration;
 @ApplicationScoped
 public class StravaTokenRefresher {
 
-    private final StravaOAuthClientImpl oAuthClient;
+    private final Strava0AuthClient oAuthClient;
 
-    public StravaTokenRefresher(StravaOAuthClientImpl oAuthClient) {
+    public StravaTokenRefresher(Strava0AuthClient oAuthClient) {
         this.oAuthClient = oAuthClient;
     }
 

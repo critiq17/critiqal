@@ -8,9 +8,9 @@ import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.strava.StravaIntegration;
 import org.critiqal.domain.strava.service.StravaService;
 import org.critiqal.domain.user.service.UserService;
-import org.critiqal.domain.strava.repository.StravaRepositoryImpl;
+import org.critiqal.domain.strava.gateway.Strava0AuthClient;
+import org.critiqal.domain.strava.repository.StravaRepository;
 import org.critiqal.infra.strava.StravaApiClient;
-import org.critiqal.infra.strava.StravaOAuthClientImpl;
 import org.critiqal.infra.strava.StravaTokenRefresher;
 import java.util.List;
 import java.util.Optional;
@@ -21,14 +21,14 @@ import java.util.Optional;
 @ApplicationScoped
 public class StravaServiceImpl implements StravaService {
 
-    private final StravaRepositoryImpl stravaRepo;
-    private final StravaOAuthClientImpl oAuthClient;
+    private final StravaRepository stravaRepo;
+    private final Strava0AuthClient oAuthClient;
     private final StravaApiClient apiClient;
     private final StravaTokenRefresher tokenRefresher;
     private final UserService userService;
 
-    public StravaServiceImpl(StravaRepositoryImpl stravaRepo,
-                             StravaOAuthClientImpl oAuthClient,
+    public StravaServiceImpl(StravaRepository stravaRepo,
+                             Strava0AuthClient oAuthClient,
                              StravaApiClient apiClient,
                              StravaTokenRefresher tokenRefresher,
                              UserService userService) {
@@ -63,7 +63,7 @@ public class StravaServiceImpl implements StravaService {
         integration.athleteCity = athlete.city();
         integration.athleteAvatarUrl = athlete.profileUrl();
 
-        stravaRepo.persist(integration);
+        stravaRepo.save(integration);
     }
 
     @Transactional
