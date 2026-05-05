@@ -3,6 +3,7 @@ package org.critiqal.infra.telegram;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.ObservesAsync;
 import org.critiqal.domain.alert.ErrorEvent;
+import org.critiqal.domain.alert.service.AlertService;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.user.event.UserRegisteredEvent;
 

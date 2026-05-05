@@ -1,8 +1,8 @@
-package org.critiqal.api;
+package org.critiqal.api.media;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
-import org.critiqal.api.dtos.PostDTO;
+import org.critiqal.api.post.response.PostDTO;
 import org.critiqal.domain.post_photo.service.PostPhotoService;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 import jakarta.ws.rs.core.Context;
@@ -24,60 +24,19 @@ import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.ForbiddenException;
 
 @Path("/api/media")
-public class MediaController {
+public class PostPhotoResource {
 
     private final MediaService mediaService;
-    private final UserService userService;
     private final PostService postService;
     private final PostPhotoService postPhotoService;
 
-    public MediaController(MediaService mediaService,
-                           UserService userService,
-                           PostService postService,
-                           PostPhotoService postPhotoService) {
+    public PostPhotoResource(MediaService mediaService,
+                             UserService userService,
+                             PostService postService,
+                             PostPhotoService postPhotoService) {
         this.mediaService = mediaService;
-        this.userService = userService;
         this.postService = postService;
         this.postPhotoService = postPhotoService;
-    }
-
-    @POST
-    @Path("/avatar")
-    @Authenticated
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.APPLICATION_JSON)
-    public Response uploadAvatar(
-            @Context SecurityContext ctx,
-            @RestForm("file") FileUpload file
-            ) throws IOException {
-        validateImage(file);
-
-        Long userId = extractUserId(ctx);
-        var user = userService.getById(userId);
-
-        if (user.avatarUrl != null) {
-            mediaService.deletePhoto(user.avatarUrl);
-        }
-
-        var url = mediaService.uploadAvatar(userId, Files.newInputStream(file.uploadedFile()));
-        userService.updateAvatar(userId, url);
-
-        return Response.ok(Map.of("avatarUrl", url)).build();
-    }
-
-    @DELETE
-    @Path("/avatar")
-    @Authenticated
-    public Response deleteAvatar(@Context SecurityContext ctx) {
-        Long userId = extractUserId(ctx);
-        var user = userService.getById(userId);
-
-        if (user.avatarUrl != null) {
-            mediaService.deletePhoto(user.avatarUrl);
-            userService.updateAvatar(userId, null);
-        }
-
-        return Response.noContent().build();
     }
 
     @POST

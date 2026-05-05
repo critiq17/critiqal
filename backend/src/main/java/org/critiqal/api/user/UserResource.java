@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.api.user;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
@@ -8,9 +8,9 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
-import org.critiqal.api.dtos.PostDTO;
-import org.critiqal.api.dtos.UpdateProfileRequest;
-import org.critiqal.api.dtos.UserDTO;
+import org.critiqal.api.post.response.PostDTO;
+import org.critiqal.api.user.request.UpdateProfileRequest;
+import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.domain.follow.service.FollowService;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.user.Username;
@@ -21,15 +21,15 @@ import java.util.List;
 @Path("/api/users")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class UserController {
+public class UserResource {
 
     private final UserService userService;
     private final FollowService followService;
     private final PostService postService;
 
-    public UserController(UserService userService,
-                          FollowService followService,
-                          PostService postService) {
+    public UserResource(UserService userService,
+                        FollowService followService,
+                        PostService postService) {
         this.userService = userService;
         this.followService = followService;
         this.postService = postService;

@@ -1,10 +1,10 @@
-package org.critiqal.api.dtos.strava;
+package org.critiqal.api.strava.request;
 
 import org.critiqal.domain.strava.StravaIntegration;
 
 import java.time.Instant;
 
-public record StravaConnectionDTO(
+public record StravaConnection(
         Long athleteId,
         String username,
         String firstname,
@@ -13,8 +13,8 @@ public record StravaConnectionDTO(
         String avatarUrl,
         Instant connectedAt
 ) {
-    public static StravaConnectionDTO from(StravaIntegration i) {
-        return new StravaConnectionDTO(
+    public static StravaConnection from(StravaIntegration i) {
+        return new StravaConnection(
                 i.athleteId,
                 i.athleteUsername,
                 i.athleteFirstname,

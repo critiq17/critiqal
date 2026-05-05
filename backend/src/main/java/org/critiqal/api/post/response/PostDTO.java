@@ -1,5 +1,6 @@
-package org.critiqal.api.dtos;
+package org.critiqal.api.post.response;
 
+import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostStatus;
 import org.critiqal.domain.post_photo.PostPhoto;

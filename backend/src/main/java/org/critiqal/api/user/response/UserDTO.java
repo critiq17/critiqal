@@ -1,4 +1,4 @@
-package org.critiqal.api.dtos;
+package org.critiqal.api.user.response;
 
 import org.critiqal.domain.user.User;
 

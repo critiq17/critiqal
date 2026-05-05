@@ -1,4 +1,4 @@
-package org.critiqal.api.dtos;
+package org.critiqal.api.post.request;
 
 import org.critiqal.domain.reaction.ReactionType;
 

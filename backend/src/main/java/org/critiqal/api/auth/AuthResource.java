@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.api.auth;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
@@ -6,9 +6,9 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
-import org.critiqal.api.dtos.LoginRequest;
-import org.critiqal.api.dtos.RegisterRequest;
-import org.critiqal.api.dtos.UserDTO;
+import org.critiqal.api.auth.request.LoginRequest;
+import org.critiqal.api.auth.request.RegisterRequest;
+import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
@@ -17,16 +17,16 @@ import org.critiqal.infra.auth.session.SessionFactoryCookie;
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-public class AuthController {
+public class AuthResource {
 
 
     private final UserService userService;
     private final SessionService sessions;
     private final SessionFactoryCookie cookies;
 
-    public AuthController(UserService userService,
-                          SessionService sessions,
-                          SessionFactoryCookie cookies) {
+    public AuthResource(UserService userService,
+                        SessionService sessions,
+                        SessionFactoryCookie cookies) {
         this.userService = userService;
         this.sessions = sessions;
         this.cookies = cookies;

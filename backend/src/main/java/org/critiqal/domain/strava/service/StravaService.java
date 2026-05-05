@@ -1,7 +1,7 @@
 package org.critiqal.domain.strava.service;
 
-import org.critiqal.api.dtos.strava.StravaActivityDTO;
-import org.critiqal.api.dtos.strava.StravaConnectionDTO;
+import org.critiqal.api.strava.response.StravaActivity;
+import org.critiqal.api.strava.request.StravaConnection;
 import java.util.List;
 import java.util.Optional;
 
@@ -9,6 +9,6 @@ public interface StravaService {
     public String getAuthorizationUrl(Long userId);
     public void handleCallback(Long userId, String code);
     public void disconnect(Long userId);
-    public Optional<StravaConnectionDTO> getConnection(Long userId);
-    public List<StravaActivityDTO> getRecentActivities(Long userId, int limit);
+    public Optional<StravaConnection> getConnection(Long userId);
+    public List<StravaActivity> getRecentActivities(Long userId, int limit);
 }

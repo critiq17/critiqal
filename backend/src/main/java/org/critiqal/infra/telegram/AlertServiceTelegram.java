@@ -1,23 +1,24 @@
 package org.critiqal.infra.telegram;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+
+import org.critiqal.domain.alert.service.AlertService;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class AlertService {
+public class AlertServiceTelegram implements AlertService {
 
-    private static final Logger log = Logger.getLogger(AlertService.class);
+    private static final Logger log = Logger.getLogger(AlertServiceTelegram.class);
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     private final TelegramClient telegramClient;
 
-    public AlertService(TelegramClient telegramClient) {
+    public AlertServiceTelegram(TelegramClient telegramClient) {
         this.telegramClient = telegramClient;
     }
     /**

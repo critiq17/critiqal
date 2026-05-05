@@ -2,8 +2,8 @@ package org.critiqal.application.strava;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import org.critiqal.api.dtos.strava.StravaActivityDTO;
-import org.critiqal.api.dtos.strava.StravaConnectionDTO;
+import org.critiqal.api.strava.response.StravaActivity;
+import org.critiqal.api.strava.request.StravaConnection;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.strava.StravaIntegration;
 import org.critiqal.domain.strava.service.StravaService;
@@ -72,19 +72,19 @@ public class StravaServiceImpl implements StravaService {
                 .ifPresent(stravaRepo::delete);
     }
 
-    public Optional<StravaConnectionDTO> getConnection(Long userId) {
+    public Optional<StravaConnection> getConnection(Long userId) {
         return stravaRepo.findByUserId(userId)
-                .map(StravaConnectionDTO::from);
+                .map(StravaConnection::from);
     }
 
-    public List<StravaActivityDTO> getRecentActivities(Long userId, int limit) {
+    public List<StravaActivity> getRecentActivities(Long userId, int limit) {
         var integration = stravaRepo.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Strava not connected"));
 
         var token = tokenRefresher.getValidAccessToken(integration);
 
         return apiClient.getAthleteActivities(token, limit).stream()
-                .map(StravaActivityDTO::from)
+                .map(StravaActivity::from)
                 .toList();
     }
 }

@@ -1,7 +1,5 @@
 package org.critiqal.infra.strava;
 
-import org.critiqal.api.dtos.strava.StravaActivityDTO;
-
 import java.time.Instant;
 
 public record StravaActivity(
@@ -15,13 +13,13 @@ public record StravaActivity(
         double avgHeartrate,
         double avgSpeedMs
 ) {
-    public static StravaActivityDTO from(StravaActivity a) {
+    public static org.critiqal.api.strava.response.StravaActivity from(StravaActivity a) {
         double distanceKm = a.distanceMeters() / 1000.0;
         double paceMinPerKm = a.avgSpeedMs() > 0
                 ? (1000.0 / a.avgSpeedMs()) / 60.0
                 : 0;
 
-        return new StravaActivityDTO(
+        return new org.critiqal.api.strava.response.StravaActivity(
                 a.id(),
                 a.name(),
                 a.type(),

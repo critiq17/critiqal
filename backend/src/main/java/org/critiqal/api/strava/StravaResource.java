@@ -1,4 +1,4 @@
-package org.critiqal.api;
+package org.critiqal.api.strava;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
@@ -6,7 +6,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
-import org.critiqal.api.dtos.strava.StravaActivityDTO;
+import org.critiqal.api.strava.response.StravaActivity;
 import org.critiqal.application.strava.StravaServiceImpl;
 
 import java.net.URI;
@@ -19,11 +19,11 @@ import java.util.Map;
 
 @Path("/api/integrations/strava")
 @Produces(MediaType.APPLICATION_JSON)
-public class StravaController {
+public class StravaResource {
 
     private final StravaServiceImpl stravaService;
 
-    public StravaController(StravaServiceImpl stravaService) {
+    public StravaResource(StravaServiceImpl stravaService) {
         this.stravaService = stravaService;
     }
 
@@ -77,7 +77,7 @@ public class StravaController {
     @GET
     @Path("/activities")
     @Authenticated
-    public List<StravaActivityDTO> getActivities(
+    public List<StravaActivity> getActivities(
             @Context SecurityContext ctx,
             @QueryParam("limit") @DefaultValue("5") int limit
     ) {

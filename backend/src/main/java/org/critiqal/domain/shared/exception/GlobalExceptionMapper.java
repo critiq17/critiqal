@@ -3,7 +3,7 @@ package org.critiqal.domain.shared.exception;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
-import org.critiqal.infra.telegram.AlertService;
+import org.critiqal.domain.alert.service.AlertService;
 import org.jboss.logging.Logger;
 
 import java.util.Map;
