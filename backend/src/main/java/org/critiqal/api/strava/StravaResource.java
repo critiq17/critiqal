@@ -80,7 +80,11 @@ public class StravaResource {
     @Path("/activities")
     @Authenticated
     public List<StravaActivity> getActivities(@QueryParam("limit") @DefaultValue("5") int limit) {
-        return stravaService.getRecentActivities(currentUser.id(), Math.min(limit, 20));
+        var userId = currentUser.id();
+        if (stravaService.getConnection(userId).isEmpty()) {
+            return List.of();
+        }
+        return stravaService.getRecentActivities(userId, Math.min(limit, 20));
     }
 
     // Return public user account
