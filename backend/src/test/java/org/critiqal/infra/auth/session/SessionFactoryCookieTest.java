@@ -25,6 +25,16 @@ class SessionFactoryCookieTest {
     }
 
     @Test
+    void constructor_trimsCookieName() {
+        var factory = new SessionFactoryCookie("  session  ", false, "Lax", 30);
+
+        var issued = factory.issue("abc");
+
+        assertThat(factory.name()).isEqualTo("session");
+        assertThat(issued.getName()).isEqualTo("session");
+    }
+
+    @Test
     void constructor_rejectsSameSiteNoneWithoutSecure() {
         assertThrows(IllegalArgumentException.class,
                 () -> new SessionFactoryCookie("session", false, "None", 30));

@@ -2,6 +2,8 @@ package org.critiqal.api.auth;
 
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
@@ -62,7 +64,9 @@ public class AuthResource {
     @POST @Path("/logout")
     @Consumes(MediaType.WILDCARD)
     @Authenticated
-    public Response logout(@CookieParam("session") String sid) {
+    public Response logout(@Context HttpHeaders headers) {
+        var cookie = headers.getCookies().get(cookies.name());
+        var sid = cookie != null ? cookie.getValue() : null;
         sessions.destroy(sid);
         return Response.noContent().cookie(cookies.expire()).build();
     }

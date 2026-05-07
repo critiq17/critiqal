@@ -25,7 +25,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
             SessionService sessions,
             @ConfigProperty(name = "session.cookie.name") String cookieName) {
         this.sessions = sessions;
-        this.cookieName = cookieName;
+        this.cookieName = SessionFactoryCookie.normalizeName(cookieName);
     }
 
     @Override
