@@ -6,13 +6,18 @@ interface StravaConnectResponse {
 	url: string;
 }
 
+async function getNullable<T>(path: string): Promise<T | null> {
+	const response = await apiClient.get<T | null | undefined>(path);
+	return response ?? null;
+}
+
 export const stravaService = {
 	getConnectUrl(): Promise<StravaConnectResponse> {
 		return apiClient.get<StravaConnectResponse>(API.strava.connect);
 	},
 
 	getConnection(): Promise<StravaConnection | null> {
-		return apiClient.get<StravaConnection | null>(API.strava.connection);
+		return getNullable<StravaConnection>(API.strava.connection);
 	},
 
 	disconnect(): Promise<void> {
@@ -24,6 +29,6 @@ export const stravaService = {
 	},
 
 	getPublicConnection(userId: string): Promise<StravaConnection | null> {
-		return apiClient.get<StravaConnection | null>(API.strava.public(userId));
+		return getNullable<StravaConnection>(API.strava.public(userId));
 	},
 };

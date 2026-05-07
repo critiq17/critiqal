@@ -29,11 +29,11 @@ function createStravaStore() {
 
 		try {
 			const connection = await stravaService.getConnection();
-			const activities = connection !== null
+			const activities = connection != null
 				? await stravaService.getActivities()
 				: [];
 
-			state = { connection, activities, loading: false, error: null };
+			state = { connection: connection ?? null, activities, loading: false, error: null };
 		} catch (error) {
 			setError(error);
 		}
@@ -66,7 +66,13 @@ function createStravaStore() {
 
 		try {
 			const connection = await stravaService.getPublicConnection(userId);
-			state = { ...state, connection, activities: [], loading: false, error: null };
+			state = {
+				...state,
+				connection: connection ?? null,
+				activities: [],
+				loading: false,
+				error: null
+			};
 		} catch (error) {
 			setError(error);
 		}
