@@ -13,6 +13,7 @@ import org.critiqal.infra.strava.StravaApiClient;
 import org.critiqal.infra.strava.StravaTokenRefresher;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link StravaService}.
@@ -39,12 +40,12 @@ public class StravaServiceImpl implements StravaService {
         this.userService = userService;
     }
 
-    public String getAuthorizationUrl(Long userId) {
+    public String getAuthorizationUrl(UUID userId) {
         return oAuthClient.buildAuthorizationUrl(userId.toString());
     }
 
     @Transactional
-    public void handleCallback(Long userId, String code) {
+    public void handleCallback(UUID userId, String code) {
         var tokenResponse = oAuthClient.exchangeCode(code);
         var athlete = tokenResponse.athlete();
         var user = userService.getById(userId);
@@ -67,17 +68,17 @@ public class StravaServiceImpl implements StravaService {
     }
 
     @Transactional
-    public void disconnect(Long userId) {
+    public void disconnect(UUID userId) {
         stravaRepo.findByUserId(userId)
                 .ifPresent(stravaRepo::delete);
     }
 
-    public Optional<StravaConnection> getConnection(Long userId) {
+    public Optional<StravaConnection> getConnection(UUID userId) {
         return stravaRepo.findByUserId(userId)
                 .map(StravaConnection::from);
     }
 
-    public List<StravaActivity> getRecentActivities(Long userId, int limit) {
+    public List<StravaActivity> getRecentActivities(UUID userId, int limit) {
         var integration = stravaRepo.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Strava not connected"));
 

@@ -25,7 +25,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
             SessionService sessions,
             @ConfigProperty(name = "session.cookie.name") String cookieName) {
         this.sessions = sessions;
-        this.cookieName = cookieName;
+        this.cookieName = SessionFactoryCookie.normalizeName(cookieName);
     }
 
     @Override
@@ -70,7 +70,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
             return false;
         }
 
-        return path.matches("^/api/posts/\\d+/comments$") ||
-                path.matches("^/api/posts/\\d+/comments/\\d+/replies$");
+        return path.matches("^/api/posts/[^/]+/comments$") ||
+                path.matches("^/api/posts/[^/]+/comments/[^/]+/replies$");
     }
 }

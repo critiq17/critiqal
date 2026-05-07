@@ -3,7 +3,7 @@
 
 	interface Props {
 		photos: PostPhoto[];
-		postId: number;
+		postId: string;
 	}
 
 	let { photos, postId }: Props = $props();

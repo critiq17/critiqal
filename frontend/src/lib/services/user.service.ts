@@ -15,19 +15,19 @@ export const userService = {
     return apiClient.put<User>(API.users.me, req);
   },
 
-  follow(targetId: number): Promise<void> {
+  follow(targetId: string): Promise<void> {
     return apiClient.post<void>(API.users.follow(targetId), {});
   },
 
-  unfollow(targetId: number): Promise<void> {
+  unfollow(targetId: string): Promise<void> {
     return apiClient.delete(API.users.follow(targetId));
   },
 
-  getFollowers(userId: number): Promise<User[]> {
+  getFollowers(userId: string): Promise<User[]> {
     return apiClient.get<User[]>(API.users.followers(userId));
   },
 
-  getFollowing(userId: number): Promise<User[]> {
+  getFollowing(userId: string): Promise<User[]> {
     return apiClient.get<User[]>(API.users.following(userId));
   },
 

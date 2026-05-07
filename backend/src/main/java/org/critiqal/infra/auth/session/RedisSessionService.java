@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 @ApplicationScoped
 public class RedisSessionService implements SessionService {
@@ -31,7 +32,7 @@ public class RedisSessionService implements SessionService {
     }
 
     @Override
-    public String create(Long userId) {
+    public String create(UUID userId) {
         Objects.requireNonNull(userId, "userId");
         var id = generateId();
         commands.setex(KEY_PREFIX + id, ttl.toSeconds(), userId.toString());
@@ -39,13 +40,13 @@ public class RedisSessionService implements SessionService {
     }
 
     @Override
-    public Optional<Long> resolve(String sessionId) {
+    public Optional<UUID> resolve(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) return Optional.empty();
         var value = commands.getex(KEY_PREFIX + sessionId, new GetExArgs().ex(ttl.toSeconds()));
         if (value == null) return Optional.empty();
         try {
-            return Optional.of(Long.parseLong(value));
-        } catch (NumberFormatException e) {
+            return Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException e) {
             return Optional.empty();
         }
     }

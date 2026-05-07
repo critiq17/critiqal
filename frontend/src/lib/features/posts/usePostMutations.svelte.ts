@@ -5,8 +5,8 @@ export class UsePostMutations {
 	deleted = $state(false);
 
 	constructor(
-		private postId: number,
-		private onDeleted?: (id: number) => void
+		private postId: string,
+		private onDeleted?: (id: string) => void
 	) {}
 
 	async deletePost(): Promise<void> {

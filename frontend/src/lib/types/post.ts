@@ -3,14 +3,14 @@ import type { User } from './user';
 export type PostStatus = 'DRAFT' | 'PUBLISHED' | 'DELETED' | 'ARCHIVED';
 
 export interface PostPhoto {
-	id: number;
+	id: string;
 	url: string;
 	thumbnailUrl: string;
 	position: number;
 }
 
 export interface Post {
-	id: number;
+	id: string;
 	author: User;
 	content: string;
 	photos: PostPhoto[];

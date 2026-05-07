@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
+import java.util.UUID;
+
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 import static org.hamcrest.Matchers.hasItem;
@@ -18,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class UserJourneyIT {
 
     static String sid;
-    static Long postId;
-    static Long commentId;
+    static UUID postId;
+    static UUID commentId;
 
     @Test @Order(1)
     void step1_register() {
@@ -35,7 +37,7 @@ public class UserJourneyIT {
 
     @Test @Order(2)
     void step2_createPost() {
-        postId = Long.valueOf(given()
+        postId = UUID.fromString(given()
                 .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"my first post\"}")
@@ -51,12 +53,12 @@ public class UserJourneyIT {
         given()
                 .when().get("/api/posts")
                 .then().statusCode(200)
-                .body("content.id", hasItem(postId.intValue()));
+                .body("content.id", hasItem(postId.toString()));
     }
 
     @Test @Order(4)
     void step4_addComment() {
-        commentId = Long.valueOf(given()
+        commentId = UUID.fromString(given()
                 .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
                 .body("{\"content\":\"great post!\"}")
@@ -72,7 +74,7 @@ public class UserJourneyIT {
         given()
                 .when().get("/api/posts/" + postId + "/comments")
                 .then().statusCode(200)
-                .body("id", hasItem(commentId.intValue()));
+                .body("id", hasItem(commentId.toString()));
     }
 
     @Test @Order(6)
@@ -88,6 +90,6 @@ public class UserJourneyIT {
         given()
                 .when().get("/api/posts")
                 .then().statusCode(200)
-                .body("content.id", not(hasItem(postId.intValue())));
+                .body("content.id", not(hasItem(postId.toString())));
     }
 }

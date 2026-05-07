@@ -41,7 +41,7 @@ import { authStore } from './auth.store.svelte';
 import type { User } from '$lib/types';
 
 const mockUser: User = {
-  id: 1,
+  id: '1',
   username: 'testuser',
   name: 'Test User',
   bio: null,

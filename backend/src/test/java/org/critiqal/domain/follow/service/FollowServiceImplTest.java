@@ -1,6 +1,5 @@
 package org.critiqal.domain.follow.service;
 
-import org.critiqal.domain.follow.Follow;
 import org.critiqal.domain.follow.repository.FollowRepository;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.User;
@@ -9,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -36,36 +36,41 @@ class FollowServiceImplTest {
 
     @Test
     void followThrowsWhenTryingToFollowSelf() {
-        var user = user(1L);
-        when(userService.getById(1L)).thenReturn(user);
+        var userId = uuid(1);
+        var user = user(userId);
+        when(userService.getById(userId)).thenReturn(user);
 
-        assertThrows(DomainException.class, () -> service.follow(1L, 1L));
+        assertThrows(DomainException.class, () -> service.follow(userId, userId));
 
         verify(followRepo, never()).save(any());
     }
 
     @Test
     void followReturnsWhenRelationshipAlreadyExists() {
-        var follower = user(1L);
-        var following = user(2L);
-        when(userService.getById(1L)).thenReturn(follower);
-        when(userService.getById(2L)).thenReturn(following);
-        when(followRepo.isFollowing(1L, 2L)).thenReturn(true);
+        var followerId = uuid(1);
+        var followingId = uuid(2);
+        var follower = user(followerId);
+        var following = user(followingId);
+        when(userService.getById(followerId)).thenReturn(follower);
+        when(userService.getById(followingId)).thenReturn(following);
+        when(followRepo.isFollowing(followerId, followingId)).thenReturn(true);
 
-        service.follow(1L, 2L);
+        service.follow(followerId, followingId);
 
         verify(followRepo, never()).save(any());
     }
 
     @Test
     void followPersistsNewRelationship() {
-        var follower = user(1L);
-        var following = user(2L);
-        when(userService.getById(1L)).thenReturn(follower);
-        when(userService.getById(2L)).thenReturn(following);
-        when(followRepo.isFollowing(1L, 2L)).thenReturn(false);
+        var followerId = uuid(1);
+        var followingId = uuid(2);
+        var follower = user(followerId);
+        var following = user(followingId);
+        when(userService.getById(followerId)).thenReturn(follower);
+        when(userService.getById(followingId)).thenReturn(following);
+        when(followRepo.isFollowing(followerId, followingId)).thenReturn(false);
 
-        service.follow(1L, 2L);
+        service.follow(followerId, followingId);
 
         verify(followRepo).save(argThat(follow ->
                 follow.follower == follower && follow.following == following));
@@ -73,49 +78,62 @@ class FollowServiceImplTest {
 
     @Test
     void unfollowDelegatesToRepository() {
-        service.unfollow(1L, 2L);
+        var followerId = uuid(1);
+        var followingId = uuid(2);
 
-        verify(followRepo).deleteByUsers(1L, 2L);
+        service.unfollow(followerId, followingId);
+
+        verify(followRepo).deleteByUsers(followerId, followingId);
     }
 
     @Test
     void getFollowersDelegatesToRepository() {
-        var followers = List.of(user(1L), user(2L));
-        when(followRepo.findFollowers(3L)).thenReturn(followers);
+        var userId = uuid(3);
+        var followers = List.of(user(uuid(1)), user(uuid(2)));
+        when(followRepo.findFollowers(userId)).thenReturn(followers);
 
-        assertSame(followers, service.getFollowers(3L));
+        assertSame(followers, service.getFollowers(userId));
     }
 
     @Test
     void getFollowingDelegatesToRepository() {
-        var following = List.of(user(4L));
-        when(followRepo.findFollowing(3L)).thenReturn(following);
+        var userId = uuid(3);
+        var following = List.of(user(uuid(4)));
+        when(followRepo.findFollowing(userId)).thenReturn(following);
 
-        assertSame(following, service.getFollowing(3L));
+        assertSame(following, service.getFollowing(userId));
     }
 
     @Test
     void isFollowingDelegatesToRepository() {
-        when(followRepo.isFollowing(1L, 2L)).thenReturn(true);
+        var followerId = uuid(1);
+        var followingId = uuid(2);
+        var anotherId = uuid(3);
+        when(followRepo.isFollowing(followerId, followingId)).thenReturn(true);
 
-        assertTrue(service.isFollowing(1L, 2L));
-        assertFalse(service.isFollowing(1L, 3L));
+        assertTrue(service.isFollowing(followerId, followingId));
+        assertFalse(service.isFollowing(followerId, anotherId));
     }
 
     @Test
     void getStatsReturnsRepositoryCounts() {
-        when(followRepo.countFollowers(8L)).thenReturn(11L);
-        when(followRepo.countFollowing(8L)).thenReturn(7L);
+        var userId = uuid(8);
+        when(followRepo.countFollowers(userId)).thenReturn(11L);
+        when(followRepo.countFollowing(userId)).thenReturn(7L);
 
-        var stats = service.getStats(8L);
+        var stats = service.getStats(userId);
 
         assertEquals(11L, stats.followers());
         assertEquals(7L, stats.following());
     }
 
-    private static User user(Long id) {
+    private static User user(UUID id) {
         var user = new User();
         user.id = id;
         return user;
+    }
+
+    private static UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

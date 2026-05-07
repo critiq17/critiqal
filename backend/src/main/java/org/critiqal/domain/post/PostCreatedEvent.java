@@ -1,3 +1,5 @@
 package org.critiqal.domain.post;
 
-public record PostCreatedEvent(Long postId, Long authorId) {}
+import java.util.UUID;
+
+public record PostCreatedEvent(UUID postId, UUID authorId) {}

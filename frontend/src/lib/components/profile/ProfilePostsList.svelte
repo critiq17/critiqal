@@ -11,7 +11,7 @@
 		posts: Post[];
 		postsLoading?: boolean;
 		postsError: string | null;
-		onOpenComments: (postId: number) => void;
+		onOpenComments: (postId: string) => void;
 		onRetry: () => void;
 	}
 
@@ -20,7 +20,7 @@
 	// Stable map: only create a new UseReactions instance for posts that appear for the first time.
 	// $state so the template re-renders when new posts arrive; mutate in-place to preserve
 	// already-loaded reaction data (replacing the whole map would wipe it).
-	let reactionHooks = $state(new Map<number, UseReactions>());
+	let reactionHooks = $state(new Map<string, UseReactions>());
 	$effect(() => {
 		const seen = new Set(posts.map((p) => p.id));
 		let changed = false;
@@ -46,12 +46,12 @@
 		return String(n);
 	}
 
-	function trackView(el: HTMLElement, postId: number): { destroy: () => void } {
+	function trackView(el: HTMLElement, postId: string): { destroy: () => void } {
 		const cleanup = viewTracker.observe(el, postId, authStore.isAuthenticated);
 		return { destroy: cleanup };
 	}
 
-	function handleReaction(postId: number, type: ReactionType): void {
+	function handleReaction(postId: string, type: ReactionType): void {
 		reactionHooks.get(postId)?.react(type);
 	}
 </script>

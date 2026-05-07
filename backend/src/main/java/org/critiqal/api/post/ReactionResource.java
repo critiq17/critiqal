@@ -10,6 +10,7 @@ import org.critiqal.domain.reaction.ReactionType;
 import org.critiqal.domain.reaction.service.ReactionService;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Path("/api/posts")
 @Produces(MediaType.APPLICATION_JSON)
@@ -26,15 +27,15 @@ public class ReactionResource {
     }
     @GET
     @Path("/{id}/reactions")
-    public Map<ReactionType, Long> getReactions(@PathParam("id") Long postId) {
+    public Map<ReactionType, Long> getReactions(@PathParam("id") UUID postId) {
         return reactionService.getReactions(postId);
     }
 
     @GET
     @Path("/{id}/reactions/mine")
     @Authenticated
-    public Response getMyReaction(@PathParam("id") Long postId) {
-        Long userId = currentUser.id();
+    public Response getMyReaction(@PathParam("id") UUID postId) {
+        UUID userId = currentUser.id();
         return reactionService.getMyReaction(postId, userId)
                 .map(type -> Response.ok(type).build())
                 .orElse(Response.noContent().build());
@@ -43,7 +44,7 @@ public class ReactionResource {
     @POST
     @Path("/{id}/reactions")
     @Authenticated
-    public Response react(@PathParam("id") Long postId,
+    public Response react(@PathParam("id") UUID postId,
                           ReactionRequest req) {
         reactionService.react(currentUser.id(), postId, req.type());
         return Response.ok().build();
@@ -53,7 +54,7 @@ public class ReactionResource {
     @DELETE
     @Path("/{id}/reactions")
     @Authenticated
-    public Response removeReaction(@PathParam("id") Long postId) {
+    public Response removeReaction(@PathParam("id") UUID postId) {
         reactionService.removeReaction(currentUser.id(), postId);
         return Response.noContent().build();
     }

@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,32 +39,38 @@ class ReactionServiceImplTest {
 
     @Test
     void getReactionsDelegatesToRepository() {
+        var postId = uuid(6);
         var counts = Map.of(ReactionType.GIGACHAD, 3L);
-        when(reactionRepo.countByPost(6L)).thenReturn(counts);
+        when(reactionRepo.countByPost(postId)).thenReturn(counts);
 
-        assertSame(counts, service.getReactions(6L));
+        assertSame(counts, service.getReactions(postId));
     }
 
     @Test
     void getMyReactionReturnsMappedTypeOrEmpty() {
+        var postId = uuid(9);
+        var firstUserId = uuid(4);
+        var secondUserId = uuid(5);
         var reaction = new Reaction();
         reaction.type = ReactionType.DAVID;
-        when(reactionRepo.findByPostAndUser(9L, 4L)).thenReturn(Optional.of(reaction));
-        when(reactionRepo.findByPostAndUser(9L, 5L)).thenReturn(Optional.empty());
+        when(reactionRepo.findByPostAndUser(postId, firstUserId)).thenReturn(Optional.of(reaction));
+        when(reactionRepo.findByPostAndUser(postId, secondUserId)).thenReturn(Optional.empty());
 
-        assertEquals(Optional.of(ReactionType.DAVID), service.getMyReaction(9L, 4L));
-        assertTrue(service.getMyReaction(9L, 5L).isEmpty());
+        assertEquals(Optional.of(ReactionType.DAVID), service.getMyReaction(postId, firstUserId));
+        assertTrue(service.getMyReaction(postId, secondUserId).isEmpty());
     }
 
     @Test
     void reactUpdatesExistingReactionWithoutSavingNewEntity() {
+        var userId = uuid(2);
+        var postId = uuid(7);
         var reaction = new Reaction();
         reaction.type = ReactionType.GIGACHAD;
-        when(userService.getById(2L)).thenReturn(user(2L));
-        when(postService.getById(7L)).thenReturn(post(7L));
-        when(reactionRepo.findByPostAndUser(7L, 2L)).thenReturn(Optional.of(reaction));
+        when(userService.getById(userId)).thenReturn(user(userId));
+        when(postService.getById(postId)).thenReturn(post(postId));
+        when(reactionRepo.findByPostAndUser(postId, userId)).thenReturn(Optional.of(reaction));
 
-        var updated = service.react(2L, 7L, ReactionType.THE_ROCK);
+        var updated = service.react(userId, postId, ReactionType.THE_ROCK);
 
         assertSame(reaction, updated);
         assertEquals(ReactionType.THE_ROCK, reaction.type);
@@ -73,14 +79,16 @@ class ReactionServiceImplTest {
 
     @Test
     void reactCreatesAndSavesNewReactionWhenMissing() {
-        var user = user(2L);
-        var post = post(7L);
-        when(userService.getById(2L)).thenReturn(user);
-        when(postService.getById(7L)).thenReturn(post);
-        when(reactionRepo.findByPostAndUser(7L, 2L)).thenReturn(Optional.empty());
+        var userId = uuid(2);
+        var postId = uuid(7);
+        var user = user(userId);
+        var post = post(postId);
+        when(userService.getById(userId)).thenReturn(user);
+        when(postService.getById(postId)).thenReturn(post);
+        when(reactionRepo.findByPostAndUser(postId, userId)).thenReturn(Optional.empty());
         when(reactionRepo.save(any(Reaction.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var created = service.react(2L, 7L, ReactionType.GIGACHAD);
+        var created = service.react(userId, postId, ReactionType.GIGACHAD);
 
         assertSame(user, created.user);
         assertSame(post, created.post);
@@ -91,20 +99,27 @@ class ReactionServiceImplTest {
 
     @Test
     void removeReactionDelegatesToRepository() {
-        service.removeReaction(2L, 7L);
+        var userId = uuid(2);
+        var postId = uuid(7);
 
-        verify(reactionRepo).deleteByPostAndUser(7L, 2L);
+        service.removeReaction(userId, postId);
+
+        verify(reactionRepo).deleteByPostAndUser(postId, userId);
     }
 
-    private static User user(Long id) {
+    private static User user(UUID id) {
         var user = new User();
         user.id = id;
         return user;
     }
 
-    private static Post post(Long id) {
+    private static Post post(UUID id) {
         var post = new Post();
         post.id = id;
         return post;
+    }
+
+    private static UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

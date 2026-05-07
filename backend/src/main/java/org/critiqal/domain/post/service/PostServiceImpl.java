@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -46,7 +47,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public Post createPost(Long authorId, String content) {
+    public Post createPost(UUID authorId, String content) {
         if (content == null || content.isBlank()) {
             throw new DomainException("Post cannot be empty");
         }
@@ -62,7 +63,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Page<Post> getUserPost(Long authorId, int page, int size) {
+    public Page<Post> getUserPost(UUID authorId, int page, int size) {
         var ids = postRepo.findByAuthorIds(authorId, page, size);
         var posts = postRepo.findByIdsWithRelations(ids);
         var total = postRepo.countByAuthor(authorId);
@@ -82,7 +83,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Post getById(Long postId) {
+    public Post getById(UUID postId) {
         return postRepo.findByIdOptional(postId)
                 .orElseThrow(() -> new NotFoundException("Post not found"));
     }
@@ -102,7 +103,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Page<Post> getFollowingFeed(Long userId, int page, int size) {
+    public Page<Post> getFollowingFeed(UUID userId, int page, int size) {
         var ids = postRepo.findFollowingFeedIds(userId, page, size);
         if (ids.isEmpty()) {
             return Page.of(List.of(), page, size, 0);
@@ -117,7 +118,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void view(Long postId, Long userId) {
+    public void view(UUID postId, UUID userId) {
         if (userId == null) {
             return;
         }
@@ -143,7 +144,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void deletePost(Long postId, Long requestedId) {
+    public void deletePost(UUID postId, UUID requestedId) {
         var post = getById(postId);
         if (!post.author.id.equals(requestedId)) {
             throw new ForbiddenException("Not your post");
@@ -153,7 +154,7 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public void view(Long postId) {
+    public void view(UUID postId) {
         postRepo.incrementViews(postId);
     }
 }

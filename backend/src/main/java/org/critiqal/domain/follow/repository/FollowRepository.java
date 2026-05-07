@@ -4,6 +4,7 @@ import org.critiqal.domain.follow.Follow;
 import org.critiqal.domain.user.User;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Defines persistence operations for follow relationships.
@@ -11,17 +12,17 @@ import java.util.List;
  */
 public interface FollowRepository {
 
-    List<User> findFollowing(Long userId);
+    List<User> findFollowing(UUID userId);
 
-    List<User> findFollowers(Long userId);
+    List<User> findFollowers(UUID userId);
 
-    boolean isFollowing(Long followerId, Long followingId);
+    boolean isFollowing(UUID followerId, UUID followingId);
 
-    long countFollowers(Long userId);
+    long countFollowers(UUID userId);
 
-    long countFollowing(Long userId);
+    long countFollowing(UUID userId);
 
     Follow save(Follow follow);
 
-    void deleteByUsers(Long followerId, Long followingId);
+    void deleteByUsers(UUID followerId, UUID followingId);
 }

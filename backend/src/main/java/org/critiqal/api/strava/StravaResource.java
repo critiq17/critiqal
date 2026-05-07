@@ -11,6 +11,7 @@ import org.critiqal.domain.strava.service.StravaServiceImpl;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Exposes REST endpoints for connecting Strava accounts and reading integration data.
@@ -50,7 +51,7 @@ public class StravaResource {
                     URI.create("/settings?strava=denied")
             ).build();
         }
-        var userId = Long.parseLong(state);
+        var userId = UUID.fromString(state);
         stravaService.handleCallback(userId, code);
 
         return Response.temporaryRedirect(
@@ -85,7 +86,7 @@ public class StravaResource {
     // Return public user account
     @GET
     @Path("/public/{userId}")
-    public Response getPublicConnection(@PathParam("userId") Long userId) {
+    public Response getPublicConnection(@PathParam("userId") UUID userId) {
         return stravaService.getConnection(userId)
                 .map(dto -> Response.ok(dto).build())
                 .orElse(Response.noContent().build());

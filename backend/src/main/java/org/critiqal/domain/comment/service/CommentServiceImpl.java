@@ -12,6 +12,7 @@ import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link CommentService}.
@@ -33,26 +34,26 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public List<Comment> getPostComments(Long postId) {
+    public List<Comment> getPostComments(UUID postId) {
         postService.getById(postId);
         return commentRepo.findByPost(postId);
     }
 
     @Override
-    public List<Comment> getRootComments(Long postId) {
+    public List<Comment> getRootComments(UUID postId) {
         postService.getById(postId);
         return commentRepo.findByRootPost(postId);
     }
 
     @Override
-    public List<Comment> getReplies(Long postId, Long commentId) {
+    public List<Comment> getReplies(UUID postId, UUID commentId) {
         var comment = findCommentInPost(postId, commentId);
         return commentRepo.findReplies(comment.id);
     }
 
     @Override
     @Transactional
-    public Comment addComment(Long authorId, Long postId, String content) {
+    public Comment addComment(UUID authorId, UUID postId, String content) {
         if (content == null || content.isBlank()) {
             throw new DomainException("Comment cannot be empty");
         }
@@ -66,7 +67,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public Comment addReply(Long authorId, Long postId, Long parentId, String content) {
+    public Comment addReply(UUID authorId, UUID postId, UUID parentId, String content) {
         if (content == null || content.isBlank()) {
             throw new DomainException("Reply cannot be empty");
         }
@@ -87,7 +88,7 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     @Transactional
-    public void deleteComment(Long postId, Long commentId, Long requestedId) {
+    public void deleteComment(UUID postId, UUID commentId, UUID requestedId) {
         var comment = findCommentInPost(postId, commentId);
         if (!comment.author.id.equals(requestedId)) {
             throw new ForbiddenException("Not your comment");
@@ -95,7 +96,7 @@ public class CommentServiceImpl implements CommentService {
         commentRepo.delete(comment);
     }
 
-    private Comment findCommentInPost(Long postId, Long commentId) {
+    private Comment findCommentInPost(UUID postId, UUID commentId) {
         postService.getById(postId);
 
         var comment = commentRepo.findByIdOptional(commentId)

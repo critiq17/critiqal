@@ -23,7 +23,7 @@ export const stravaService = {
 		return apiClient.get<StravaActivity[]>(`${API.strava.activities}?limit=${limit}`);
 	},
 
-	getPublicConnection(userId: number): Promise<StravaConnection | null> {
+	getPublicConnection(userId: string): Promise<StravaConnection | null> {
 		return apiClient.get<StravaConnection | null>(API.strava.public(userId));
 	},
 };

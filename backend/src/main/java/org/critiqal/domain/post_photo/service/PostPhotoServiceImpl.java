@@ -12,6 +12,7 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link PostPhotoService}.
@@ -33,7 +34,7 @@ public class PostPhotoServiceImpl implements PostPhotoService {
 
     @Override
     @Transactional
-    public PostPhoto addPhoto(Long postId, Long userId, FileUpload file) throws IOException {
+    public PostPhoto addPhoto(UUID postId, UUID userId, FileUpload file) throws IOException {
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {
@@ -53,7 +54,7 @@ public class PostPhotoServiceImpl implements PostPhotoService {
 
     @Override
     @Transactional
-    public void deletePhoto(Long postId, Long userId, Long photoId) {
+    public void deletePhoto(UUID postId, UUID userId, UUID photoId) {
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {

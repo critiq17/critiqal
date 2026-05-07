@@ -114,7 +114,7 @@ export class UseProfilePage {
 		await postsPromise;
 	}
 
-	private async refreshIsFollowing(userId: number): Promise<void> {
+	private async refreshIsFollowing(userId: string): Promise<void> {
 		// Lightweight check: fetch only the followers list for this user, find self.
 		// Still O(N) — backend should expose /follow/check, but until it does this
 		// is run async without blocking UI.
@@ -207,7 +207,7 @@ export class UseProfilePage {
 		}
 	}
 
-	handlePostDeleted(postId: number): void {
+	handlePostDeleted(postId: string): void {
 		this.posts = this.posts.filter((p) => p.id !== postId);
 		profileCache.set(this.username, { posts: this.posts });
 	}

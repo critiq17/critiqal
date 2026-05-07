@@ -15,12 +15,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,50 +41,50 @@ class CommentServiceImplTest {
 
     @Test
     void getPostCommentsValidatesPostAndReturnsRepositoryResult() {
-        var post = post(8L, 1L);
-        var comments = List.of(comment(1L, post, 2L));
-        when(postService.getById(8L)).thenReturn(post);
-        when(commentRepo.findByPost(8L)).thenReturn(comments);
+        var post = post(8, 1);
+        var comments = List.of(comment(1, post, 2));
+        when(postService.getById(uuid(8))).thenReturn(post);
+        when(commentRepo.findByPost(uuid(8))).thenReturn(comments);
 
-        assertSame(comments, service.getPostComments(8L));
-        verify(postService).getById(8L);
-        verify(commentRepo).findByPost(8L);
+        assertSame(comments, service.getPostComments(uuid(8)));
+        verify(postService).getById(uuid(8));
+        verify(commentRepo).findByPost(uuid(8));
     }
 
     @Test
     void getRootCommentsValidatesPostAndReturnsRepositoryResult() {
-        var post = post(8L, 1L);
-        var comments = List.of(comment(2L, post, 2L));
-        when(postService.getById(8L)).thenReturn(post);
-        when(commentRepo.findByRootPost(8L)).thenReturn(comments);
+        var post = post(8, 1);
+        var comments = List.of(comment(2, post, 2));
+        when(postService.getById(uuid(8))).thenReturn(post);
+        when(commentRepo.findByRootPost(uuid(8))).thenReturn(comments);
 
-        assertSame(comments, service.getRootComments(8L));
-        verify(commentRepo).findByRootPost(8L);
+        assertSame(comments, service.getRootComments(uuid(8)));
+        verify(commentRepo).findByRootPost(uuid(8));
     }
 
     @Test
     void getRepliesThrowsWhenCommentBelongsToAnotherPost() {
-        var comment = comment(3L, post(99L, 1L), 2L);
-        when(postService.getById(8L)).thenReturn(post(8L, 1L));
-        when(commentRepo.findByIdOptional(3L)).thenReturn(Optional.of(comment));
+        var comment = comment(3, post(99, 1), 2);
+        when(postService.getById(uuid(8))).thenReturn(post(8, 1));
+        when(commentRepo.findByIdOptional(uuid(3))).thenReturn(Optional.of(comment));
 
-        assertThrows(NotFoundException.class, () -> service.getReplies(8L, 3L));
+        assertThrows(NotFoundException.class, () -> service.getReplies(uuid(8), uuid(3)));
     }
 
     @Test
     void addCommentRejectsBlankContent() {
-        assertThrows(DomainException.class, () -> service.addComment(1L, 2L, " "));
+        assertThrows(DomainException.class, () -> service.addComment(uuid(1), uuid(2), " "));
     }
 
     @Test
     void addCommentBuildsAndPersistsComment() {
-        var author = user(4L);
-        var post = post(6L, 10L);
-        when(userService.getById(4L)).thenReturn(author);
-        when(postService.getById(6L)).thenReturn(post);
+        var author = user(4);
+        var post = post(6, 10);
+        when(userService.getById(uuid(4))).thenReturn(author);
+        when(postService.getById(uuid(6))).thenReturn(post);
         when(commentRepo.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var saved = service.addComment(4L, 6L, "Nice ride");
+        var saved = service.addComment(uuid(4), uuid(6), "Nice ride");
 
         assertSame(author, saved.author);
         assertSame(post, saved.post);
@@ -93,33 +93,33 @@ class CommentServiceImplTest {
 
     @Test
     void addReplyRejectsBlankContent() {
-        assertThrows(DomainException.class, () -> service.addReply(1L, 2L, 3L, ""));
+        assertThrows(DomainException.class, () -> service.addReply(uuid(1), uuid(2), uuid(3), ""));
     }
 
     @Test
     void addReplyRejectsReplyToReply() {
-        var post = post(6L, 10L);
-        var parent = comment(7L, post, 2L);
-        parent.parent = comment(8L, post, 3L);
-        when(postService.getById(6L)).thenReturn(post);
-        when(commentRepo.findByIdOptional(7L)).thenReturn(Optional.of(parent));
+        var post = post(6, 10);
+        var parent = comment(7, post, 2);
+        parent.parent = comment(8, post, 3);
+        when(postService.getById(uuid(6))).thenReturn(post);
+        when(commentRepo.findByIdOptional(uuid(7))).thenReturn(Optional.of(parent));
 
-        assertThrows(ConflictException.class, () -> service.addReply(4L, 6L, 7L, "Nested"));
+        assertThrows(ConflictException.class, () -> service.addReply(uuid(4), uuid(6), uuid(7), "Nested"));
         verify(userService, never()).getById(any());
         verify(commentRepo, never()).save(any());
     }
 
     @Test
     void addReplyBuildsAndPersistsReply() {
-        var author = user(4L);
-        var post = post(6L, 10L);
-        var parent = comment(7L, post, 2L);
-        when(postService.getById(6L)).thenReturn(post);
-        when(commentRepo.findByIdOptional(7L)).thenReturn(Optional.of(parent));
-        when(userService.getById(4L)).thenReturn(author);
+        var author = user(4);
+        var post = post(6, 10);
+        var parent = comment(7, post, 2);
+        when(postService.getById(uuid(6))).thenReturn(post);
+        when(commentRepo.findByIdOptional(uuid(7))).thenReturn(Optional.of(parent));
+        when(userService.getById(uuid(4))).thenReturn(author);
         when(commentRepo.save(any(Comment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        var saved = service.addReply(4L, 6L, 7L, "Reply");
+        var saved = service.addReply(uuid(4), uuid(6), uuid(7), "Reply");
 
         assertSame(author, saved.author);
         assertSame(post, saved.post);
@@ -129,43 +129,47 @@ class CommentServiceImplTest {
 
     @Test
     void deleteCommentThrowsWhenRequesterIsNotOwner() {
-        var target = comment(11L, post(6L, 10L), 2L);
-        when(postService.getById(6L)).thenReturn(post(6L, 10L));
-        when(commentRepo.findByIdOptional(11L)).thenReturn(Optional.of(target));
+        var target = comment(11, post(6, 10), 2);
+        when(postService.getById(uuid(6))).thenReturn(post(6, 10));
+        when(commentRepo.findByIdOptional(uuid(11))).thenReturn(Optional.of(target));
 
-        assertThrows(ForbiddenException.class, () -> service.deleteComment(6L, 11L, 99L));
+        assertThrows(ForbiddenException.class, () -> service.deleteComment(uuid(6), uuid(11), uuid(99)));
         verify(commentRepo, never()).delete(any());
     }
 
     @Test
     void deleteCommentDeletesOwnedComment() {
-        var target = comment(11L, post(6L, 10L), 2L);
-        when(postService.getById(6L)).thenReturn(post(6L, 10L));
-        when(commentRepo.findByIdOptional(11L)).thenReturn(Optional.of(target));
+        var target = comment(11, post(6, 10), 2);
+        when(postService.getById(uuid(6))).thenReturn(post(6, 10));
+        when(commentRepo.findByIdOptional(uuid(11))).thenReturn(Optional.of(target));
 
-        service.deleteComment(6L, 11L, 2L);
+        service.deleteComment(uuid(6), uuid(11), uuid(2));
 
         verify(commentRepo).delete(target);
     }
 
-    private static Comment comment(Long id, Post post, Long authorId) {
+    private static Comment comment(long id, Post post, long authorId) {
         var comment = new Comment();
-        comment.id = id;
+        comment.id = uuid(id);
         comment.post = post;
         comment.author = user(authorId);
         return comment;
     }
 
-    private static Post post(Long postId, Long authorId) {
+    private static Post post(long postId, long authorId) {
         var post = new Post();
-        post.id = postId;
+        post.id = uuid(postId);
         post.author = user(authorId);
         return post;
     }
 
-    private static User user(Long id) {
+    private static User user(long id) {
         var user = new User();
-        user.id = id;
+        user.id = uuid(id);
         return user;
+    }
+
+    private static UUID uuid(long value) {
+        return new UUID(0L, value);
     }
 }

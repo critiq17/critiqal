@@ -4,6 +4,8 @@ import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.RequestScoped;
 import org.critiqal.domain.shared.exception.ForbiddenException;
 
+import java.util.UUID;
+
 @RequestScoped
 public class CurrentUser {
 
@@ -13,7 +15,7 @@ public class CurrentUser {
         this.identity = identity;
     }
 
-    public Long id() {
+    public UUID id() {
         var userId = idOrNull();
         if (userId == null) {
             throw new ForbiddenException("Authentication required");
@@ -21,7 +23,7 @@ public class CurrentUser {
         return userId;
     }
 
-    public Long idOrNull() {
+    public UUID idOrNull() {
         if (identity.isAnonymous()) {
             return null;
         }
@@ -30,14 +32,14 @@ public class CurrentUser {
         return parseUserId(principal != null ? principal.getName() : null);
     }
 
-    private Long parseUserId(String principalName) {
+    private UUID parseUserId(String principalName) {
         if (principalName == null || principalName.isBlank()) {
             throw new IllegalArgumentException("Authenticated user id is missing");
         }
 
         try {
-            return Long.parseLong(principalName);
-        } catch (NumberFormatException e) {
+            return UUID.fromString(principalName);
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Authenticated user id is invalid", e);
         }
     }

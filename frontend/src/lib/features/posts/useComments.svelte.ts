@@ -29,16 +29,16 @@ export class UseComments {
 	expanded = $state(false);
 	submitting = $state(false);
 	newComment = $state('');
-	deletingId = $state<number | null>(null);
-	private replyStates = $state<Map<number, ReplyState>>(new Map());
+	deletingId = $state<string | null>(null);
+	private replyStates = $state<Map<string, ReplyState>>(new Map());
 
-	constructor(private postId: number) {}
+	constructor(private postId: string) {}
 
-	getReplyState(commentId: number): ReplyState {
+	getReplyState(commentId: string): ReplyState {
 		return this.replyStates.get(commentId) ?? emptyReplyState();
 	}
 
-	private setReplyState(commentId: number, patch: Partial<ReplyState>): void {
+	private setReplyState(commentId: string, patch: Partial<ReplyState>): void {
 		const current = this.replyStates.get(commentId) ?? emptyReplyState();
 		this.replyStates = new Map(this.replyStates).set(commentId, { ...current, ...patch });
 	}
@@ -74,7 +74,7 @@ export class UseComments {
 		}
 	}
 
-	async deleteComment(commentId: number): Promise<void> {
+	async deleteComment(commentId: string): Promise<void> {
 		if (this.deletingId !== null) return;
 		this.deletingId = commentId;
 		try {
@@ -90,7 +90,7 @@ export class UseComments {
 		}
 	}
 
-	async toggleReplies(commentId: number): Promise<void> {
+	async toggleReplies(commentId: string): Promise<void> {
 		const rs = this.getReplyState(commentId);
 		if (!rs.loaded) {
 			this.setReplyState(commentId, { loading: true });
@@ -105,19 +105,19 @@ export class UseComments {
 		}
 	}
 
-	openReplyComposer(commentId: number): void {
+	openReplyComposer(commentId: string): void {
 		this.setReplyState(commentId, { composerOpen: true });
 	}
 
-	closeReplyComposer(commentId: number): void {
+	closeReplyComposer(commentId: string): void {
 		this.setReplyState(commentId, { composerOpen: false, draft: '' });
 	}
 
-	setReplyDraft(commentId: number, value: string): void {
+	setReplyDraft(commentId: string, value: string): void {
 		this.setReplyState(commentId, { draft: value });
 	}
 
-	async submitReply(commentId: number): Promise<void> {
+	async submitReply(commentId: string): Promise<void> {
 		const rs = this.getReplyState(commentId);
 		const text = rs.draft.trim();
 		if (!text || rs.submitting) return;
@@ -138,7 +138,7 @@ export class UseComments {
 		}
 	}
 
-	async deleteReply(commentId: number, replyId: number): Promise<void> {
+	async deleteReply(commentId: string, replyId: string): Promise<void> {
 		try {
 			await postService.deleteComment(this.postId, replyId);
 			const rs = this.getReplyState(commentId);

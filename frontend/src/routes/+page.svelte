@@ -107,7 +107,7 @@
 		}
 	}
 
-	function handlePostDeleted(postId: number): void {
+	function handlePostDeleted(postId: string): void {
 		feedCacheStore.removePost(postId);
 	}
 </script>

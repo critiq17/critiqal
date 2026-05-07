@@ -4,6 +4,7 @@ import org.critiqal.domain.post.Post;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Defines persistence operations for posts.
@@ -11,27 +12,27 @@ import java.util.Optional;
  */
 public interface PostRepository {
 
-    List<Long> findLatestIds(int page, int size);
+    List<UUID> findLatestIds(int page, int size);
 
     long countPublished();
 
-    List<Long> findByAuthorIds(Long authorId, int page, int size);
+    List<UUID> findByAuthorIds(UUID authorId, int page, int size);
 
-    long countByAuthor(Long authorId);
+    long countByAuthor(UUID authorId);
 
-    List<Long> searchIds(String query, int page, int size);
+    List<UUID> searchIds(String query, int page, int size);
 
     long countSearch(String query);
 
-    List<Long> findFollowingFeedIds(Long userId, int page, int size);
+    List<UUID> findFollowingFeedIds(UUID userId, int page, int size);
 
-    long countFollowingFeed(Long userId);
+    long countFollowingFeed(UUID userId);
 
-    List<Post> findByIdsWithRelations(List<Long> ids);
+    List<Post> findByIdsWithRelations(List<UUID> ids);
 
-    Optional<Post> findByIdOptional(Long postId);
+    Optional<Post> findByIdOptional(UUID postId);
 
     Post save(Post post);
 
-    void incrementViews(Long postId);
+    void incrementViews(UUID postId);
 }

@@ -1,3 +1,5 @@
 package org.critiqal.domain.user.event;
 
-public record UserRegisteredEvent(Long userId, String username) {}
+import java.util.UUID;
+
+public record UserRegisteredEvent(UUID userId, String username) {}

@@ -10,6 +10,7 @@ import org.critiqal.domain.user.service.UserService;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link ReactionService}.
@@ -31,19 +32,19 @@ public class ReactionServiceImpl implements ReactionService {
     }
 
     @Override
-    public Map<ReactionType, Long> getReactions(Long postId) {
+    public Map<ReactionType, Long> getReactions(UUID postId) {
         return reactRepo.countByPost(postId);
     }
 
     @Override
-    public Optional<ReactionType> getMyReaction(Long postId, Long userId) {
+    public Optional<ReactionType> getMyReaction(UUID postId, UUID userId) {
         return reactRepo.findByPostAndUser(postId, userId)
                 .map(r -> r.type);
     }
 
     @Override
     @Transactional
-    public Reaction react(Long userId, Long postId, ReactionType type) {
+    public Reaction react(UUID userId, UUID postId, ReactionType type) {
         var user = userService.getById(userId);
         var post = postService.getById(postId);
 
@@ -63,7 +64,7 @@ public class ReactionServiceImpl implements ReactionService {
 
     @Override
     @Transactional
-    public void removeReaction(Long userId, Long postId) {
+    public void removeReaction(UUID userId, UUID postId) {
         reactRepo.deleteByPostAndUser(postId, userId);
     }
 }

@@ -5,6 +5,7 @@ import jakarta.ws.rs.core.NewCookie;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Locale;
+import java.util.Objects;
 
 @ApplicationScoped
 public class SessionFactoryCookie {
@@ -19,7 +20,7 @@ public class SessionFactoryCookie {
             @ConfigProperty(name = "session.cookie.secure") boolean secure,
             @ConfigProperty(name = "session.cookie.same-site") String sameSite,
             @ConfigProperty(name = "session.ttl-days") int ttlDays) {
-        this.name = name;
+        this.name = normalizeName(name);
         this.secure = secure;
         this.sameSite = parseSameSite(sameSite);
         this.maxAgeSeconds = ttlDays * 24 * 60 * 60;
@@ -43,6 +44,10 @@ public class SessionFactoryCookie {
                 .build();
     }
 
+    public String name() {
+        return name;
+    }
+
     private NewCookie.Builder baseCookie() {
         return new NewCookie.Builder(name)
                 .path("/")
@@ -59,5 +64,13 @@ public class SessionFactoryCookie {
             default -> throw new IllegalArgumentException(
                     "Unsupported session.cookie.same-site value: " + sameSite);
         };
+    }
+
+    static String normalizeName(String rawName) {
+        var normalized = Objects.requireNonNull(rawName, "session.cookie.name").trim();
+        if (normalized.isEmpty()) {
+            throw new IllegalArgumentException("session.cookie.name must not be blank");
+        }
+        return normalized;
     }
 }

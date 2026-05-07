@@ -57,7 +57,7 @@
 		closeSettings_ = null;
 	}
 
-	function openComments(postId: number): void {
+	function openComments(postId: string): void {
 		openMobileComments(postId);
 	}
 

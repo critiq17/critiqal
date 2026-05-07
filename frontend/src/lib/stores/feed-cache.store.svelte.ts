@@ -73,7 +73,7 @@ function createFeedCacheStore() {
 		loadedAt = Date.now();
 	}
 
-	function removePost(postId: number): void {
+	function removePost(postId: string): void {
 		posts = posts.filter((p) => p.id !== postId);
 	}
 

@@ -8,6 +8,7 @@ import org.critiqal.domain.reaction.ReactionType;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -18,13 +19,13 @@ import java.util.stream.Collectors;
 public class ReactionRepositoryImpl implements ReactionRepository, PanacheRepository<Reaction> {
 
     @Override
-    public Optional<Reaction> findByPostAndUser(Long postId, Long userId) {
+    public Optional<Reaction> findByPostAndUser(UUID postId, UUID userId) {
         return find("post.id = ?1 AND user.id = ?2", postId, userId)
                 .firstResultOptional();
     }
 
     @Override
-    public Map<ReactionType, Long> countByPost(Long postId) {
+    public Map<ReactionType, Long> countByPost(UUID postId) {
         return find("post.id = ?1", postId).stream()
                 .collect(Collectors.groupingBy(r -> r.type, Collectors.counting()));
     }
@@ -38,7 +39,7 @@ public class ReactionRepositoryImpl implements ReactionRepository, PanacheReposi
 
     @Override
     @Transactional
-    public void deleteByPostAndUser(Long postId, Long userId) {
+    public void deleteByPostAndUser(UUID postId, UUID userId) {
         delete("post.id = ?1 AND user.id = ?2", postId, userId);
     }
 }

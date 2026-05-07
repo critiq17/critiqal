@@ -17,6 +17,7 @@ import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.IOException;
 import java.util.Set;
+import java.util.UUID;
 
 @Path("/api/media")
 public class PostPhotoResource {
@@ -43,11 +44,11 @@ public class PostPhotoResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     public Response addPostPhoto(
-            @PathParam("postId") Long postId,
+            @PathParam("postId") UUID postId,
             @RestForm("file") FileUpload file
     ) throws IOException {
         validateImage(file);
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         var photo = postPhotoService.addPhoto(postId, userId, file);
 
         return Response.status(Response.Status.CREATED).entity(PostDTO.PostPhotoDTO.from(photo)).build();
@@ -58,10 +59,10 @@ public class PostPhotoResource {
     @Authenticated
     @Transactional
     public Response deletePostPhoto(
-            @PathParam("postId") Long postId,
-            @PathParam("photoId") Long photoId
+            @PathParam("postId") UUID postId,
+            @PathParam("photoId") UUID photoId
     ) {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         postPhotoService.deletePhoto(postId, userId, photoId);
         return Response.noContent().build();
     }
@@ -70,9 +71,9 @@ public class PostPhotoResource {
     @Path("/posts/{postId}/photos")
     @Authenticated
     public Response deleteAllPostPhotos(
-            @PathParam("postId") Long postId
+            @PathParam("postId") UUID postId
     ) {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         var post = postService.getById(postId);
 
         if (!post.author.id.equals(userId)) {

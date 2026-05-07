@@ -5,6 +5,7 @@ import org.critiqal.domain.reaction.ReactionType;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Defines persistence operations for post reactions.
@@ -12,11 +13,11 @@ import java.util.Optional;
  */
 public interface ReactionRepository {
 
-    Optional<Reaction> findByPostAndUser(Long postId, Long userId);
+    Optional<Reaction> findByPostAndUser(UUID postId, UUID userId);
 
-    Map<ReactionType, Long> countByPost(Long postId);
+    Map<ReactionType, Long> countByPost(UUID postId);
 
     Reaction save(Reaction reaction);
 
-    void deleteByPostAndUser(Long postId, Long userId);
+    void deleteByPostAndUser(UUID postId, UUID userId);
 }

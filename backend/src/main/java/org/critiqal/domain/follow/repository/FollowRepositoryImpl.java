@@ -7,6 +7,7 @@ import org.critiqal.domain.follow.Follow;
 import org.critiqal.domain.user.User;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Panache-backed implementation of {@link FollowRepository}.
@@ -16,7 +17,7 @@ import java.util.List;
 public class FollowRepositoryImpl implements FollowRepository, PanacheRepository<Follow> {
 
     @Override
-    public List<User> findFollowing(Long userId) {
+    public List<User> findFollowing(UUID userId) {
         return find("follower.id = ?1", userId)
                 .stream()
                 .map(follow -> follow.following)
@@ -24,7 +25,7 @@ public class FollowRepositoryImpl implements FollowRepository, PanacheRepository
     }
 
     @Override
-    public List<User> findFollowers(Long userId) {
+    public List<User> findFollowers(UUID userId) {
         return find("following.id = ?1", userId)
                 .stream()
                 .map(follow -> follow.follower)
@@ -32,19 +33,19 @@ public class FollowRepositoryImpl implements FollowRepository, PanacheRepository
     }
 
     @Override
-    public boolean isFollowing(Long followerId, Long followingId) {
+    public boolean isFollowing(UUID followerId, UUID followingId) {
         return find("follower.id = ?1 AND following.id = ?2", followerId, followingId)
                 .firstResultOptional()
                 .isPresent();
     }
 
     @Override
-    public long countFollowers(Long userId) {
+    public long countFollowers(UUID userId) {
         return count("following.id = ?1", userId);
     }
 
     @Override
-    public long countFollowing(Long userId) {
+    public long countFollowing(UUID userId) {
         return count("follower.id = ?1", userId);
     }
 
@@ -57,7 +58,7 @@ public class FollowRepositoryImpl implements FollowRepository, PanacheRepository
 
     @Override
     @Transactional
-    public void deleteByUsers(Long followerId, Long followingId) {
+    public void deleteByUsers(UUID followerId, UUID followingId) {
         delete("follower.id = ?1 AND following.id = ?2", followerId, followingId);
     }
 }

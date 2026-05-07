@@ -3,9 +3,10 @@ package org.critiqal.api.user.response;
 import org.critiqal.domain.user.User;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record UserDTO(
-        Long id,
+        UUID id,
         String username,
         String name,
         String bio,

@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 interface MobileCommentsSheetState {
 	open: boolean;
-	postId: number | null;
+	postId: string | null;
 }
 
 const initialState: MobileCommentsSheetState = {
@@ -15,8 +15,8 @@ const store = writable<MobileCommentsSheetState>(initialState);
 export const mobileComments = {
 	subscribe: store.subscribe,
 
-	open(postId: number): void {
-		if (!Number.isFinite(postId) || postId <= 0) return;
+	open(postId: string): void {
+		if (postId.trim().length === 0) return;
 		store.set({
 			open: true,
 			postId
@@ -28,7 +28,7 @@ export const mobileComments = {
 	}
 };
 
-export function openMobileComments(postId: number): void {
+export function openMobileComments(postId: string): void {
 	mobileComments.open(postId);
 }
 

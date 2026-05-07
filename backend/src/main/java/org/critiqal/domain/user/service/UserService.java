@@ -4,6 +4,7 @@ import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Defines user management operations.
@@ -15,13 +16,13 @@ public interface UserService {
 
     User getByUsername(Username username);
 
-    User getById(Long id);
+    User getById(UUID id);
 
     List<User> search(String query);
 
-    User updateProfile(Long userId, String name, String bio);
+    User updateProfile(UUID userId, String name, String bio);
 
-    void updateAvatar(Long userId, String avatarUrl);
+    void updateAvatar(UUID userId, String avatarUrl);
 
     boolean checkPassword(Username username, String rawPassword);
 }

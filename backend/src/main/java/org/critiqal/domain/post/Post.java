@@ -1,18 +1,24 @@
 package org.critiqal.domain.post;
 
-import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.post_photo.PostPhoto;
 import org.critiqal.domain.reaction.Reaction;
+import org.critiqal.domain.shared.uuid.UuidGeneration;
 import org.critiqal.domain.user.User;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "posts")
-public class Post extends PanacheEntity {
+public class Post extends PanacheEntityBase {
+
+    @Id
+    @Column(columnDefinition = "uuid")
+    public UUID id = UuidGeneration.generate();
 
     @ManyToOne(fetch = FetchType.LAZY)
     public User author;
@@ -43,7 +49,7 @@ public class Post extends PanacheEntity {
         return list("author = ?1 ORDER BY createdAt DESC", author);
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 }

@@ -17,9 +17,9 @@
 	interface Props {
 		post: PostType;
 		variant?: PostVariant;
-		onDeleted?: (id: number) => void;
+		onDeleted?: (id: string) => void;
 		onAuthorClick?: (username: string) => void;
-		onOpenComments?: (postId: number) => void;
+		onOpenComments?: (postId: string) => void;
 	}
 
 	let {
