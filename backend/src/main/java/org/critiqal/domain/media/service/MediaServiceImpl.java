@@ -30,7 +30,7 @@ public class MediaServiceImpl implements MediaService {
         this.postPhotoRepo = postPhotoRepo;
     }
 
-    public String uploadAvatar(Long userId, InputStream imageStream) throws IOException {
+    public String uploadAvatar(UUID userId, InputStream imageStream) throws IOException {
         var processed = imageProcessor.processAvatar(imageStream);
         var key = "avatars/" + userId + "/" + UUID.randomUUID() + ".jpg";
         return r2.upload(key, processed, "image/jpeg");
@@ -46,7 +46,7 @@ public class MediaServiceImpl implements MediaService {
         return r2.upload(key, bytes, contentType);
     }
 
-    public void deleteAllPostPhotos(Long postId) {
+    public void deleteAllPostPhotos(UUID postId) {
         postPhotoRepo.findByPost(postId).forEach(photo -> {
             r2.deleteByUrl(photo.url);
         });

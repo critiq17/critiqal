@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Path("/api/media")
 public class AvatarResource {
@@ -41,7 +42,7 @@ public class AvatarResource {
     ) throws IOException {
         validateImage(file);
 
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         var user = userService.getById(userId);
 
         if (user.avatarUrl != null) {
@@ -58,7 +59,7 @@ public class AvatarResource {
     @Path("/avatar")
     @Authenticated
     public Response deleteAvatar() {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         var user = userService.getById(userId);
 
         if (user.avatarUrl != null) {

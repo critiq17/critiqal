@@ -4,6 +4,8 @@ import io.quarkus.test.junit.QuarkusTest;
 import org.critiqal.support.TestAuthHelper;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 import static org.hamcrest.Matchers.notNullValue;
@@ -11,8 +13,8 @@ import static org.hamcrest.Matchers.notNullValue;
 @QuarkusTest
 class CommentControllerIT {
 
-    private Long createPost(String sid) {
-        return Long.valueOf(
+    private UUID createPost(String sid) {
+        return UUID.fromString(
             given()
                 .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
@@ -28,7 +30,7 @@ class CommentControllerIT {
         given()
             .contentType(JSON)
             .body("{\"content\":\"hello\"}")
-        .when().post("/api/posts/1/comments")
+        .when().post("/api/posts/" + uuid(1) + "/comments")
         .then().statusCode(401);
     }
 
@@ -66,7 +68,7 @@ class CommentControllerIT {
         var sid = TestAuthHelper.registerAndGetSessionCookie("reply_to_reply_user");
         var postId = createPost(sid);
 
-        var commentId = Long.valueOf(
+        var commentId = UUID.fromString(
             given()
                 .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
@@ -76,7 +78,7 @@ class CommentControllerIT {
             .extract().path("id").toString()
         );
 
-        var replyId = Long.valueOf(
+        var replyId = UUID.fromString(
             given()
                 .cookie(TestAuthHelper.COOKIE, sid)
                 .contentType(JSON)
@@ -150,5 +152,9 @@ class CommentControllerIT {
         .then()
             .statusCode(200)
             .body("$", org.hamcrest.Matchers.not(org.hamcrest.Matchers.empty()));
+    }
+
+    private UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

@@ -7,9 +7,10 @@ import org.critiqal.domain.post_photo.PostPhoto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 public record PostDTO(
-        Long id,
+        UUID id,
         UserDTO author,
         String content,
         List<PostPhotoDTO> photos,
@@ -17,7 +18,7 @@ public record PostDTO(
         PostStatus status,
         Instant createdAt
 ) {
-    public record PostPhotoDTO(Long id, String url, int position) {
+    public record PostPhotoDTO(UUID id, String url, int position) {
         public static PostPhotoDTO from(PostPhoto photo) {
             return new PostPhotoDTO(photo.id, photo.url, photo.position);
         }

@@ -4,10 +4,11 @@ import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.domain.comment.Comment;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record CommentDTO(
-        Long id,
-        Long postId,
+        UUID id,
+        UUID postId,
         UserDTO author,
         String content,
         Instant createdAt

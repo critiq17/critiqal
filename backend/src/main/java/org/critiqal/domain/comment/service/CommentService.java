@@ -3,6 +3,7 @@ package org.critiqal.domain.comment.service;
 import org.critiqal.domain.comment.Comment;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Defines comment management operations for posts.
@@ -10,15 +11,15 @@ import java.util.List;
  */
 public interface CommentService {
 
-    List<Comment> getPostComments(Long postId);
+    List<Comment> getPostComments(UUID postId);
 
-    List<Comment> getRootComments(Long postId);
+    List<Comment> getRootComments(UUID postId);
 
-    List<Comment> getReplies(Long postId, Long commentId);
+    List<Comment> getReplies(UUID postId, UUID commentId);
 
-    Comment addComment(Long authorId, Long postId, String content);
+    Comment addComment(UUID authorId, UUID postId, String content);
 
-    Comment addReply(Long authorId, Long postId, Long parentId, String content);
+    Comment addReply(UUID authorId, UUID postId, UUID parentId, String content);
 
-    void deleteComment(Long postId, Long commentId, Long requestedId);
+    void deleteComment(UUID postId, UUID commentId, UUID requestedId);
 }

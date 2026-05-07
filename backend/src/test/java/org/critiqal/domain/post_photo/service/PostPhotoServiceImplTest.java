@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -47,26 +48,31 @@ class PostPhotoServiceImplTest {
 
     @Test
     void addPhotoRejectsNonOwner() {
-        var post = postOwnedBy(10L, 1L);
+        var postId = uuid(10);
+        var ownerId = uuid(1);
+        var requesterId = uuid(2);
+        var post = postOwnedBy(postId, ownerId);
         var file = mock(FileUpload.class);
 
-        when(postService.getById(10L)).thenReturn(post);
+        when(postService.getById(postId)).thenReturn(post);
 
-        assertThrows(ForbiddenException.class, () -> service.addPhoto(10L, 2L, file));
+        assertThrows(ForbiddenException.class, () -> service.addPhoto(postId, requesterId, file));
         verifyNoInteractions(mediaService, postPhotoRepo);
     }
 
     @Test
     void addPhotoUploadsContentAndSavesPosition() throws IOException {
-        var post = postOwnedBy(10L, 7L);
+        var postId = uuid(10);
+        var ownerId = uuid(7);
+        var post = postOwnedBy(postId, ownerId);
         var file = createUpload("photo.png", "image/png", "png".getBytes());
 
-        when(postService.getById(10L)).thenReturn(post);
+        when(postService.getById(postId)).thenReturn(post);
         when(mediaService.uploadPostPhoto(eq(post), any(), eq("image/png"))).thenReturn("https://cdn/post.png");
-        when(postPhotoRepo.countByPost(10L)).thenReturn(2L);
+        when(postPhotoRepo.countByPost(postId)).thenReturn(2L);
         when(postPhotoRepo.save(any(PostPhoto.class))).thenAnswer(invocation -> invocation.getArgument(0, PostPhoto.class));
 
-        var saved = service.addPhoto(10L, 7L, file);
+        var saved = service.addPhoto(postId, ownerId, file);
 
         assertSame(post, saved.post);
         assertEquals("https://cdn/post.png", saved.url);
@@ -76,49 +82,63 @@ class PostPhotoServiceImplTest {
 
     @Test
     void deletePhotoRejectsNonOwner() {
-        var post = postOwnedBy(10L, 1L);
+        var postId = uuid(10);
+        var ownerId = uuid(1);
+        var requesterId = uuid(2);
+        var photoId = uuid(50);
+        var post = postOwnedBy(postId, ownerId);
 
-        when(postService.getById(10L)).thenReturn(post);
+        when(postService.getById(postId)).thenReturn(post);
 
-        assertThrows(ForbiddenException.class, () -> service.deletePhoto(10L, 2L, 50L));
+        assertThrows(ForbiddenException.class, () -> service.deletePhoto(postId, requesterId, photoId));
         verifyNoInteractions(postPhotoRepo, mediaService);
     }
 
     @Test
     void deletePhotoThrowsWhenPhotoMissing() {
-        var post = postOwnedBy(10L, 7L);
+        var postId = uuid(10);
+        var ownerId = uuid(7);
+        var photoId = uuid(50);
+        var post = postOwnedBy(postId, ownerId);
 
-        when(postService.getById(10L)).thenReturn(post);
-        when(postPhotoRepo.findByIdOptional(50L)).thenReturn(Optional.empty());
+        when(postService.getById(postId)).thenReturn(post);
+        when(postPhotoRepo.findByIdOptional(photoId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> service.deletePhoto(10L, 7L, 50L));
+        assertThrows(NotFoundException.class, () -> service.deletePhoto(postId, ownerId, photoId));
     }
 
     @Test
     void deletePhotoThrowsWhenPhotoBelongsToAnotherPost() {
-        var post = postOwnedBy(10L, 7L);
+        var postId = uuid(10);
+        var otherPostId = uuid(11);
+        var ownerId = uuid(7);
+        var photoId = uuid(50);
+        var post = postOwnedBy(postId, ownerId);
         var photo = new PostPhoto();
-        photo.post = postOwnedBy(11L, 7L);
+        photo.post = postOwnedBy(otherPostId, ownerId);
 
-        when(postService.getById(10L)).thenReturn(post);
-        when(postPhotoRepo.findByIdOptional(50L)).thenReturn(Optional.of(photo));
+        when(postService.getById(postId)).thenReturn(post);
+        when(postPhotoRepo.findByIdOptional(photoId)).thenReturn(Optional.of(photo));
 
-        assertThrows(NotFoundException.class, () -> service.deletePhoto(10L, 7L, 50L));
+        assertThrows(NotFoundException.class, () -> service.deletePhoto(postId, ownerId, photoId));
         verify(mediaService, never()).deletePhoto(any());
         verify(postPhotoRepo, never()).delete(any(PostPhoto.class));
     }
 
     @Test
     void deletePhotoDeletesMediaWhenUrlPresent() {
-        var post = postOwnedBy(10L, 7L);
+        var postId = uuid(10);
+        var ownerId = uuid(7);
+        var photoId = uuid(50);
+        var post = postOwnedBy(postId, ownerId);
         var photo = new PostPhoto();
         photo.post = post;
         photo.url = "https://cdn/post.png";
 
-        when(postService.getById(10L)).thenReturn(post);
-        when(postPhotoRepo.findByIdOptional(50L)).thenReturn(Optional.of(photo));
+        when(postService.getById(postId)).thenReturn(post);
+        when(postPhotoRepo.findByIdOptional(photoId)).thenReturn(Optional.of(photo));
 
-        service.deletePhoto(10L, 7L, 50L);
+        service.deletePhoto(postId, ownerId, photoId);
 
         verify(mediaService).deletePhoto("https://cdn/post.png");
         verify(postPhotoRepo).delete(photo);
@@ -126,14 +146,17 @@ class PostPhotoServiceImplTest {
 
     @Test
     void deletePhotoSkipsMediaDeletionWhenUrlMissing() {
-        var post = postOwnedBy(10L, 7L);
+        var postId = uuid(10);
+        var ownerId = uuid(7);
+        var photoId = uuid(50);
+        var post = postOwnedBy(postId, ownerId);
         var photo = new PostPhoto();
         photo.post = post;
 
-        when(postService.getById(10L)).thenReturn(post);
-        when(postPhotoRepo.findByIdOptional(50L)).thenReturn(Optional.of(photo));
+        when(postService.getById(postId)).thenReturn(post);
+        when(postPhotoRepo.findByIdOptional(photoId)).thenReturn(Optional.of(photo));
 
-        service.deletePhoto(10L, 7L, 50L);
+        service.deletePhoto(postId, ownerId, photoId);
 
         verify(mediaService, never()).deletePhoto(any());
         verify(postPhotoRepo).delete(photo);
@@ -149,7 +172,7 @@ class PostPhotoServiceImplTest {
         return upload;
     }
 
-    private static Post postOwnedBy(Long postId, Long authorId) {
+    private static Post postOwnedBy(UUID postId, UUID authorId) {
         var author = new User();
         author.id = authorId;
 
@@ -157,5 +180,9 @@ class PostPhotoServiceImplTest {
         post.id = postId;
         post.author = author;
         return post;
+    }
+
+    private static UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

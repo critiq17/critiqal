@@ -18,13 +18,13 @@
 	}
 
 	interface ReplyTarget {
-		commentId: number;
+		commentId: string;
 		username: string;
 		displayName: string;
 	}
 
 	const UNKNOWN_AUTHOR: User = {
-		id: 0,
+		id: '',
 		username: 'unknown',
 		name: null,
 		bio: null,
@@ -39,12 +39,12 @@
 	let draft = $state('');
 	let submitting = $state(false);
 	let submitError = $state<string | null>(null);
-	let deletingId = $state<number | null>(null);
-	let replyStates = $state<Record<number, ReplyUiState>>({});
+	let deletingId = $state<string | null>(null);
+	let replyStates = $state<Record<string, ReplyUiState>>({});
 	let replyTarget = $state<ReplyTarget | null>(null);
 	let composerInputEl = $state<HTMLInputElement | null>(null);
 	let loadToken = 0;
-	const replyLoadTokens = new Map<number, number>();
+	const replyLoadTokens = new Map<string, number>();
 
 	function requestClose(event?: Event): void {
 		event?.preventDefault();
@@ -65,11 +65,11 @@
 		};
 	}
 
-	function getReplyState(commentId: number): ReplyUiState {
+	function getReplyState(commentId: string): ReplyUiState {
 		return replyStates[commentId] ?? emptyReplyState();
 	}
 
-	function setReplyState(commentId: number, patch: Partial<ReplyUiState>): void {
+	function setReplyState(commentId: string, patch: Partial<ReplyUiState>): void {
 		const current = getReplyState(commentId);
 		replyStates = {
 			...replyStates,
@@ -80,7 +80,7 @@
 		};
 	}
 
-	function removeReplyState(commentId: number): void {
+	function removeReplyState(commentId: string): void {
 		if (!(commentId in replyStates)) return;
 		const next = { ...replyStates };
 		delete next[commentId];
@@ -90,10 +90,9 @@
 
 	function pruneReplyStates(nextComments: Comment[]): void {
 		const ids = new Set(nextComments.map((comment) => comment.id));
-		const next: Record<number, ReplyUiState> = {};
+		const next: Record<string, ReplyUiState> = {};
 
-		for (const [key, state] of Object.entries(replyStates)) {
-			const commentId = Number(key);
+		for (const [commentId, state] of Object.entries(replyStates)) {
 			if (ids.has(commentId)) {
 				next[commentId] = state;
 				continue;
@@ -184,7 +183,7 @@
 		});
 	}
 
-	async function loadComments(postId: number, options: { keepItems?: boolean } = {}): Promise<void> {
+	async function loadComments(postId: string, options: { keepItems?: boolean } = {}): Promise<void> {
 		const { keepItems = false } = options;
 		const token = ++loadToken;
 		const keepVisibleItems = keepItems && items.length > 0;
@@ -223,7 +222,7 @@
 	}
 
 	async function loadReplies(
-		commentId: number,
+		commentId: string,
 		options: { expand?: boolean; force?: boolean; keepItems?: boolean } = {}
 	): Promise<void> {
 		const postId = $mobileComments.postId;
@@ -311,7 +310,7 @@
 		focusComposer();
 	}
 
-	function toggleReplies(commentId: number, event?: Event): void {
+	function toggleReplies(commentId: string, event?: Event): void {
 		event?.preventDefault();
 		const state = getReplyState(commentId);
 		if (state.loading) return;
@@ -404,7 +403,7 @@
 		}
 	}
 
-	async function deleteComment(commentId: number, event?: Event): Promise<void> {
+	async function deleteComment(commentId: string, event?: Event): Promise<void> {
 		event?.preventDefault();
 
 		const postId = $mobileComments.postId;
@@ -433,7 +432,7 @@
 		}
 	}
 
-	async function deleteReply(commentId: number, replyId: number, event?: Event): Promise<void> {
+	async function deleteReply(commentId: string, replyId: string, event?: Event): Promise<void> {
 		event?.preventDefault();
 
 		const postId = $mobileComments.postId;

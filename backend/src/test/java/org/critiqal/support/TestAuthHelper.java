@@ -2,6 +2,8 @@ package org.critiqal.support;
 
 import io.restassured.response.Response;
 
+import java.util.UUID;
+
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 
@@ -26,7 +28,7 @@ public final class TestAuthHelper {
         return registerAndGetResponse(username).getCookie(COOKIE);
     }
 
-    public static Long registerAndGetUserId(String username) {
-        return registerAndGetResponse(username).jsonPath().getLong("id");
+    public static UUID registerAndGetUserId(String username) {
+        return UUID.fromString(registerAndGetResponse(username).jsonPath().getString("id"));
     }
 }

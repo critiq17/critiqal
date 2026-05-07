@@ -61,7 +61,7 @@ function createStravaStore() {
 		}
 	}
 
-	async function loadPublic(userId: number): Promise<void> {
+	async function loadPublic(userId: string): Promise<void> {
 		state = { ...state, loading: true, error: null };
 
 		try {

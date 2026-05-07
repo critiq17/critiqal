@@ -5,6 +5,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.critiqal.domain.strava.StravaIntegration;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Panache-backed implementation of {@link StravaRepository}.
@@ -14,12 +15,12 @@ import java.util.Optional;
 public class StravaRepositoryImpl implements StravaRepository, PanacheRepository<StravaIntegration> {
 
     @Override
-    public Optional<StravaIntegration> findByUserId(Long userId) {
+    public Optional<StravaIntegration> findByUserId(UUID userId) {
         return find("user.id", userId).firstResultOptional();
     }
 
     @Override
-    public boolean existsByUserId(Long userId) {
+    public boolean existsByUserId(UUID userId) {
         return count("user.id", userId) > 0;
     }
 

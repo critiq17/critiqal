@@ -17,17 +17,17 @@ export const mediaService = {
 		return apiClient.delete<void>(API.media.avatar);
 	},
 
-	uploadPostPhoto(postId: number, file: File): Promise<PostPhoto> {
+	uploadPostPhoto(postId: string, file: File): Promise<PostPhoto> {
 		const formData = new FormData();
 		formData.append('file', file);
 		return apiClient.upload<PostPhoto>(API.media.postPhotos(postId), formData);
 	},
 
-	deletePostPhoto(postId: number, photoId: number): Promise<void> {
+	deletePostPhoto(postId: string, photoId: string): Promise<void> {
 		return apiClient.delete<void>(API.media.postPhoto(postId, photoId));
 	},
 
-	deleteAllPostPhotos(postId: number): Promise<void> {
+	deleteAllPostPhotos(postId: string): Promise<void> {
 		return apiClient.delete<void>(API.media.postPhotos(postId));
 	},
 };

@@ -12,6 +12,7 @@ import org.critiqal.domain.user.repository.UserRepository;
 import org.critiqal.domain.auth.password.PasswordHash;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link UserService}.
@@ -53,7 +54,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User getById(Long id) {
+    public User getById(UUID id) {
         return userRepo.findByIdOptional(id)
                 .orElseThrow(() -> new NotFoundException("User not found"));
     }
@@ -68,7 +69,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public User updateProfile(Long userId, String name, String bio) {
+    public User updateProfile(UUID userId, String name, String bio) {
         var user = getById(userId);
         user.name = name;
         user.bio = bio;
@@ -77,7 +78,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public void updateAvatar(Long userId, String avatarUrl) {
+    public void updateAvatar(UUID userId, String avatarUrl) {
         var user = getById(userId);
         user.avatarUrl = avatarUrl;
     }

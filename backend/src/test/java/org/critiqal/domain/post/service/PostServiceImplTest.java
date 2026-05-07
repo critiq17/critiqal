@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,41 +53,41 @@ class PostServiceImplTest {
 
     @Test
     void createPostRejectsBlankContent() {
-        assertThrows(DomainException.class, () -> service.createPost(1L, "  "));
+        assertThrows(DomainException.class, () -> service.createPost(uuid(1), "  "));
         verifyNoInteractions(userService, postRepo, postCreatedEvent);
     }
 
     @Test
     void createPostSavesPostAndFiresEvent() {
         var author = new User();
-        author.id = 7L;
+        author.id = uuid(7);
 
-        when(userService.getById(7L)).thenReturn(author);
+        when(userService.getById(uuid(7))).thenReturn(author);
         when(postRepo.save(any(Post.class))).thenAnswer(invocation -> {
             var post = invocation.getArgument(0, Post.class);
-            post.id = 11L;
+            post.id = uuid(11);
             return post;
         });
 
-        var result = service.createPost(7L, "hello world");
+        var result = service.createPost(uuid(7), "hello world");
 
-        assertEquals(11L, result.id);
+        assertEquals(uuid(11), result.id);
         assertSame(author, result.author);
         assertEquals("hello world", result.content);
         verify(postRepo).save(argThat(post -> post.author == author && "hello world".equals(post.content)));
-        verify(postCreatedEvent).fireAsync(argThat(event -> event.postId().equals(11L) && event.authorId().equals(7L)));
+        verify(postCreatedEvent).fireAsync(argThat(event -> event.postId().equals(uuid(11)) && event.authorId().equals(uuid(7))));
     }
 
     @Test
     void getUserPostOrdersContentByRequestedIds() {
-        var post1 = postWithId(1L);
-        var post3 = postWithId(3L);
+        var post1 = postWithId(1);
+        var post3 = postWithId(3);
 
-        when(postRepo.findByAuthorIds(42L, 1, 2)).thenReturn(List.of(3L, 2L, 1L));
-        when(postRepo.findByIdsWithRelations(List.of(3L, 2L, 1L))).thenReturn(List.of(post1, post3));
-        when(postRepo.countByAuthor(42L)).thenReturn(5L);
+        when(postRepo.findByAuthorIds(uuid(42), 1, 2)).thenReturn(List.of(uuid(3), uuid(2), uuid(1)));
+        when(postRepo.findByIdsWithRelations(List.of(uuid(3), uuid(2), uuid(1)))).thenReturn(List.of(post1, post3));
+        when(postRepo.countByAuthor(uuid(42))).thenReturn(5L);
 
-        var page = service.getUserPost(42L, 1, 2);
+        var page = service.getUserPost(uuid(42), 1, 2);
 
         assertEquals(List.of(post3, post1), page.content());
         assertEquals(5L, page.total());
@@ -95,11 +96,11 @@ class PostServiceImplTest {
 
     @Test
     void getLatestFeedOrdersContentByRequestedIds() {
-        var post2 = postWithId(2L);
-        var post1 = postWithId(1L);
+        var post2 = postWithId(2);
+        var post1 = postWithId(1);
 
-        when(postRepo.findLatestIds(0, 2)).thenReturn(List.of(1L, 2L));
-        when(postRepo.findByIdsWithRelations(List.of(1L, 2L))).thenReturn(List.of(post2, post1));
+        when(postRepo.findLatestIds(0, 2)).thenReturn(List.of(uuid(1), uuid(2)));
+        when(postRepo.findByIdsWithRelations(List.of(uuid(1), uuid(2)))).thenReturn(List.of(post2, post1));
         when(postRepo.countPublished()).thenReturn(2L);
 
         var page = service.getLatestFeed(0, 2);
@@ -110,9 +111,9 @@ class PostServiceImplTest {
 
     @Test
     void getByIdThrowsWhenMissing() {
-        when(postRepo.findByIdOptional(99L)).thenReturn(Optional.empty());
+        when(postRepo.findByIdOptional(uuid(99))).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> service.getById(99L));
+        assertThrows(NotFoundException.class, () -> service.getById(uuid(99)));
     }
 
     @Test
@@ -126,11 +127,11 @@ class PostServiceImplTest {
 
     @Test
     void searchOrdersResultsByIdList() {
-        var post1 = postWithId(1L);
-        var post3 = postWithId(3L);
+        var post1 = postWithId(1);
+        var post3 = postWithId(3);
 
-        when(postRepo.searchIds("run", 0, 10)).thenReturn(List.of(3L, 1L));
-        when(postRepo.findByIdsWithRelations(List.of(3L, 1L))).thenReturn(List.of(post1, post3));
+        when(postRepo.searchIds("run", 0, 10)).thenReturn(List.of(uuid(3), uuid(1)));
+        when(postRepo.findByIdsWithRelations(List.of(uuid(3), uuid(1)))).thenReturn(List.of(post1, post3));
         when(postRepo.countSearch("run")).thenReturn(2L);
 
         var page = service.search("run", 0, 10);
@@ -141,9 +142,9 @@ class PostServiceImplTest {
 
     @Test
     void getFollowingFeedShortCircuitsWhenNoIds() {
-        when(postRepo.findFollowingFeedIds(5L, 0, 10)).thenReturn(List.of());
+        when(postRepo.findFollowingFeedIds(uuid(5), 0, 10)).thenReturn(List.of());
 
-        var page = service.getFollowingFeed(5L, 0, 10);
+        var page = service.getFollowingFeed(uuid(5), 0, 10);
 
         assertTrue(page.content().isEmpty());
         assertEquals(0L, page.total());
@@ -153,14 +154,14 @@ class PostServiceImplTest {
 
     @Test
     void getFollowingFeedOrdersResultsByIdList() {
-        var post2 = postWithId(2L);
-        var post4 = postWithId(4L);
+        var post2 = postWithId(2);
+        var post4 = postWithId(4);
 
-        when(postRepo.findFollowingFeedIds(5L, 0, 10)).thenReturn(List.of(4L, 2L));
-        when(postRepo.findByIdsWithRelations(List.of(4L, 2L))).thenReturn(List.of(post2, post4));
-        when(postRepo.countFollowingFeed(5L)).thenReturn(7L);
+        when(postRepo.findFollowingFeedIds(uuid(5), 0, 10)).thenReturn(List.of(uuid(4), uuid(2)));
+        when(postRepo.findByIdsWithRelations(List.of(uuid(4), uuid(2)))).thenReturn(List.of(post2, post4));
+        when(postRepo.countFollowingFeed(uuid(5))).thenReturn(7L);
 
-        var page = service.getFollowingFeed(5L, 0, 10);
+        var page = service.getFollowingFeed(uuid(5), 0, 10);
 
         assertEquals(List.of(post4, post2), page.content());
         assertEquals(7L, page.total());
@@ -168,7 +169,7 @@ class PostServiceImplTest {
 
     @Test
     void viewWithNullUserDoesNothing() {
-        service.view(44L, null);
+        service.view(uuid(44), null);
 
         verifyNoInteractions(postViewRepo, postRepo);
     }
@@ -177,25 +178,25 @@ class PostServiceImplTest {
     void viewCreatesNewPostViewAndIncrementsCounterOnFirstVisit() {
         when(postViewRepo.findByIdOptional(any(PostViewId.class))).thenReturn(Optional.empty());
 
-        service.view(11L, 22L);
+        service.view(uuid(11), uuid(22));
 
-        var idCaptor = ArgumentCaptor.forClass(PostView.class);
-        verify(postViewRepo).save(idCaptor.capture());
-        assertEquals(11L, idCaptor.getValue().id.postId);
-        assertEquals(22L, idCaptor.getValue().id.userId);
-        verify(postRepo).incrementViews(11L);
+        var viewCaptor = ArgumentCaptor.forClass(PostView.class);
+        verify(postViewRepo).save(viewCaptor.capture());
+        assertEquals(uuid(11), viewCaptor.getValue().id.postId);
+        assertEquals(uuid(22), viewCaptor.getValue().id.userId);
+        verify(postRepo).incrementViews(uuid(11));
     }
 
     @Test
     void viewDoesNotIncrementForRecentVisit() {
         var view = new PostView();
-        view.id = new PostViewId(11L, 22L);
+        view.id = new PostViewId(uuid(11), uuid(22));
         var original = Instant.now().minus(30, ChronoUnit.MINUTES);
         view.lastViewedAt = original;
 
         when(postViewRepo.findByIdOptional(any(PostViewId.class))).thenReturn(Optional.of(view));
 
-        service.view(11L, 22L);
+        service.view(uuid(11), uuid(22));
 
         verify(postRepo, never()).incrementViews(any());
         assertEquals(original, view.lastViewedAt);
@@ -204,55 +205,59 @@ class PostServiceImplTest {
     @Test
     void viewRefreshesStaleVisitAndIncrementsCounter() {
         var view = new PostView();
-        view.id = new PostViewId(11L, 22L);
+        view.id = new PostViewId(uuid(11), uuid(22));
         var original = Instant.now().minus(2, ChronoUnit.HOURS);
         view.lastViewedAt = original;
 
         when(postViewRepo.findByIdOptional(any(PostViewId.class))).thenReturn(Optional.of(view));
 
-        service.view(11L, 22L);
+        service.view(uuid(11), uuid(22));
 
-        verify(postRepo).incrementViews(11L);
+        verify(postRepo).incrementViews(uuid(11));
         assertTrue(view.lastViewedAt.isAfter(original));
     }
 
     @Test
     void deletePostRejectsNonOwner() {
         var author = new User();
-        author.id = 2L;
+        author.id = uuid(2);
         var post = new Post();
         post.author = author;
 
-        when(postRepo.findByIdOptional(1L)).thenReturn(Optional.of(post));
+        when(postRepo.findByIdOptional(uuid(1))).thenReturn(Optional.of(post));
 
-        assertThrows(ForbiddenException.class, () -> service.deletePost(1L, 99L));
+        assertThrows(ForbiddenException.class, () -> service.deletePost(uuid(1), uuid(99)));
     }
 
     @Test
     void deletePostMarksOwnedPostAsDeleted() {
         var author = new User();
-        author.id = 1L;
+        author.id = uuid(1);
         var post = new Post();
         post.author = author;
         post.status = PostStatus.PUBLISHED;
 
-        when(postRepo.findByIdOptional(1L)).thenReturn(Optional.of(post));
+        when(postRepo.findByIdOptional(uuid(1))).thenReturn(Optional.of(post));
 
-        service.deletePost(1L, 1L);
+        service.deletePost(uuid(1), uuid(1));
 
         assertEquals(PostStatus.DELETED, post.status);
     }
 
     @Test
     void anonymousViewDelegatesToRepositoryCounter() {
-        service.view(55L);
+        service.view(uuid(55));
 
-        verify(postRepo).incrementViews(55L);
+        verify(postRepo).incrementViews(uuid(55));
     }
 
-    private static Post postWithId(Long id) {
+    private static Post postWithId(long id) {
         var post = new Post();
-        post.id = id;
+        post.id = uuid(id);
         return post;
+    }
+
+    private static UUID uuid(long value) {
+        return new UUID(0L, value);
     }
 }

@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,7 +45,7 @@ class UserServiceImplTest {
     @Test
     void registerThrowsWhenUsernameAlreadyTaken() {
         var username = Username.of("taken_user");
-        when(userRepo.findByUsername(username)).thenReturn(Optional.of(user(1L, username.value())));
+        when(userRepo.findByUsername(username)).thenReturn(Optional.of(user(1, username.value())));
 
         assertThrows(ConflictException.class, () -> service.register(username, "secret"));
 
@@ -60,25 +61,25 @@ class UserServiceImplTest {
         when(passwordHash.hash("secret")).thenReturn("hashed-secret");
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
             var saved = invocation.<User>getArgument(0);
-            saved.id = 42L;
+            saved.id = uuid(42);
             return saved;
         });
 
         var saved = service.register(username, "secret");
 
-        assertEquals(42L, saved.id);
+        assertEquals(uuid(42), saved.id);
         assertEquals("new_user", saved.username);
         assertEquals("hashed-secret", saved.passwordHash);
         verify(userRepo).save(argThat(user ->
                 "new_user".equals(user.username) && "hashed-secret".equals(user.passwordHash)));
         verify(registeredEvent).fireAsync(argThat(event ->
-                event.userId().equals(42L) && event.username().equals("new_user")));
+                event.userId().equals(uuid(42)) && event.username().equals("new_user")));
     }
 
     @Test
     void getByUsernameReturnsRepositoryResult() {
         var username = Username.of("alice_1");
-        var user = user(7L, username.value());
+        var user = user(7, username.value());
         when(userRepo.findByUsername(username)).thenReturn(Optional.of(user));
 
         assertSame(user, service.getByUsername(username));
@@ -94,9 +95,9 @@ class UserServiceImplTest {
 
     @Test
     void getByIdThrowsWhenMissing() {
-        when(userRepo.findByIdOptional(99L)).thenReturn(Optional.empty());
+        when(userRepo.findByIdOptional(uuid(99))).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> service.getById(99L));
+        assertThrows(NotFoundException.class, () -> service.getById(uuid(99)));
     }
 
     @Test
@@ -109,7 +110,7 @@ class UserServiceImplTest {
 
     @Test
     void searchDelegatesForNonBlankQuery() {
-        var expected = List.of(user(1L, "alice"));
+        var expected = List.of(user(1, "alice"));
         when(userRepo.search("alice")).thenReturn(expected);
 
         assertSame(expected, service.search("alice"));
@@ -117,10 +118,10 @@ class UserServiceImplTest {
 
     @Test
     void updateProfileMutatesLoadedUser() {
-        var user = user(5L, "profile_user");
-        when(userRepo.findByIdOptional(5L)).thenReturn(Optional.of(user));
+        var user = user(5, "profile_user");
+        when(userRepo.findByIdOptional(uuid(5))).thenReturn(Optional.of(user));
 
-        var updated = service.updateProfile(5L, "Alice", "Runner");
+        var updated = service.updateProfile(uuid(5), "Alice", "Runner");
 
         assertSame(user, updated);
         assertEquals("Alice", user.name);
@@ -129,10 +130,10 @@ class UserServiceImplTest {
 
     @Test
     void updateAvatarMutatesLoadedUser() {
-        var user = user(5L, "avatar_user");
-        when(userRepo.findByIdOptional(5L)).thenReturn(Optional.of(user));
+        var user = user(5, "avatar_user");
+        when(userRepo.findByIdOptional(uuid(5))).thenReturn(Optional.of(user));
 
-        service.updateAvatar(5L, "https://cdn/avatar.jpg");
+        service.updateAvatar(uuid(5), "https://cdn/avatar.jpg");
 
         assertEquals("https://cdn/avatar.jpg", user.avatarUrl);
     }
@@ -140,7 +141,7 @@ class UserServiceImplTest {
     @Test
     void checkPasswordReturnsTrueWhenHashMatches() {
         var username = Username.of("alice_2");
-        var user = user(2L, username.value());
+        var user = user(2, username.value());
         user.passwordHash = "hashed";
         when(userRepo.findByUsername(username)).thenReturn(Optional.of(user));
         when(passwordHash.verify("secret", "hashed")).thenReturn(true);
@@ -157,10 +158,14 @@ class UserServiceImplTest {
         verify(passwordHash, never()).verify(any(), any());
     }
 
-    private static User user(Long id, String username) {
+    private static User user(long id, String username) {
         var user = new User();
-        user.id = id;
+        user.id = uuid(id);
         user.username = username;
         return user;
+    }
+
+    private static UUID uuid(long value) {
+        return new UUID(0L, value);
     }
 }

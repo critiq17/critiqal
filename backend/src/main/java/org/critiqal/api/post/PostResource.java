@@ -12,6 +12,8 @@ import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
 
+import java.util.UUID;
+
 @Path("/api/posts")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -46,8 +48,8 @@ public class PostResource {
 
     @GET
     @Path("/{id}")
-    public PostDTO getPost(@PathParam("id") Long id) {
-        Long userId = currentUser.idOrNull();
+    public PostDTO getPost(@PathParam("id") UUID id) {
+        UUID userId = currentUser.idOrNull();
         postService.view(id, userId);
         return PostDTO.from(postService.getById(id));
     }
@@ -55,7 +57,7 @@ public class PostResource {
     @POST
     @Authenticated
     public Response createPost(CreatePostRequest req) {
-        Long authorId = currentUser.id();
+        UUID authorId = currentUser.id();
         var post = postService.createPost(authorId, req.content());
         return Response.status(Response.Status.CREATED)
                 .entity(PostDTO.from(post))
@@ -65,7 +67,7 @@ public class PostResource {
     @DELETE
     @Path("/{id}")
     @Authenticated
-    public Response deletePost(@PathParam("id") Long id) {
+    public Response deletePost(@PathParam("id") UUID id) {
         postService.deletePost(id, currentUser.id());
         mediaService.deleteAllPostPhotos(id);
         return Response.noContent().build();

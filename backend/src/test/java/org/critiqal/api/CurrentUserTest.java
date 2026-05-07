@@ -5,6 +5,7 @@ import org.critiqal.domain.shared.exception.ForbiddenException;
 import org.junit.jupiter.api.Test;
 
 import java.security.Principal;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -15,11 +16,12 @@ class CurrentUserTest {
 
     @Test
     void id_returnsAuthenticatedUserId() {
-        var identity = authenticatedIdentity("42");
+        var userId = uuid(42);
+        var identity = authenticatedIdentity(userId.toString());
 
         var currentUser = new CurrentUser(identity);
 
-        assertThat(currentUser.id()).isEqualTo(42L);
+        assertThat(currentUser.id()).isEqualTo(userId);
     }
 
     @Test
@@ -44,7 +46,7 @@ class CurrentUserTest {
 
     @Test
     void id_throwsIllegalArgumentExceptionForInvalidPrincipal() {
-        var identity = authenticatedIdentity("not-a-number");
+        var identity = authenticatedIdentity("not-a-uuid");
 
         var currentUser = new CurrentUser(identity);
 
@@ -56,5 +58,9 @@ class CurrentUserTest {
         when(identity.isAnonymous()).thenReturn(false);
         when(identity.getPrincipal()).thenReturn((Principal) () -> principalName);
         return identity;
+    }
+
+    private UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

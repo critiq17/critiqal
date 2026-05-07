@@ -5,6 +5,7 @@ import org.critiqal.domain.reaction.ReactionType;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Defines reaction management operations for posts.
@@ -12,11 +13,11 @@ import java.util.Optional;
  */
 public interface ReactionService {
 
-    Map<ReactionType, Long> getReactions(Long postId);
+    Map<ReactionType, Long> getReactions(UUID postId);
 
-    Optional<ReactionType> getMyReaction(Long postId, Long userId);
+    Optional<ReactionType> getMyReaction(UUID postId, UUID userId);
 
-    Reaction react(Long userId, Long postId, ReactionType type);
+    Reaction react(UUID userId, UUID postId, ReactionType type);
 
-    void removeReaction(Long userId, Long postId);
+    void removeReaction(UUID userId, UUID postId);
 }

@@ -1,10 +1,10 @@
 import { apiClient } from '$lib/api/client';
 
 class ViewTracker {
-  private readonly tracked = new Set<number>();
+  private readonly tracked = new Set<string>();
   private readonly timers = new Map<Element, ReturnType<typeof setTimeout>>();
   private observer: IntersectionObserver | null = null;
-  private readonly entries = new Map<Element, { postId: number; isAuthenticated: boolean }>();
+  private readonly entries = new Map<Element, { postId: string; isAuthenticated: boolean }>();
 
   private getObserver(): IntersectionObserver {
     if (!this.observer) {
@@ -27,7 +27,7 @@ class ViewTracker {
     return this.observer;
   }
 
-  private scheduleTrack(el: Element, postId: number, isAuthenticated: boolean): void {
+  private scheduleTrack(el: Element, postId: string, isAuthenticated: boolean): void {
     if (this.tracked.has(postId) || !isAuthenticated || this.timers.has(el)) return;
 
     const timer = setTimeout(() => {
@@ -48,7 +48,7 @@ class ViewTracker {
     }
   }
 
-  observe(el: HTMLElement, postId: number, isAuthenticated: boolean): () => void {
+  observe(el: HTMLElement, postId: string, isAuthenticated: boolean): () => void {
     if (!isAuthenticated) return () => {};
 
     this.entries.set(el, { postId, isAuthenticated });

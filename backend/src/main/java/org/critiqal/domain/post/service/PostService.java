@@ -3,27 +3,29 @@ package org.critiqal.domain.post.service;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.shared.pagination.Page;
 
+import java.util.UUID;
+
 /**
  * Defines post management operations.
  * Handles creation, retrieval, feed queries, search, and view tracking.
  */
 public interface PostService {
 
-    Post createPost(Long authorId, String content);
+    Post createPost(UUID authorId, String content);
 
-    Page<Post> getUserPost(Long authorId, int page, int size);
+    Page<Post> getUserPost(UUID authorId, int page, int size);
 
     Page<Post> getLatestFeed(int page, int size);
 
-    Post getById(Long postId);
+    Post getById(UUID postId);
 
     Page<Post> search(String query, int page, int size);
 
-    Page<Post> getFollowingFeed(Long userId, int page, int size);
+    Page<Post> getFollowingFeed(UUID userId, int page, int size);
 
-    void view(Long postId, Long userId);
+    void view(UUID postId, UUID userId);
 
-    void deletePost(Long postId, Long requestedId);
+    void deletePost(UUID postId, UUID requestedId);
 
-    void view(Long postId);
+    void view(UUID postId);
 }

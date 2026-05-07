@@ -7,6 +7,7 @@ import org.critiqal.domain.post_photo.PostPhoto;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Panache-backed implementation of {@link PostPhotoRepository}.
@@ -16,17 +17,17 @@ import java.util.Optional;
 public class PostPhotoRepositoryImpl implements PostPhotoRepository, PanacheRepository<PostPhoto> {
 
     @Override
-    public List<PostPhoto> findByPost(Long postId) {
+    public List<PostPhoto> findByPost(UUID postId) {
         return find("post.id = ?1 ORDER BY position ASC", postId).list();
     }
 
     @Override
-    public long countByPost(Long postId) {
+    public long countByPost(UUID postId) {
         return count("post.id = ?1", postId);
     }
 
     @Override
-    public Optional<PostPhoto> findByIdOptional(Long photoId) {
+    public Optional<PostPhoto> findByIdOptional(UUID photoId) {
         return find("id", photoId).firstResultOptional();
     }
 
@@ -45,7 +46,7 @@ public class PostPhotoRepositoryImpl implements PostPhotoRepository, PanacheRepo
 
     @Override
     @Transactional
-    public void deleteByPost(Long postId) {
+    public void deleteByPost(UUID postId) {
         delete("post.id = ?1", postId);
     }
 }

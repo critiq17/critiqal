@@ -1,12 +1,12 @@
 import type { User } from './user';
 
 export interface Comment {
-	id: number;
-	postId: number;
+	id: string;
+	postId: string;
 	author: User;
 	content: string;
 	createdAt: string;
-	parentId?: number;
+	parentId?: string;
 	replies?: Comment[];
 }
 

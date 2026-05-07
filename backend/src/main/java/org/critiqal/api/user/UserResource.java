@@ -16,6 +16,7 @@ import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
+import java.util.UUID;
 
 @Path("/api/users")
 @Produces(MediaType.APPLICATION_JSON)
@@ -55,7 +56,7 @@ public class UserResource {
     @Path("/me")
     @Authenticated
     public UserDTO updateProfile(UpdateProfileRequest req) {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         return UserDTO.from(userService.updateProfile(userId, req.name(), req.bio()));
     }
 
@@ -63,8 +64,8 @@ public class UserResource {
     @Path("/{id}/follow")
     @Authenticated
     @Consumes(MediaType.WILDCARD)
-    public Response follow(@PathParam("id") Long targetId) {
-        Long followerId = currentUser.id();
+    public Response follow(@PathParam("id") UUID targetId) {
+        UUID followerId = currentUser.id();
         followService.follow(followerId, targetId);
         return Response.ok().build();
     }
@@ -72,8 +73,8 @@ public class UserResource {
     @DELETE
     @Path("/{id}/follow")
     @Authenticated
-    public Response unfollow(@PathParam("id") Long targetId) {
-        Long followerId = currentUser.id();
+    public Response unfollow(@PathParam("id") UUID targetId) {
+        UUID followerId = currentUser.id();
         followService.unfollow(followerId, targetId);
         return Response.noContent().build();
     }
@@ -86,7 +87,7 @@ public class UserResource {
     @Path("/notifications")
     @Authenticated
     public Response getNotificationsInfo() {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         var stats = followService.getStats(userId);
         return Response.ok(stats).build();
     }
@@ -95,14 +96,14 @@ public class UserResource {
     @Path("/notifications/posts")
     @Authenticated
     public Page<PostDTO> getFollowingFeed(@BeanParam PageRequest pageRequest) {
-        Long userId = currentUser.id();
+        UUID userId = currentUser.id();
         return postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
     }
 
     @GET
     @Path("/{id}/followers")
-    public List<UserDTO> getFollowers(@PathParam("id") Long userId) {
+    public List<UserDTO> getFollowers(@PathParam("id") UUID userId) {
         return followService.getFollowers(userId).stream()
                 .map(UserDTO::from)
                 .toList();
@@ -110,7 +111,7 @@ public class UserResource {
 
     @GET
     @Path("/{id}/following")
-    public List<UserDTO> getFollowing(@PathParam("id") Long userId) {
+    public List<UserDTO> getFollowing(@PathParam("id") UUID userId) {
         return followService.getFollowing(userId).stream()
                 .map(UserDTO::from)
                 .toList();

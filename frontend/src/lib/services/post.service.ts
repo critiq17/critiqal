@@ -27,7 +27,7 @@ export const postService = {
     );
   },
 
-  getById(id: number): Promise<Post> {
+  getById(id: string): Promise<Post> {
     return apiClient.get<Post>(API.posts.byId(id));
   },
 
@@ -35,47 +35,47 @@ export const postService = {
     return apiClient.post<Post>(API.posts.feed, req);
   },
 
-  delete(id: number): Promise<void> {
+  delete(id: string): Promise<void> {
     return apiClient.delete(API.posts.byId(id));
   },
 
   // --- Comments ---
 
-  getComments(postId: number): Promise<Comment[]> {
+  getComments(postId: string): Promise<Comment[]> {
     return apiClient.get<Comment[]>(API.posts.comments(postId));
   },
 
-  addComment(postId: number, req: AddCommentRequest): Promise<Comment> {
+  addComment(postId: string, req: AddCommentRequest): Promise<Comment> {
     return apiClient.post<Comment>(API.posts.comments(postId), req);
   },
 
-  deleteComment(postId: number, commentId: number): Promise<void> {
+  deleteComment(postId: string, commentId: string): Promise<void> {
     return apiClient.delete(API.posts.comment(postId, commentId));
   },
 
-  getReplies(postId: number, commentId: number): Promise<Comment[]> {
+  getReplies(postId: string, commentId: string): Promise<Comment[]> {
     return apiClient.get<Comment[]>(API.posts.replies(postId, commentId));
   },
 
-  addReply(postId: number, commentId: number, req: AddCommentRequest): Promise<Comment> {
+  addReply(postId: string, commentId: string, req: AddCommentRequest): Promise<Comment> {
     return apiClient.post<Comment>(API.posts.replies(postId, commentId), req);
   },
 
   // --- Reactions ---
 
-  getReactions(postId: number): Promise<ReactionsMap> {
+  getReactions(postId: string): Promise<ReactionsMap> {
     return apiClient.get<ReactionsMap>(API.posts.reactions(postId));
   },
 
-  getMyReaction(postId: number): Promise<ReactionType | undefined> {
+  getMyReaction(postId: string): Promise<ReactionType | undefined> {
     return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`);
   },
 
-  react(postId: number, type: ReactionType): Promise<void> {
+  react(postId: string, type: ReactionType): Promise<void> {
     return apiClient.post<void>(API.posts.reactions(postId), { type });
   },
 
-  removeReaction(postId: number): Promise<void> {
+  removeReaction(postId: string): Promise<void> {
     return apiClient.delete(API.posts.reactions(postId));
   },
 };

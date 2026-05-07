@@ -5,6 +5,7 @@ import org.critiqal.domain.user.Username;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Defines persistence operations for users.
@@ -12,7 +13,7 @@ import java.util.Optional;
  */
 public interface UserRepository {
 
-    Optional<User> findByIdOptional(Long id);
+    Optional<User> findByIdOptional(UUID id);
 
     Optional<User> findByUsername(Username username);
 

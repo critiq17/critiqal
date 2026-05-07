@@ -8,6 +8,7 @@ import org.critiqal.domain.post.PostStatus;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Panache-backed implementation of {@link PostRepository}.
@@ -17,13 +18,13 @@ import java.util.Optional;
 public class PostRepositoryImpl implements PostRepository, PanacheRepository<Post> {
 
     @Override
-    public List<Long> findLatestIds(int page, int size) {
+    public List<UUID> findLatestIds(int page, int size) {
         return getEntityManager()
                 .createQuery("""
                         SELECT p.id FROM Post p
                         WHERE p.status = :status
                         ORDER BY p.createdAt DESC, p.id DESC
-                        """, Long.class)
+                        """, UUID.class)
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setFirstResult(page * size)
                 .setMaxResults(size)
@@ -36,13 +37,13 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public List<Long> findByAuthorIds(Long authorId, int page, int size) {
+    public List<UUID> findByAuthorIds(UUID authorId, int page, int size) {
         return getEntityManager()
                 .createQuery("""
                         SELECT p.id FROM Post p
                         WHERE p.author.id = :authorId AND p.status = :status
                         ORDER BY p.createdAt DESC, p.id DESC
-                        """, Long.class)
+                        """, UUID.class)
                 .setParameter("authorId", authorId)
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setFirstResult(page * size)
@@ -51,12 +52,12 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public long countByAuthor(Long authorId) {
+    public long countByAuthor(UUID authorId) {
         return count("author.id = ?1 AND status = ?2", authorId, PostStatus.PUBLISHED);
     }
 
     @Override
-    public List<Long> searchIds(String query, int page, int size) {
+    public List<UUID> searchIds(String query, int page, int size) {
         return getEntityManager()
                 .createQuery("""
                         SELECT p.id
@@ -64,7 +65,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
                         WHERE LOWER(p.content) LIKE :query
                           AND p.status = :status
                         ORDER BY p.createdAt DESC, p.id DESC
-                        """, Long.class)
+                        """, UUID.class)
                 .setParameter("query", "%" + query.toLowerCase() + "%")
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setFirstResult(page * size)
@@ -79,7 +80,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public List<Long> findFollowingFeedIds(Long userId, int page, int size) {
+    public List<UUID> findFollowingFeedIds(UUID userId, int page, int size) {
         return getEntityManager()
                 .createQuery("""
                         SELECT p.id FROM Post p
@@ -89,7 +90,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
                               WHERE f.follower.id = :userId
                           )
                         ORDER BY p.createdAt DESC, p.id DESC
-                        """, Long.class)
+                        """, UUID.class)
                 .setParameter("status", PostStatus.PUBLISHED)
                 .setParameter("userId", userId)
                 .setFirstResult(page * size)
@@ -98,7 +99,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public long countFollowingFeed(Long userId) {
+    public long countFollowingFeed(UUID userId) {
         return getEntityManager()
                 .createQuery("""
                         SELECT COUNT(p) FROM Post p
@@ -114,7 +115,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public List<Post> findByIdsWithRelations(List<Long> ids) {
+    public List<Post> findByIdsWithRelations(List<UUID> ids) {
         if (ids.isEmpty()) {
             return List.of();
         }
@@ -132,7 +133,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     }
 
     @Override
-    public Optional<Post> findByIdOptional(Long postId) {
+    public Optional<Post> findByIdOptional(UUID postId) {
         return find("id", postId).firstResultOptional();
     }
 
@@ -145,7 +146,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
 
     @Override
     @Transactional
-    public void incrementViews(Long postId) {
+    public void incrementViews(UUID postId) {
         update("viewCount = viewCount + 1 WHERE id = ?1", postId);
     }
 }

@@ -4,6 +4,8 @@ import io.quarkus.test.junit.QuarkusTest;
 import org.critiqal.support.TestAuthHelper;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 import static org.hamcrest.Matchers.*;
@@ -50,7 +52,7 @@ class UserControllerIT {
     void follow_noAuth_returns401() {
         given()
             .contentType(JSON)
-        .when().post("/api/users/1/follow")
+        .when().post("/api/users/" + uuid(1) + "/follow")
         .then().statusCode(401);
     }
 
@@ -107,5 +109,9 @@ class UserControllerIT {
         .then()
             .statusCode(200)
             .body("$", not(empty()));
+    }
+
+    private UUID uuid(int value) {
+        return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }
 }

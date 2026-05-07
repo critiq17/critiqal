@@ -4,6 +4,7 @@ import org.critiqal.domain.comment.Comment;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Defines persistence operations for comments.
@@ -11,13 +12,13 @@ import java.util.Optional;
  */
 public interface CommentRepository {
 
-    List<Comment> findByPost(Long postId);
+    List<Comment> findByPost(UUID postId);
 
-    List<Comment> findByRootPost(Long postId);
+    List<Comment> findByRootPost(UUID postId);
 
-    List<Comment> findReplies(Long parentId);
+    List<Comment> findReplies(UUID parentId);
 
-    Optional<Comment> findByIdOptional(Long commentId);
+    Optional<Comment> findByIdOptional(UUID commentId);
 
     Comment save(Comment comment);
 

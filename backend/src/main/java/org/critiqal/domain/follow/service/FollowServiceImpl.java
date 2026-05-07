@@ -9,6 +9,7 @@ import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Default implementation of {@link FollowService}.
@@ -28,7 +29,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public void follow(Long followerId, Long followingId) {
+    public void follow(UUID followerId, UUID followingId) {
         var follower = userService.getById(followerId);
         var following = userService.getById(followingId);
 
@@ -47,27 +48,27 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public void unfollow(Long followerId, Long followingId) {
+    public void unfollow(UUID followerId, UUID followingId) {
         followRepo.deleteByUsers(followerId, followingId);
     }
 
     @Override
-    public List<User> getFollowers(Long userId) {
+    public List<User> getFollowers(UUID userId) {
         return followRepo.findFollowers(userId);
     }
 
     @Override
-    public List<User> getFollowing(Long userId) {
+    public List<User> getFollowing(UUID userId) {
         return followRepo.findFollowing(userId);
     }
 
     @Override
-    public boolean isFollowing(Long followerId, Long followingId) {
+    public boolean isFollowing(UUID followerId, UUID followingId) {
         return followRepo.isFollowing(followerId, followingId);
     }
 
     @Override
-    public FollowService.FollowStats getStats(Long userId) {
+    public FollowService.FollowStats getStats(UUID userId) {
         return new FollowService.FollowStats(
                 followRepo.countFollowers(userId),
                 followRepo.countFollowing(userId)

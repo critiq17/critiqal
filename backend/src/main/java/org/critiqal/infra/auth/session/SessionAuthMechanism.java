@@ -70,7 +70,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
             return false;
         }
 
-        return path.matches("^/api/posts/\\d+/comments$") ||
-                path.matches("^/api/posts/\\d+/comments/\\d+/replies$");
+        return path.matches("^/api/posts/[^/]+/comments$") ||
+                path.matches("^/api/posts/[^/]+/comments/[^/]+/replies$");
     }
 }

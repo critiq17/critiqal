@@ -10,7 +10,7 @@ export class UseReactions {
 	reacting = $state(false);
 	poppingType = $state<ReactionType | null>(null);
 
-	constructor(private postId: number) {}
+	constructor(private postId: string) {}
 
 	async load(): Promise<void> {
 		if (this.loaded) return;

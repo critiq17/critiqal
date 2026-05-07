@@ -7,6 +7,7 @@ import org.critiqal.domain.user.Username;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Panache-backed implementation of {@link UserRepository}.
@@ -16,7 +17,7 @@ import java.util.Optional;
 public class UserRepositoryImpl implements UserRepository, PanacheRepository<User> {
 
     @Override
-    public Optional<User> findByIdOptional(Long id) {
+    public Optional<User> findByIdOptional(UUID id) {
         return find("id", id).firstResultOptional();
     }
 

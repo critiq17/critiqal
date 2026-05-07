@@ -20,7 +20,7 @@ export class UseSearch {
 	usersState = $state<'idle' | 'loading' | 'loaded' | 'error'>('idle');
 	usersError = $state('');
 
-	followStates = $state(new Map<number, boolean>());
+	followStates = $state(new Map<string, boolean>());
 
 	private loadedQuery: string | null = null;
 	private loadedTab: ExploreTab | null = null;
