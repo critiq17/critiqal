@@ -1,6 +1,7 @@
 package org.critiqal.domain.auth.verification.repository;
 
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.auth.verification.VerificationToken;
 import org.critiqal.domain.auth.verification.VerificationTokenType;
@@ -8,6 +9,7 @@ import org.critiqal.domain.auth.verification.VerificationTokenType;
 import java.util.Optional;
 import java.util.UUID;
 
+@ApplicationScoped
 public class VerificationTokenRepositoryImpl implements VerificationTokenRepository, PanacheRepository<VerificationToken> {
 
     @Override
