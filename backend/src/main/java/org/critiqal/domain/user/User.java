@@ -32,6 +32,15 @@ public class User extends PanacheEntityBase {
     @Column(name = "avatar_url")
     public String avatarUrl;
 
+    @Column(unique = true)
+    public String email;
+
+    @Column(name = "email_verified", nullable = false)
+    public boolean emailVerified = false;
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    public boolean twoFactorEnabled = false;
+
     @Column(updatable = false,
             name = "created_at"
     )
