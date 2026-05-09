@@ -48,7 +48,7 @@ public class TotpServiceImpl implements TotpService {
         if (user.twoFactorEnabled) {
             throw new ConflictException("Two-factor authentication is already enabled");
         }
-        
+
         totpRepo.deleteByUserId(userId);
 
         var rawSecret = totpProvider.generateSecret();
