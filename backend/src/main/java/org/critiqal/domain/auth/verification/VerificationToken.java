@@ -1,6 +1,7 @@
 package org.critiqal.domain.auth.verification;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import org.critiqal.domain.shared.uuid.UuidGeneration;
 import org.critiqal.domain.user.User;
@@ -10,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "verification_tokens")
-public class VerificationToken extends PanacheEntity {
+public class VerificationToken extends PanacheEntityBase {
 
     @Id
     @Column(columnDefinition = "uuid")
