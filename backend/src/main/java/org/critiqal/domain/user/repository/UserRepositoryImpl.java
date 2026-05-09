@@ -27,6 +27,11 @@ public class UserRepositoryImpl implements UserRepository, PanacheRepository<Use
     }
 
     @Override
+    public Optional<User> findByEmail(String email) {
+        return find("LOWER(email) = ?1", email.toLowerCase()).firstResultOptional();
+    }
+
+    @Override
     public List<User> search(String query) {
         return find("LOWER(username) LIKE ?1 OR LOWER(name) LIKE ?1",
                 "%" + query.toLowerCase() + "%")
