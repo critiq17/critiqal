@@ -1,4 +1,4 @@
-package org.critiqal.domain.auth.challenge;
+package org.critiqal.infra.auth;
 
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.ValueCommands;
