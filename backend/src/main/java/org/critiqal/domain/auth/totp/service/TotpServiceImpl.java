@@ -1,6 +1,5 @@
 package org.critiqal.domain.auth.totp.service;
 
-import io.smallrye.config.inject.ConfigException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.auth.email.service.EmailService;
@@ -69,6 +68,8 @@ public class TotpServiceImpl implements TotpService {
     @Override
     @Transactional
     public void confirm(UUID userId, String totpCode) {
+        requireTotpCode(totpCode);
+
         var secret = totpRepo.findByUserId(userId)
                 .orElseThrow(() -> new DomainException("2FA setup not initiated"));
         if (secret.confirmed) throw new ConflictException("2FA is already active");
@@ -92,13 +93,15 @@ public class TotpServiceImpl implements TotpService {
 
     @Override
     public void verify(UUID userId, String totpCode) {
+        requireTotpCode(totpCode);
+
         var secret = totpRepo.findByUserId(userId)
                 .filter(s -> s.confirmed)
                 .orElseThrow(() -> new DomainException("2FA is not configured"));
 
-    var rawSecret = secretEncryption.decrypt(secret.secretEncrypted);
-    if (!totpProvider.verify(rawSecret, totpCode)) {
-        throw new DomainException("Invalid TOTP code");
+        var rawSecret = secretEncryption.decrypt(secret.secretEncrypted);
+        if (!totpProvider.verify(rawSecret, totpCode)) {
+            throw new DomainException("Invalid TOTP code");
         }
     }
 
@@ -108,7 +111,7 @@ public class TotpServiceImpl implements TotpService {
         verify(userId, totpCode); // check rules
 
         totpRepo.deleteByUserId(userId);
-        recoveryService.regenerateRecoveryCodes(userId);
+        recoveryService.deleteRecoveryCodes(userId);
         var user = userService.getById(userId);
         user.twoFactorEnabled = false;
 
@@ -123,5 +126,11 @@ public class TotpServiceImpl implements TotpService {
     @Override
     public boolean isEnabled(UUID userId) {
         return userService.getById(userId).twoFactorEnabled;
+    }
+
+    private void requireTotpCode(String totpCode) {
+        if (totpCode == null || totpCode.isBlank()) {
+            throw new DomainException("Invalid TOTP code");
+        }
     }
 }

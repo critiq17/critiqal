@@ -10,6 +10,7 @@ import org.critiqal.domain.auth.verification.VerificationToken;
 import org.critiqal.domain.auth.verification.VerificationTokenType;
 import org.critiqal.domain.auth.verification.repository.VerificationTokenRepository;
 import org.critiqal.domain.shared.exception.DomainException;
+import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.repository.UserRepository;
 import org.critiqal.domain.user.service.UserService;
@@ -91,6 +92,7 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
     @Transactional
     public void resetPassword(String rawToken, String newPassword) {
         validatePasswordStrength(newPassword);
+        requireResetToken(rawToken);
 
         var hash = hashToken(rawToken);
         var token = tokenRepo.findByTokenHashAndType(hash, VerificationTokenType.PASSWORD_RESET)
@@ -109,14 +111,20 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
     @Override
     @Transactional
     public UUID useRecoveryCode(String username, String rawCode) {
-        var user = userRepo.findByUsername(Username.of(username))
-                .orElseThrow(() -> new DomainException("Invalid credentials"));
+        var normalizedUsername = parseRecoveryUsername(username);
+        var normalizedCode = normalizeCode(rawCode);
+        if (normalizedCode == null) {
+            throw new DomainException("Invalid recovery code");
+        }
 
-        var normalized = normalizeCode(rawCode);
+        var user = userRepo.findByUsername(normalizedUsername)
+                .filter(existing -> existing.twoFactorEnabled)
+                .orElseThrow(() -> new DomainException("Invalid recovery code"));
+
         var activeCodes = recoveryCodeRepo.findActiveByUserId(user.id);
 
         for (var code : activeCodes) {
-            if (BcryptUtil.matches(normalized, code.codeHash)) {
+            if (BcryptUtil.matches(normalizedCode, code.codeHash)) {
                 code.usedAt = Instant.now();
                 log.infof("Recovery code used for userId=%s, codeId=%s", user.id, code.id);
                 return user.id;
@@ -158,6 +166,12 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
     }
 
     @Override
+    @Transactional
+    public void deleteRecoveryCodes(UUID userId) {
+        recoveryCodeRepo.deleteByUserId(userId);
+    }
+
+    @Override
     public long countActiveRecoveryCodes(UUID userId) {
         return recoveryCodeRepo.countActiveByUserId(userId);
     }
@@ -188,13 +202,30 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
         }
     }
 
+    private Username parseRecoveryUsername(String username) {
+        try {
+            return Username.of(username);
+        } catch (DomainException e) {
+            throw new DomainException("Invalid recovery code");
+        }
+    }
+
     private String normalizeCode(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
         return code.replace("-", "").replace(" ", "").toUpperCase();
     }
 
     private void validatePasswordStrength(String password) {
         if (password == null || password.length() < 8) {
             throw new DomainException("Password must be at least 8 characters");
+        }
+    }
+
+    private void requireResetToken(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new DomainException("Invalid or expired reset link");
         }
     }
 

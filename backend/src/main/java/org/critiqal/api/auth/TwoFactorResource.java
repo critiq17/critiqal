@@ -1,5 +1,6 @@
 package org.critiqal.api.auth;
 
+import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -11,8 +12,8 @@ import org.critiqal.domain.auth.totp.service.TotpService;
 import java.util.Map;
 
 @Path("/api/auth/2fa")
+@Authenticated
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class TwoFactorResource {
 
     private final TotpService  totpService;
@@ -29,13 +30,13 @@ public class TwoFactorResource {
         return Response.ok(new TotpSetupResponse(r.qrCodeUri(), r.secret(), r.recoveryCodes())).build();
     }
 
-    @POST @Path("/confirm")
+    @POST @Path("/confirm") @Consumes(MediaType.APPLICATION_JSON)
     public Response confirm(ConfirmTotpRequest req) {
         totpService.confirm(currentUser.id(), req.code());
-        return Response.ok(Map.of("message", "Two-factor authentication enabled")).build();
+        return Response.noContent().build();
     }
 
-    @DELETE
+    @DELETE @Consumes(MediaType.APPLICATION_JSON)
     public Response disable(ConfirmTotpRequest req) {
         totpService.disable(currentUser.id(), req.code());
         return Response.noContent().build();

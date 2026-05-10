@@ -27,5 +27,7 @@ public interface AccountRecoveryService {
     /** Regenerate codes. Return plainText one time - after only hash. */
     List<String> regenerateRecoveryCodes(UUID userId);
 
+    void deleteRecoveryCodes(UUID userId);
+
     long countActiveRecoveryCodes(UUID userId);
 }

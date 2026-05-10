@@ -21,7 +21,6 @@ import java.util.Map;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
 public class AccountRecoveryResource {
 
     private final AccountRecoveryService  recoveryService;
@@ -44,19 +43,19 @@ public class AccountRecoveryResource {
         this.rateLimiter = rateLimiter;
     }
 
-    @POST @Path("/email") @Authenticated
+    @POST @Path("/email") @Consumes(MediaType.APPLICATION_JSON) @Authenticated
     public Response setEmail(SetEmailRequest req) {
         verifyService.sendEmailVerification(currentUser.id(), req.email());
         return Response.ok(Map.of("message", "Verification email sent")).build();
     }
 
-    @POST @Path("/email/verify")
+    @POST @Path("/email/verify") @Consumes(MediaType.APPLICATION_JSON)
     public Response verifyEmail(VerifyEmailRequest req) {
         verifyService.verify(req.token());
         return Response.ok(Map.of("message", "Email verified")).build();
     }
 
-    @POST @Path("/recovery/request")
+    @POST @Path("/recovery/request") @Consumes(MediaType.APPLICATION_JSON)
     public Response requestReset(SetEmailRequest req) {
         if (req.email() != null)
             rateLimiter.check(RateLimiter.key("pwd-reset", req.email().toLowerCase()), 3, Duration.ofHours(1));
@@ -64,13 +63,13 @@ public class AccountRecoveryResource {
         return Response.ok(Map.of("message", "If the email exists, a reset link has been sent")).build();
     }
 
-    @POST @Path("/recovery/reset")
+    @POST @Path("/recovery/reset") @Consumes(MediaType.APPLICATION_JSON)
     public Response resetPassword(PasswordResetRequest req) {
         recoveryService.resetPassword(req.token(), req.newPassword());
         return Response.noContent().build();
     }
 
-    @POST @Path("/recovery/code")
+    @POST @Path("/recovery/code") @Consumes(MediaType.APPLICATION_JSON)
     public Response useRecoveryCode(RecoveryCodeRequest req) {
         rateLimiter.check(RateLimiter.key("rec-code", req.username()), 5, Duration.ofMinutes(15));
         var userId = recoveryService.useRecoveryCode(req.username(), req.recoveryCode());

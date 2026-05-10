@@ -2,6 +2,7 @@ export const API = {
   auth: {
     register: '/api/auth/register',
     login: '/api/auth/login',
+    login2fa: '/api/auth/login/2fa',
   },
   posts: {
     feed: '/api/posts',

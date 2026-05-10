@@ -1,6 +1,4 @@
 package org.critiqal.api.auth;
-
-import com.fasterxml.jackson.core.util.RecyclerPool;
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -59,7 +57,7 @@ public class AuthResource {
 
     /**
      * 200 - login success (cookie)
-     * 202 - required 2FA {challengeToke, method}
+     * 202 - required 2FA {challengeToken, method}
      * 401 - incorrect data
      */
     @POST @Path("/login")

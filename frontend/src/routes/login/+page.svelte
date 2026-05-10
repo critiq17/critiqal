@@ -2,10 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { authService } from '$lib/services/auth.service';
-	import { ApiError } from '$lib/types';
+	import { ApiError, isTwoFactorChallenge } from '$lib/types';
 
 	let username = $state('');
 	let password = $state('');
+	let challengeToken = $state<string | null>(null);
+	let totpCode = $state('');
 	let isSubmitting = $state(false);
 	let error = $state('');
 	let shakeKey = $state(0);
@@ -14,11 +16,19 @@
 
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
-			if (err.isUnauthorized) return 'Invalid username or password.';
+			if (err.isUnauthorized) {
+				return challengeToken ? 'Invalid authentication code.' : 'Invalid username or password.';
+			}
 			return err.message || 'Something went wrong. Please try again.';
 		}
 		if (err instanceof Error) return err.message;
 		return 'Something went wrong. Please try again.';
+	}
+
+	function resetChallenge(): void {
+		challengeToken = null;
+		totpCode = '';
+		error = '';
 	}
 
 	async function handleSubmit(): Promise<void> {
@@ -26,8 +36,22 @@
 		error = '';
 
 		try {
-			const user = await authService.login({ username, password });
-			authStore.login(user);
+			if (challengeToken) {
+				const user = await authService.verifyTwoFactor({ challengeToken, code: totpCode });
+				await authStore.login(user);
+				await goto('/');
+				return;
+			}
+
+			const result = await authService.login({ username, password });
+			if (isTwoFactorChallenge(result)) {
+				challengeToken = result.challengeToken;
+				totpCode = '';
+				return;
+			}
+
+			const user = result;
+			await authStore.login(user);
 			await goto('/');
 		} catch (err: unknown) {
 			error = mapError(err);
@@ -47,7 +71,9 @@
 	<div class="card" aria-label="Sign in form">
 		<div class="card-header">
 			<span class="logo-text">critiqal</span>
-			<p class="subtitle">Sign in to your account</p>
+			<p class="subtitle">
+				{challengeToken ? 'Enter the 6-digit code from your authenticator app' : 'Sign in to your account'}
+			</p>
 		</div>
 
 		{#if hasError}
@@ -59,43 +85,77 @@
 		{/if}
 
 		<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-			<div class="field">
-				<label for="username" class="field-label">Username</label>
-				<input
-					id="username"
-					type="text"
-					class="field-input"
-					bind:value={username}
-					autocomplete="username"
-					required
-					disabled={isSubmitting}
-					placeholder="your_username"
-				/>
-			</div>
+			{#if challengeToken}
+				<div class="field">
+					<label for="totp-code" class="field-label">Authentication code</label>
+					<input
+						id="totp-code"
+						type="text"
+						class="field-input"
+						bind:value={totpCode}
+						autocomplete="one-time-code"
+						inputmode="numeric"
+						pattern="[0-9]{6}"
+						required
+						disabled={isSubmitting}
+						placeholder="123456"
+					/>
+				</div>
+			{:else}
+				<div class="field">
+					<label for="username" class="field-label">Username</label>
+					<input
+						id="username"
+						type="text"
+						class="field-input"
+						bind:value={username}
+						autocomplete="username"
+						required
+						disabled={isSubmitting}
+						placeholder="your_username"
+					/>
+				</div>
 
-			<div class="field">
-				<label for="password" class="field-label">Password</label>
-				<input
-					id="password"
-					type="password"
-					class="field-input"
-					bind:value={password}
-					autocomplete="current-password"
-					required
-					disabled={isSubmitting}
-					placeholder="••••••••"
-				/>
-			</div>
+				<div class="field">
+					<label for="password" class="field-label">Password</label>
+					<input
+						id="password"
+						type="password"
+						class="field-input"
+						bind:value={password}
+						autocomplete="current-password"
+						required
+						disabled={isSubmitting}
+						placeholder="••••••••"
+					/>
+				</div>
+			{/if}
 
-			<button type="submit" class="submit-btn" disabled={isSubmitting}>
-				{isSubmitting ? 'Signing in...' : 'Sign in'}
+			<button
+				type="submit"
+				class="submit-btn"
+				disabled={isSubmitting || (challengeToken ? totpCode.trim().length === 0 : username.trim().length === 0 || password.length === 0)}
+			>
+				{#if isSubmitting}
+					{challengeToken ? 'Verifying...' : 'Signing in...'}
+				{:else}
+					{challengeToken ? 'Verify code' : 'Sign in'}
+				{/if}
 			</button>
+
+			{#if challengeToken}
+				<button type="button" class="secondary-btn" disabled={isSubmitting} onclick={resetChallenge}>
+					Use another account
+				</button>
+			{/if}
 		</form>
 
-		<p class="switch-link">
-			Don't have an account?
-			<a href="/register">Create one</a>
-		</p>
+		{#if !challengeToken}
+			<p class="switch-link">
+				Don't have an account?
+				<a href="/register">Create one</a>
+			</p>
+		{/if}
 	</div>
 </div>
 
@@ -215,6 +275,26 @@
 			background-color 0.15s ease,
 			transform 0.1s ease;
 		margin-top: 0.25rem;
+	}
+
+	.secondary-btn {
+		width: 100%;
+		padding: 0.625rem 1rem;
+		border-radius: 0.5rem;
+		border: 1px solid var(--color-border);
+		background: transparent;
+		color: var(--color-text-primary);
+		font-size: 0.875rem;
+		font-weight: 500;
+		font-family: inherit;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease;
+	}
+
+	.secondary-btn:hover:not(:disabled) {
+		background: var(--color-surface-raised);
 	}
 
 	.submit-btn:hover:not(:disabled) {
