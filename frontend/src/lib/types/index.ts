@@ -1,11 +1,20 @@
 export type { User, UpdateProfileRequest } from './user';
 export type {
-	LoginResponse,
-	RegisterResponse,
-	LoginRequest,
-	RegisterRequest,
-	TwoFactorChallenge,
-	TwoFactorVerifyRequest
+  LoginResponse,
+  RegisterResponse,
+  LoginRequest,
+  RegisterRequest,
+  TwoFactorChallenge,
+  TwoFactorVerifyRequest,
+  TotpSetupResponse,
+  ConfirmTotpRequest,
+  TwoFactorStatusResponse,
+  SetEmailRequest,
+  VerifyEmailRequest,
+  PasswordResetRequest,
+  RecoveryCodeRequest,
+  RecoveryCodesCountResponse,
+  RecoveryCodesRegenerateResponse,
 } from './auth';
 export { isTwoFactorChallenge } from './auth';
 export type { Post, PostPhoto, PostStatus, CreatePostRequest } from './post';

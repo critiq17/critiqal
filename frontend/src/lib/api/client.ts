@@ -186,6 +186,10 @@ export const apiClient = {
     return request<T>('DELETE', path);
   },
 
+  deleteWithBody<T = void>(path: string, body: unknown): Promise<T> {
+    return request<T>('DELETE', path, { body });
+  },
+
   upload<T>(path: string, formData: FormData): Promise<T> {
     return upload<T>(path, formData);
   },

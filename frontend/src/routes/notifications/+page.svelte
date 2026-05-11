@@ -67,7 +67,6 @@
 	<main class="col-center" aria-label="Following feed">
 		<header class="page-header">
 			<h1 class="page-title">Following</h1>
-			<p class="page-subtitle">Posts from people you follow</p>
 		</header>
 
 		{#if !authStore.isAuthenticated}
@@ -108,61 +107,73 @@
 			</div>
 		{/if}
 	</main>
+
+	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 280px 1fr;
-		min-height: 100vh;
-		max-width: 900px;
-		margin: 0 auto;
+		grid-template-columns: 16rem 42rem 14rem;
+		justify-content: center;
+		height: 100vh;
+		overflow: hidden;
 	}
 
 	.col-left {
-		position: sticky;
-		top: 0;
-		height: 100vh;
+		overflow-y: auto;
+		padding: 0 1.5rem 0 1rem;
 	}
 
 	.col-center {
-		border-left: 1px solid var(--color-border);
-		min-height: 100vh;
+		overflow-y: auto;
+		padding: 0 2rem 4rem;
+		scrollbar-width: none;
+	}
+
+	.col-center::-webkit-scrollbar { display: none; }
+
+	.col-right {
+		overflow-y: auto;
+		padding: 1.5rem 1rem 1.5rem 1.5rem;
 	}
 
 	.page-header {
-		padding: 24px 24px 16px;
+		padding: 1.25rem 0;
 		border-bottom: 1px solid var(--color-border);
+		position: sticky;
+		top: 0;
+		background: var(--color-bg);
+		z-index: 10;
 	}
 
 	.page-title {
-		font-size: 1.25rem;
+		font-size: 1.0625rem;
 		font-weight: 700;
 		color: var(--color-text-primary);
-		margin: 0 0 4px;
-	}
-
-	.page-subtitle {
-		font-size: 0.8rem;
-		color: var(--color-text-muted);
+		letter-spacing: -0.01em;
 		margin: 0;
 	}
 
-	.feed {
-		padding: 0 8px;
+	.page-subtitle {
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
+		margin: 0.125rem 0 0;
 	}
+
+	.feed { padding: 0; }
 
 	.empty-state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12px;
-		padding: 80px 24px;
+		gap: 0.5rem;
+		padding: 4rem 1rem;
 		text-align: center;
 	}
 
 	.empty-title {
-		font-size: 1rem;
+		font-size: 0.9375rem;
 		font-weight: 600;
 		color: var(--color-text-primary);
 		margin: 0;
@@ -175,51 +186,63 @@
 	}
 
 	.btn-primary {
+		margin-top: 0.5rem;
 		display: inline-block;
-		padding: 10px 24px;
-		background: var(--color-accent);
-		color: #fff;
-		border-radius: var(--radius-full);
+		padding: 0.5rem 1.25rem;
+		background: var(--color-text-primary);
+		color: var(--color-bg);
+		border-radius: 0.5rem;
 		font-size: 0.875rem;
 		font-weight: 600;
 		text-decoration: none;
 		transition: opacity 0.15s ease;
 	}
 
-	.btn-primary:hover {
-		opacity: 0.85;
-	}
+	.btn-primary:hover { opacity: 0.85; }
 
 	.error-state {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 12px;
-		padding: 60px 24px;
+		gap: 0.5rem;
+		padding: 4rem 1rem;
 		color: var(--color-accent);
 		font-size: 0.875rem;
 		text-align: center;
 	}
 
 	.btn-retry {
-		padding: 8px 20px;
-		border-radius: var(--radius-full);
+		margin-top: 0.25rem;
+		padding: 0.5rem 1.25rem;
+		border-radius: 0.5rem;
 		border: 1px solid var(--color-border);
 		background: none;
 		color: var(--color-text-primary);
 		font-size: 0.875rem;
 		cursor: pointer;
 		font-family: inherit;
+		transition: background-color 0.15s ease;
 	}
 
-	.sentinel {
-		height: 1px;
-	}
+	.btn-retry:hover { background: var(--color-surface-raised); }
+
+	.sentinel { height: 1px; }
 
 	.loading-more {
-		padding: 16px;
+		padding: 1.5rem;
 		text-align: center;
-		font-size: 0.8rem;
+		font-size: 0.8125rem;
 		color: var(--color-text-muted);
+	}
+
+	@media (max-width: 1024px) {
+		.page-layout { grid-template-columns: 4.5rem 1fr; }
+		.col-right { display: none; }
+	}
+
+	@media (max-width: 640px) {
+		.page-layout { grid-template-columns: 1fr; }
+		.col-left { display: none; }
+		.col-center { padding: 0 1rem 4rem; }
 	}
 </style>

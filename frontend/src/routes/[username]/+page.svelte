@@ -214,11 +214,7 @@
 		{/if}
 	</main>
 
-	<aside class="col-right" aria-label="Integrations">
-		{#if profilePage.profileState === 'loaded' && profilePage.profile}
-			<ProfileStravaWidget {isOwnProfile} />
-		{/if}
-	</aside>
+	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
 <FollowersModal
