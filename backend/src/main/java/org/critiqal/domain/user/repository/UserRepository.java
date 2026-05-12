@@ -17,7 +17,11 @@ public interface UserRepository {
 
     Optional<User> findByUsername(Username username);
 
+    Optional<User> findByEmail(String email);
+
     List<User> search(String query);
 
     User save(User user);
+
+    int clearExpiredPendingEmails();
 }

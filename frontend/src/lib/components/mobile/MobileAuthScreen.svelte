@@ -3,13 +3,20 @@
 	import { authService } from '$lib/services/auth.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import { ApiError, type LoginRequest, type RegisterRequest } from '$lib/types';
+	import {
+		ApiError,
+		isTwoFactorChallenge,
+		type LoginRequest,
+		type RegisterRequest
+	} from '$lib/types';
 
 	type AuthMode = 'login' | 'register';
 
 	let activeMode = $state<AuthMode>('login');
 	let username = $state('');
 	let password = $state('');
+	let challengeToken = $state<string | null>(null);
+	let totpCode = $state('');
 	let error = $state('');
 	let loading = $state(false);
 	let passwordTouched = $state(false);
@@ -17,7 +24,10 @@
 
 	const hasError = $derived(error.length > 0);
 	const isSubmitDisabled = $derived(
-		loading || username.trim().length === 0 || password.length === 0
+		loading ||
+			(challengeToken
+				? totpCode.trim().length === 0
+				: username.trim().length === 0 || password.length === 0)
 	);
 	const passwordScore = $derived(computeScore(password));
 	const showPasswordHint = $derived(
@@ -29,6 +39,8 @@
 		activeMode = mode;
 		username = '';
 		password = '';
+		challengeToken = null;
+		totpCode = '';
 		error = '';
 		passwordTouched = false;
 	}
@@ -45,6 +57,10 @@
 
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
+			if (challengeToken && err.isUnauthorized) {
+				return 'Invalid authentication code.';
+			}
+
 			if (activeMode === 'login' && err.isUnauthorized) {
 				return 'Invalid username or password.';
 			}
@@ -71,6 +87,12 @@
 		if (error) error = '';
 	}
 
+	function resetChallenge(): void {
+		challengeToken = null;
+		totpCode = '';
+		error = '';
+	}
+
 	async function handleSubmit(): Promise<void> {
 		if (loading) return;
 
@@ -83,10 +105,22 @@
 		loading = true;
 
 		try {
+			if (challengeToken) {
+				const user = await authService.verifyTwoFactor({ challengeToken, code: totpCode });
+				await authStore.login(user);
+				getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
+				return;
+			}
+
 			if (activeMode === 'login') {
 				const req: LoginRequest = { username, password };
-				const user = await authService.login(req);
-				await authStore.login(user);
+				const result = await authService.login(req);
+				if (isTwoFactorChallenge(result)) {
+					challengeToken = result.challengeToken;
+					totpCode = '';
+					return;
+				}
+				await authStore.login(result);
 			} else {
 				const req: RegisterRequest = { username, password };
 				const user = await authService.register(req);
@@ -108,7 +142,11 @@
 			<div class="card-header">
 				<span class="logo-text">critiqal</span>
 				<p class="subtitle">
-					{activeMode === 'login' ? 'Sign in to your account' : 'Create your account'}
+					{#if challengeToken}
+						Enter the 6-digit code from your authenticator app
+					{:else}
+						{activeMode === 'login' ? 'Sign in to your account' : 'Create your account'}
+					{/if}
 				</p>
 			</div>
 
@@ -124,74 +162,111 @@
 				event.preventDefault();
 				void handleSubmit();
 			}}>
-				<div class="field">
-					<label for="mobile-auth-username" class="field-label">Username</label>
-					<input
-						id="mobile-auth-username"
-						type="text"
-						class="field-input"
-						bind:value={username}
-						autocomplete="username"
-						autocapitalize="none"
-						spellcheck={false}
-						required
-						minlength={3}
-						maxlength={30}
-						disabled={loading}
-						placeholder="your_username"
-						oninput={() => {
-							if (error) error = '';
-						}}
-					/>
-				</div>
+				{#if challengeToken}
+					<div class="field">
+						<label for="mobile-auth-code" class="field-label">Authentication code</label>
+						<input
+							id="mobile-auth-code"
+							type="text"
+							class="field-input"
+							bind:value={totpCode}
+							autocomplete="one-time-code"
+							inputmode="numeric"
+							pattern="[0-9]{6}"
+							required
+							disabled={loading}
+							placeholder="123456"
+							oninput={() => {
+								if (error) error = '';
+							}}
+						/>
+					</div>
+				{:else}
+					<div class="field">
+						<label for="mobile-auth-username" class="field-label">Username</label>
+						<input
+							id="mobile-auth-username"
+							type="text"
+							class="field-input"
+							bind:value={username}
+							autocomplete="username"
+							autocapitalize="none"
+							spellcheck={false}
+							required
+							minlength={3}
+							maxlength={30}
+							disabled={loading}
+							placeholder="your_username"
+							oninput={() => {
+								if (error) error = '';
+							}}
+						/>
+					</div>
 
-				<div class="field">
-					<label for="mobile-auth-password" class="field-label">Password</label>
-					<input
-						id="mobile-auth-password"
-						type="password"
-						class="field-input"
-						bind:value={password}
-						autocomplete={activeMode === 'login' ? 'current-password' : 'new-password'}
-						required
-						minlength={activeMode === 'register' ? 8 : 1}
-						disabled={loading}
-						placeholder="••••••••"
-						oninput={handlePasswordInput}
-					/>
+					<div class="field">
+						<label for="mobile-auth-password" class="field-label">Password</label>
+						<input
+							id="mobile-auth-password"
+							type="password"
+							class="field-input"
+							bind:value={password}
+							autocomplete={activeMode === 'login' ? 'current-password' : 'new-password'}
+							required
+							minlength={activeMode === 'register' ? 8 : 1}
+							disabled={loading}
+							placeholder="••••••••"
+							oninput={handlePasswordInput}
+						/>
 
-					{#if activeMode === 'register'}
-						<div class="password-meta">
-							<PasswordStrengthIndicator {password} />
-							{#if showPasswordHint}
-								<p class="field-hint">Password must be at least 8 characters.</p>
-							{/if}
-						</div>
-					{/if}
-				</div>
+						{#if activeMode === 'register'}
+							<div class="password-meta">
+								<PasswordStrengthIndicator {password} />
+								{#if showPasswordHint}
+									<p class="field-hint">Password must be at least 8 characters.</p>
+								{/if}
+							</div>
+						{/if}
+					</div>
+				{/if}
 
 				<button type="submit" class="submit-btn" disabled={isSubmitDisabled}>
 					{#if loading}
-						{activeMode === 'login' ? 'Signing in...' : 'Creating account...'}
+						{#if challengeToken}
+							Verifying...
+						{:else}
+							{activeMode === 'login' ? 'Signing in...' : 'Creating account...'}
+						{/if}
 					{:else}
-						{activeMode === 'login' ? 'Sign in' : 'Create account'}
+						{#if challengeToken}
+							Verify code
+						{:else}
+							{activeMode === 'login' ? 'Sign in' : 'Create account'}
+						{/if}
 					{/if}
 				</button>
-			</form>
 
-			<p class="switch-link">
-				{#if activeMode === 'login'}
-					Don't have an account?
-					<button type="button" class="switch-btn" onclick={() => switchMode('register')}>
-						Create one
-					</button>
-				{:else}
-					Already have an account?
-					<button type="button" class="switch-btn" onclick={() => switchMode('login')}>
-						Sign in
+				{#if challengeToken}
+					<button type="button" class="ghost-btn" disabled={loading} onclick={resetChallenge}>
+						Use another account
 					</button>
 				{/if}
-			</p>
+			</form>
+
+			{#if !challengeToken}
+				<p class="switch-link">
+					{#if activeMode === 'login'}
+						Don't have an account?
+						<button type="button" class="switch-btn" onclick={() => switchMode('register')}>
+							Create one
+						</button>
+					{:else}
+						Already have an account?
+						<button type="button" class="switch-btn" onclick={() => switchMode('login')}>
+							Sign in
+						</button>
+					{/if}
+				</p>
+			{/if}
 		</div>
 	</div>
 </div>
@@ -347,6 +422,28 @@
 	}
 
 	.submit-btn:disabled {
+		opacity: 0.52;
+		cursor: not-allowed;
+	}
+
+	.ghost-btn {
+		width: 100%;
+		height: 3rem;
+		border-radius: 0.72rem;
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: transparent;
+		color: rgba(255, 255, 255, 0.82);
+		font-size: 0.94rem;
+		font-weight: 600;
+		font-family: inherit;
+		cursor: pointer;
+		transition:
+			background-color 0.15s ease,
+			border-color 0.15s ease,
+			opacity 0.15s ease;
+	}
+
+	.ghost-btn:disabled {
 		opacity: 0.52;
 		cursor: not-allowed;
 	}

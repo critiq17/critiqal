@@ -120,15 +120,15 @@
 
 <style>
 	.post {
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 		padding: 1.25rem 0.5rem;
 		margin: 0 -0.5rem;
-		border-radius: 0.5rem;
-		transition: background-color 0.15s ease;
+		border-radius: 0.375rem;
+		transition: background-color 0.12s ease;
 	}
 
 	.post:not(.mobile):hover {
-		background-color: var(--color-surface-raised);
+		background-color: rgba(255, 255, 255, 0.025);
 	}
 
 	.post:last-child {

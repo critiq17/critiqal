@@ -129,22 +129,13 @@
 		</div>
 	</main>
 
-	<aside class="col-right" aria-label="Search tips">
-		<div class="tip-panel">
-			<p class="tip-label">Search tips</p>
-			<ul class="tip-list">
-				<li>Search by name or @username to find people</li>
-				<li>Use keywords to discover posts</li>
-				<li>Leave it empty to see recommendations</li>
-			</ul>
-		</div>
-	</aside>
+	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem 42rem 14rem;
+		grid-template-columns: 16rem 42rem;
 		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
@@ -167,23 +158,24 @@
 	}
 
 	.col-right {
-		overflow-y: auto;
-		padding: 1.5rem 1rem 1.5rem 1.5rem;
+		display: none;
 	}
 
 	.explore-header {
 		position: sticky;
 		top: 0;
-		background-color: var(--color-bg);
+		background-color: rgba(12, 12, 12, 0.85);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		z-index: 10;
 		padding-bottom: 0;
 	}
 
 	.explore-title {
-		font-size: 1.0625rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 600;
 		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
+		letter-spacing: -0.015em;
 		padding: 1.25rem 0 0.875rem;
 	}
 
@@ -206,8 +198,8 @@
 
 	.search-input {
 		width: 100%;
-		background: var(--color-surface-raised);
-		border: 1px solid transparent;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
 		border-radius: 9999px;
 		padding: 0.5625rem 2.5rem 0.5625rem 2.375rem;
 		font-size: 0.9375rem;
@@ -220,12 +212,12 @@
 
 	.search-input::placeholder {
 		color: var(--color-text-muted);
-		opacity: 0.55;
+		opacity: 0.7;
 	}
 
 	.search-input:focus {
-		border-color: var(--color-accent);
-		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
+		border-color: rgba(255, 255, 255, 0.15);
+		background: var(--color-surface-raised);
 	}
 
 	.search-input::-webkit-search-cancel-button {
@@ -260,7 +252,7 @@
 		position: relative;
 		display: grid;
 		grid-template-columns: 1fr 1fr;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 	}
 
 	.tab-btn {
@@ -302,55 +294,9 @@
 		padding-top: 0.25rem;
 	}
 
-	.tip-panel {
-		padding: 1rem;
-		border-radius: 0.75rem;
-		background: var(--color-surface-raised);
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-		margin-top: 1.5rem;
-	}
-
-	.tip-label {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-text-primary);
-		margin: 0;
-	}
-
-	.tip-list {
-		list-style: none;
-		padding: 0;
-		margin: 0;
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-	}
-
-	.tip-list li {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-		line-height: 1.5;
-		padding-left: 0.75rem;
-		position: relative;
-	}
-
-	.tip-list li::before {
-		content: '–';
-		position: absolute;
-		left: 0;
-		color: var(--color-text-muted);
-		opacity: 0.5;
-	}
-
-	@media (max-width: 1024px) {
+	@media (max-width: 900px) {
 		.page-layout {
 			grid-template-columns: 4.5rem 1fr;
-		}
-
-		.col-right {
-			display: none;
 		}
 	}
 

@@ -1,5 +1,22 @@
 export type { User, UpdateProfileRequest } from './user';
-export type { AuthResponse, LoginRequest, RegisterRequest } from './auth';
+export type {
+  LoginResponse,
+  RegisterResponse,
+  LoginRequest,
+  RegisterRequest,
+  TwoFactorChallenge,
+  TwoFactorVerifyRequest,
+  TotpSetupResponse,
+  ConfirmTotpRequest,
+  TwoFactorStatusResponse,
+  SetEmailRequest,
+  VerifyEmailRequest,
+  PasswordResetRequest,
+  RecoveryCodeRequest,
+  RecoveryCodesCountResponse,
+  RecoveryCodesRegenerateResponse,
+} from './auth';
+export { isTwoFactorChallenge } from './auth';
 export type { Post, PostPhoto, PostStatus, CreatePostRequest } from './post';
 export type { Comment, AddCommentRequest } from './comment';
 export type { ReactionType, ReactionsMap, ReactionRequest } from './reaction';

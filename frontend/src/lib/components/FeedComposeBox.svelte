@@ -123,7 +123,7 @@
 		display: flex;
 		gap: 0.75rem;
 		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.055);
 	}
 
 	.compose-avatar {
@@ -187,9 +187,9 @@
 	}
 
 	.compose-hint {
-		font-size: 0.75rem;
+		font-size: 0.6875rem;
 		color: var(--color-text-muted);
-		opacity: 0.6;
+		opacity: 0.45;
 	}
 
 	.compose-actions-left {

@@ -3,27 +3,24 @@
 	import { fly, fade } from 'svelte/transition';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openMobileComments } from '$lib/stores/mobile-comments.store';
-	import { openSheet } from '$lib/stores/sheet.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
+	import { openSettings } from '$lib/stores/settings-nav.store.svelte';
 	import { UseProfile } from '$lib/features/profile/useProfile.svelte';
 	import ProfileHeader from '$lib/components/profile/ProfileHeader.svelte';
 	import ProfileStickyHeader from '$lib/components/profile/ProfileStickyHeader.svelte';
 	import ProfilePostsList from '$lib/components/profile/ProfilePostsList.svelte';
-	import FollowersSheet from '$lib/components/profile/FollowersSheet.svelte';
-	import MobileSettingsSheet from './MobileSettingsSheet.svelte';
+	import FollowersOverlay from '$lib/components/profile/FollowersOverlay.svelte';
+	import ProfileEditOverlay from '$lib/components/profile/ProfileEditOverlay.svelte';
 
 	const profile = new UseProfile();
 
 	let showStickyHeader = $state(false);
 	let sentinelEl = $state<HTMLElement | null>(null);
 
-	let statsSheetType = $state<'followers' | 'following' | null>(null);
-	let settingsOpen = $state(false);
+	let followersOverlayType = $state<'followers' | 'following' | null>(null);
 	let stravaNotification = $state<'connected' | 'denied' | null>(null);
-
-	let closeStatsSheet_: (() => void) | null = null;
-	let closeSettings_: (() => void) | null = null;
+	let editOpen = $state(false);
 
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 
@@ -34,27 +31,13 @@
 		return String(n);
 	}
 
-	function openStatsSheet(type: 'followers' | 'following'): void {
-		statsSheetType = type;
-		closeStatsSheet_ = openSheet();
-		profile.loadFollowLists();
+	function openFollowersOverlay(type: 'followers' | 'following'): void {
+		followersOverlayType = type;
+		if (!profile.listsLoaded && !profile.listsLoading) profile.loadFollowLists();
 	}
 
-	function closeStatsSheet(): void {
-		statsSheetType = null;
-		closeStatsSheet_?.();
-		closeStatsSheet_ = null;
-	}
-
-	function openSettings(): void {
-		settingsOpen = true;
-		closeSettings_ = openSheet();
-	}
-
-	function closeSettings(): void {
-		settingsOpen = false;
-		closeSettings_?.();
-		closeSettings_ = null;
+	function closeFollowersOverlay(): void {
+		followersOverlayType = null;
 	}
 
 	function openComments(postId: string): void {
@@ -82,24 +65,8 @@
 
 	$effect(() => {
 		const tg = getTelegramWebApp();
-		const anySheetOpen = statsSheetType !== null || settingsOpen;
 
-		if (tg) {
-			if (anySheetOpen) {
-				tg.BackButton.show();
-				const handleBack = () => {
-					if (settingsOpen) { closeSettings(); return; }
-					if (statsSheetType !== null) { closeStatsSheet(); return; }
-				};
-				tg.BackButton.onClick(handleBack);
-				return () => {
-					tg.BackButton.offClick(handleBack);
-					tg.BackButton.hide();
-				};
-			} else {
-				tg.BackButton.hide();
-			}
-		}
+		if (tg) tg.BackButton.hide();
 	});
 
 	$effect(() => {
@@ -187,20 +154,11 @@
 	{:else if profile.profile}
 		<ProfileHeader
 			profile={profile.profile}
-			isEditing={profile.isEditing}
-			isSaving={profile.isSaving}
-			editName={profile.editName}
-			editBio={profile.editBio}
-			saveError={profile.saveError}
 			isUploadingAvatar={profile.isUploadingAvatar}
 			avatarError={profile.avatarError}
 			onSettings={openSettings}
-			onEdit={() => profile.startEdit()}
-			onCancelEdit={() => profile.cancelEdit()}
-			onSaveEdit={() => profile.saveEdit()}
+			onEdit={() => { profile.startEdit(); editOpen = true; }}
 			onAvatarClick={() => fileInputEl?.click()}
-			onEditNameChange={(v) => { profile.editName = v; }}
-			onEditBioChange={(v) => { profile.editBio = v; }}
 		/>
 
 		<div bind:this={sentinelEl} class="scroll-sentinel" aria-hidden="true"></div>
@@ -210,14 +168,18 @@
 				<span class="stat-value">{formatCount(profile.posts.length)}</span>
 				<span class="stat-label">Posts</span>
 			</div>
-			<button class="stat-item" onclick={() => openStatsSheet('followers')} aria-label="View followers">
+			<button class="stat-item stat-btn" onclick={() => openFollowersOverlay('followers')} aria-label="View followers">
 				<span class="stat-value">{formatCount(profile.followersCount)}</span>
 				<span class="stat-label">Followers</span>
 			</button>
-			<button class="stat-item" onclick={() => openStatsSheet('following')} aria-label="View following">
+			<button class="stat-item stat-btn" onclick={() => openFollowersOverlay('following')} aria-label="View following">
 				<span class="stat-value">{formatCount(profile.followingCount)}</span>
 				<span class="stat-label">Following</span>
 			</button>
+		</div>
+
+		<div class="posts-section-header" aria-hidden="true">
+			<span>Posts</span>
 		</div>
 
 		<ProfilePostsList
@@ -230,15 +192,25 @@
 	{/if}
 </div>
 
-<FollowersSheet
-	open={statsSheetType !== null}
-	type={statsSheetType}
-	list={statsSheetType === 'followers' ? profile.followersList : profile.followingList}
+<FollowersOverlay
+	open={followersOverlayType !== null}
+	type={followersOverlayType}
+	list={followersOverlayType === 'followers' ? profile.followersList : profile.followingList}
 	listsLoading={profile.listsLoading}
-	onClose={closeStatsSheet}
+	onClose={closeFollowersOverlay}
 />
 
-<MobileSettingsSheet open={settingsOpen} onClose={closeSettings} />
+<ProfileEditOverlay
+	open={editOpen}
+	editName={profile.editName}
+	editBio={profile.editBio}
+	isSaving={profile.isSaving}
+	saveError={profile.saveError}
+	onSave={() => { profile.saveEdit().then(() => { editOpen = false; }); }}
+	onCancel={() => { profile.cancelEdit(); editOpen = false; }}
+	onNameChange={(v) => { profile.editName = v; }}
+	onBioChange={(v) => { profile.editBio = v; }}
+/>
 
 <style>
 	.sr-only {
@@ -335,13 +307,13 @@
 		pointer-events: none;
 	}
 
+	/* ── Stats row ─────────────────────────────────────────────────────────── */
+
 	.stats-row {
 		display: flex;
-		width: 100%;
-		justify-content: space-around;
-		padding: 4px 0 8px;
-		margin: 0;
-		border: none;
+		align-items: center;
+		padding: 0 8px 4px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 	}
 
 	.stat-item {
@@ -350,25 +322,50 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		padding: 4px 0;
-		cursor: pointer;
-		gap: 1px;
+		padding: 10px 4px;
+		gap: 2px;
 		background: none;
 		border: none;
 		font-family: inherit;
+		cursor: default;
 	}
 
+	.stat-btn {
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		border-radius: 10px;
+		transition: background-color 0.12s;
+	}
+
+	.stat-btn:active { background: rgba(255, 255, 255, 0.05); }
+
 	.stat-value {
-		font-size: 16px;
+		font-size: 17px;
 		font-weight: 700;
-		color: var(--tg-theme-text-color, var(--color-text-primary, #f0f0f0));
+		color: var(--tg-theme-text-color, #f0f0f0);
+		letter-spacing: -0.02em;
+		line-height: 1;
 	}
 
 	.stat-label {
 		font-size: 10px;
-		color: var(--tg-theme-hint-color, rgba(240, 240, 240, 0.4));
+		font-weight: 500;
+		color: rgba(240, 240, 240, 0.35);
 		text-transform: uppercase;
-		letter-spacing: 0.4px;
+		letter-spacing: 0.04em;
+	}
+
+	/* ── Posts section header ──────────────────────────────────────────────── */
+
+	.posts-section-header {
+		padding: 0 20px 8px;
+		font-size: 0.6875rem;
+		font-weight: 500;
+		color: rgba(255, 255, 255, 0.3);
+		text-transform: uppercase;
+		letter-spacing: 0.07em;
+		border-top: 1px solid rgba(255, 255, 255, 0.06);
+		padding-top: 12px;
 	}
 
 	.strava-toast {

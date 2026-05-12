@@ -177,18 +177,13 @@
 		{/if}
 	</main>
 
-	<aside class="col-right" aria-label="Additional info">
-		<div class="info-panel">
-			<p class="info-label">Critiqal</p>
-			<p class="info-body">A minimalist social network for people who care about quality.</p>
-		</div>
-	</aside>
+	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
 <style>
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem 42rem 14rem;
+		grid-template-columns: 16rem 42rem;
 		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
@@ -210,25 +205,25 @@
 	}
 
 	.col-right {
-		overflow-y: auto;
-		padding: 1.5rem 1rem 1.5rem 1.5rem;
+		display: none;
 	}
 
 	.feed-header {
 		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
 		margin-bottom: 0;
 		position: sticky;
 		top: 0;
-		background-color: var(--color-bg);
+		background-color: rgba(12, 12, 12, 0.85);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		z-index: 10;
 	}
 
 	.feed-title {
-		font-size: 1.0625rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 600;
 		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
+		letter-spacing: -0.015em;
 	}
 
 	.feed-sentinel {
@@ -283,35 +278,9 @@
 		transform: scale(0.97);
 	}
 
-	.info-panel {
-		padding: 1rem;
-		border-radius: 0.75rem;
-		background: var(--color-surface-raised);
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-		margin-top: 1.5rem;
-	}
-
-	.info-label {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-text-primary);
-	}
-
-	.info-body {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-		line-height: 1.5;
-	}
-
-	@media (max-width: 1024px) {
+	@media (max-width: 900px) {
 		.page-layout {
 			grid-template-columns: 4.5rem 1fr;
-		}
-
-		.col-right {
-			display: none;
 		}
 	}
 

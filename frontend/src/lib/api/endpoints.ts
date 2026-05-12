@@ -2,6 +2,24 @@ export const API = {
   auth: {
     register: '/api/auth/register',
     login: '/api/auth/login',
+    login2fa: '/api/auth/login/2fa',
+    logout: '/api/auth/logout',
+    me: '/api/auth/me',
+    setEmail: '/api/auth/email',
+    verifyEmail: '/api/auth/email/verify',
+    recovery: {
+      request: '/api/auth/recovery/request',
+      reset: '/api/auth/recovery/reset',
+      useCode: '/api/auth/recovery/code',
+      codesCount: '/api/auth/recovery/codes/count',
+      regenerateCodes: '/api/auth/recovery/codes/regenerate',
+    },
+    twoFactor: {
+      setup: '/api/auth/2fa/setup',
+      confirm: '/api/auth/2fa/confirm',
+      disable: '/api/auth/2fa',
+      status: '/api/auth/2fa/status',
+    },
   },
   posts: {
     feed: '/api/posts',
