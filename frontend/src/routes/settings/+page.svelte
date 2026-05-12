@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { fly, fade } from 'svelte/transition';
+	import { fly, slide } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { twoFactorService } from '$lib/services/two-factor.service';
@@ -14,9 +14,23 @@
 	// ── Email ────────────────────────────────────────────────────────────────
 
 	let emailInput = $state('');
+	let emailEditing = $state(false);
 	let emailSubmitting = $state(false);
 	let emailError = $state('');
 	let emailSuccess = $state(false);
+
+	function startEmailEdit(): void {
+		emailInput = '';
+		emailEditing = true;
+		emailError = '';
+		emailSuccess = false;
+	}
+
+	function cancelEmailEdit(): void {
+		emailEditing = false;
+		emailInput = '';
+		emailError = '';
+	}
 
 	async function handleSetEmail(): Promise<void> {
 		emailSubmitting = true;
@@ -26,6 +40,7 @@
 			await emailVerificationService.setEmail({ email: emailInput });
 			emailSuccess = true;
 			emailInput = '';
+			emailEditing = false;
 		} catch (err: unknown) {
 			emailError = mapError(err);
 		} finally {
@@ -155,7 +170,7 @@
 		<!-- Profile -->
 		{#if authStore.isAuthenticated && authStore.user}
 			<section class="section">
-				<p class="label">Profile</p>
+				<p class="section-label">Profile</p>
 				<a href="/{authStore.user.username}" class="profile-row">
 					<div class="avatar" aria-hidden="true">
 						{#if authStore.user.avatarUrl}
@@ -179,44 +194,94 @@
 
 		<!-- Email -->
 		<section class="section">
-			<p class="label">Email</p>
-			<p class="sublabel">Used for password recovery and notifications.</p>
+			<p class="section-label">Email</p>
+
+			<div class="setting-row">
+				<div class="setting-info">
+					{#if authStore.user?.email}
+						<span class="setting-value">{authStore.user.email}</span>
+						{#if authStore.user.emailVerified}
+							<span class="status-dot verified" title="Verified"></span>
+						{:else}
+							<span class="badge-pending">Pending</span>
+						{/if}
+					{:else}
+						<span class="setting-placeholder">No email set</span>
+					{/if}
+				</div>
+				{#if !emailEditing}
+					<button class="link-btn" onclick={startEmailEdit}>
+						{authStore.user?.email ? 'Change' : 'Add'}
+					</button>
+				{/if}
+			</div>
+
+			{#if !authStore.user?.emailVerified && authStore.user?.email}
+				<p class="hint" in:fly={{ y: -4, duration: 150 }}>Check your inbox and click the verification link.</p>
+			{/if}
 
 			{#if emailSuccess}
-				<p class="msg msg-ok" in:fly={{ y: -4, duration: 150 }}>Check your inbox to verify.</p>
-			{/if}
-			{#if emailError}
-				<p class="msg msg-err" in:fly={{ y: -4, duration: 150 }}>{emailError}</p>
+				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>Verification email sent — check your inbox.</p>
 			{/if}
 
-			<form class="row-form" onsubmit={(e) => { e.preventDefault(); handleSetEmail(); }}>
-				<input
-					type="email"
-					class="input"
-					bind:value={emailInput}
-					autocomplete="email"
-					required
-					disabled={emailSubmitting}
-					placeholder="you@example.com"
-				/>
-				<button type="submit" class="btn-primary" disabled={emailSubmitting || emailInput.trim().length === 0}>
-					{emailSubmitting ? 'Saving…' : 'Save'}
-				</button>
-			</form>
+			{#if emailEditing}
+				<div class="inline-form" transition:slide={{ duration: 180 }}>
+					{#if emailError}
+						<p class="hint hint-err">{emailError}</p>
+					{/if}
+					<div class="input-row">
+						<input
+							type="email"
+							class="input"
+							bind:value={emailInput}
+							autocomplete="email"
+							required
+							disabled={emailSubmitting}
+							placeholder="new@example.com"
+						/>
+						<button
+							class="btn-primary"
+							disabled={emailSubmitting || emailInput.trim().length === 0}
+							onclick={handleSetEmail}
+						>
+							{emailSubmitting ? 'Saving…' : 'Save'}
+						</button>
+						<button class="btn-ghost" disabled={emailSubmitting} onclick={cancelEmailEdit}>
+							Cancel
+						</button>
+					</div>
+				</div>
+			{/if}
 		</section>
 
 		<!-- 2FA -->
 		<section class="section">
-			<div class="label-row">
-				<p class="label">Two-factor authentication</p>
-				{#if !tfaLoading && tfaStatus?.enabled}
-					<span class="badge-on">Enabled</span>
+			<div class="setting-row">
+				<div class="setting-info col">
+					<p class="section-label">Two-factor authentication</p>
+					{#if !tfaLoading}
+						<span class="setting-sub">
+							{#if tfaStatus?.enabled}
+								Enabled · {tfaCodesCount ?? '…'} recovery codes
+							{:else}
+								Add an extra layer of security
+							{/if}
+						</span>
+					{/if}
+				</div>
+				{#if !tfaLoading && tfaView === 'idle'}
+					{#if tfaStatus?.enabled}
+						<span class="status-badge enabled">On</span>
+					{:else}
+						<button class="link-btn" disabled={tfaSubmitting} onclick={handleSetupTfa}>
+							{tfaSubmitting ? 'Setting up…' : 'Enable'}
+						</button>
+					{/if}
 				{/if}
 			</div>
-			<p class="sublabel">Protect your account with an authenticator app.</p>
 
 			{#if tfaError}
-				<p class="msg msg-err" in:fly={{ y: -4, duration: 150 }}>{tfaError}</p>
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{tfaError}</p>
 			{/if}
 
 			{#if tfaLoading}
@@ -224,64 +289,61 @@
 
 			{:else if tfaView === 'setup-qr' && tfaSetup}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint">Scan with your authenticator app (Google Authenticator, Authy, etc.)</p>
+					<p class="hint">Scan with Google Authenticator, Authy, or any TOTP app.</p>
 					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR code" />
-					<details class="manual">
-						<summary>Can't scan? Enter manually</summary>
+					<details class="manual-entry">
+						<summary>Can't scan?</summary>
 						<code class="secret">{tfaSetup.secret}</code>
 					</details>
-					<div class="field-group">
+					<div class="input-row">
 						<input
 							type="text"
 							class="input"
 							bind:value={tfaConfirmCode}
 							inputmode="numeric"
-							pattern="[0-9]{6}"
 							maxlength={6}
 							placeholder="6-digit code"
 							autocomplete="one-time-code"
 							disabled={tfaSubmitting}
 						/>
-						<div class="btn-row">
-							<button class="btn-primary" disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6} onclick={handleConfirmTfa}>
-								{tfaSubmitting ? 'Confirming…' : 'Confirm'}
-							</button>
-							<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
-								Cancel
-							</button>
-						</div>
+						<button class="btn-primary" disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6} onclick={handleConfirmTfa}>
+							{tfaSubmitting ? 'Confirming…' : 'Confirm'}
+						</button>
+						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
+							Cancel
+						</button>
 					</div>
 				</div>
 
 			{:else if tfaView === 'show-codes' || tfaView === 'regen-codes'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint hint-warn">Save these codes somewhere safe. Each works once if you lose your authenticator.</p>
+					<p class="hint hint-warn">Save these codes — each works once if you lose your authenticator.</p>
 					<ul class="codes-grid">
 						{#each tfaRecoveryCodes as code}
 							<li class="code">{code}</li>
 						{/each}
 					</ul>
-					<button class="btn-primary" onclick={tfaView === 'regen-codes' ? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); } : handleDoneWithCodes}>
+					<button class="btn-primary" style="align-self: flex-start" onclick={tfaView === 'regen-codes' ? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); } : handleDoneWithCodes}>
 						Done, I've saved them
 					</button>
 				</div>
 
 			{:else if tfaView === 'disable-confirm'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<input
-						type="text"
-						class="input"
-						bind:value={tfaDisableCode}
-						inputmode="numeric"
-						pattern="[0-9]{6}"
-						maxlength={6}
-						placeholder="Enter your 6-digit code to confirm"
-						autocomplete="one-time-code"
-						disabled={tfaSubmitting}
-					/>
-					<div class="btn-row">
+					<p class="hint">Enter your 6-digit code to confirm disabling 2FA.</p>
+					<div class="input-row">
+						<input
+							type="text"
+							class="input"
+							bind:value={tfaDisableCode}
+							inputmode="numeric"
+							maxlength={6}
+							placeholder="6-digit code"
+							autocomplete="one-time-code"
+							disabled={tfaSubmitting}
+						/>
 						<button class="btn-danger" disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6} onclick={handleDisableTfa}>
-							{tfaSubmitting ? 'Disabling…' : 'Disable 2FA'}
+							{tfaSubmitting ? 'Disabling…' : 'Disable'}
 						</button>
 						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
 							Cancel
@@ -289,71 +351,57 @@
 					</div>
 				</div>
 
-			{:else if tfaStatus?.enabled}
-				<div class="tfa-actions" in:fade={{ duration: 150 }}>
-					{#if tfaCodesCount !== null}
-						<p class="hint">{tfaCodesCount} recovery code{tfaCodesCount !== 1 ? 's' : ''} remaining</p>
-					{/if}
-					<div class="btn-row">
-						<button class="btn-ghost" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-							Regenerate codes
-						</button>
-						<button class="btn-ghost btn-ghost-danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
-							Disable
-						</button>
-					</div>
+			{:else if tfaStatus?.enabled && tfaView === 'idle'}
+				<div class="tfa-actions">
+					<button class="link-btn" disabled={tfaSubmitting} onclick={handleRegenCodes}>
+						Regenerate codes
+					</button>
+					<span class="dot-sep" aria-hidden="true">·</span>
+					<button class="link-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
+						Disable
+					</button>
 				</div>
-
-			{:else}
-				<button class="btn-primary" style="align-self: flex-start" disabled={tfaSubmitting} onclick={handleSetupTfa} in:fade={{ duration: 150 }}>
-					{tfaSubmitting ? 'Setting up…' : 'Enable 2FA'}
-				</button>
 			{/if}
 		</section>
 
 		<!-- Integrations -->
 		<section class="section">
-			<p class="label">Integrations</p>
+			<p class="section-label">Integrations</p>
 
-			<div class="integration-row">
-				<div class="integration-left">
-					<span class="integration-name">Strava</span>
+			<div class="setting-row">
+				<div class="setting-info col">
+					<span class="setting-value">Strava</span>
 					{#if stravaStore.connection}
-						<span class="integration-sub">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
+						<span class="setting-sub">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
+					{:else}
+						<span class="setting-sub">Connect your activities</span>
 					{/if}
 				</div>
 
 				{#if stravaStore.connection}
 					{#if confirmDisconnect}
-						<div class="btn-row">
-							<button class="btn-danger-sm" disabled={stravaStore.loading} onclick={handleStravaDisconnect}>
+						<div class="inline-actions">
+							<button class="link-btn danger" disabled={stravaStore.loading} onclick={handleStravaDisconnect}>
 								{stravaStore.loading ? '…' : 'Disconnect'}
 							</button>
-							<button class="btn-ghost-sm" disabled={stravaStore.loading} onclick={() => { confirmDisconnect = false; }}>
+							<button class="link-btn" disabled={stravaStore.loading} onclick={() => { confirmDisconnect = false; }}>
 								Cancel
 							</button>
 						</div>
 					{:else}
-						<button class="btn-ghost-sm" onclick={() => { confirmDisconnect = true; }}>
-							Disconnect
-						</button>
+						<button class="link-btn" onclick={() => { confirmDisconnect = true; }}>Disconnect</button>
 					{/if}
 				{:else if stravaComingSoon}
-					<span class="coming-soon" in:fade={{ duration: 150 }}>Coming soon</span>
+					<span class="setting-sub" in:fly={{ x: 4, duration: 150 }}>Coming soon</span>
 				{:else}
-					<button class="btn-connect" onclick={handleStravaConnect}>
-						Connect
-					</button>
+					<button class="link-btn" onclick={handleStravaConnect}>Connect</button>
 				{/if}
 			</div>
 		</section>
 
 		<!-- Account -->
-		<section class="section">
-			<p class="label">Account</p>
-			<button class="btn-ghost btn-ghost-danger" style="align-self: flex-start" onclick={handleLogout}>
-				Sign out
-			</button>
+		<section class="section section-last">
+			<button class="link-btn danger" onclick={handleLogout}>Sign out</button>
 		</section>
 	</main>
 
@@ -422,33 +470,61 @@
 	/* ── Sections ─────────────────────────────────────────────────────────── */
 
 	.section {
-		padding: 1.5rem 0;
-		border-top: 1px solid var(--color-border);
+		padding: 1.25rem 0;
+		border-bottom: 1px solid var(--color-border);
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.label {
-		font-size: 0.8125rem;
-		font-weight: 600;
-		color: var(--color-text-muted);
-		margin: 0;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-	}
-
-	.label-row {
-		display: flex;
-		align-items: center;
 		gap: 0.625rem;
 	}
 
-	.sublabel {
+	.section-last {
+		border-bottom: none;
+	}
+
+	.section-label {
+		font-size: 0.75rem;
+		font-weight: 500;
+		color: var(--color-text-muted);
+		margin: 0;
+		letter-spacing: 0.02em;
+	}
+
+	/* ── Setting row ──────────────────────────────────────────────────────── */
+
+	.setting-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.setting-info {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.setting-info.col {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.125rem;
+	}
+
+	.setting-value {
+		font-size: 0.9375rem;
+		color: var(--color-text-primary);
+		font-weight: 400;
+	}
+
+	.setting-placeholder {
+		font-size: 0.9375rem;
+		color: var(--color-text-muted);
+	}
+
+	.setting-sub {
 		font-size: 0.8125rem;
 		color: var(--color-text-muted);
-		margin: -0.25rem 0 0;
-		line-height: 1.5;
 	}
 
 	/* ── Profile row ──────────────────────────────────────────────────────── */
@@ -458,12 +534,11 @@
 		align-items: center;
 		gap: 0.75rem;
 		text-decoration: none;
-		padding: 0.5rem 0;
-		border-radius: 0.5rem;
+		padding: 0.25rem 0;
 		transition: opacity 0.15s ease;
 	}
 
-	.profile-row:hover { opacity: 0.75; }
+	.profile-row:hover { opacity: 0.7; }
 
 	.avatar {
 		width: 2.25rem;
@@ -480,7 +555,7 @@
 	.avatar-img { width: 100%; height: 100%; object-fit: cover; }
 
 	.avatar-initial {
-		font-size: 0.8125rem;
+		font-size: 0.875rem;
 		font-weight: 600;
 		color: var(--color-text-muted);
 		user-select: none;
@@ -509,178 +584,205 @@
 	}
 
 	.chevron {
-		width: 1rem;
-		height: 1rem;
+		width: 0.875rem;
+		height: 0.875rem;
 		color: var(--color-text-muted);
+		flex-shrink: 0;
+		opacity: 0.5;
+	}
+
+	/* ── Status indicators ────────────────────────────────────────────────── */
+
+	.status-dot {
+		width: 0.5rem;
+		height: 0.5rem;
+		border-radius: 50%;
 		flex-shrink: 0;
 	}
 
-	/* ── Badge ────────────────────────────────────────────────────────────── */
+	.status-dot.verified { background: #10b981; }
 
-	.badge-on {
-		display: inline-flex;
-		align-items: center;
-		padding: 0.125rem 0.5rem;
-		border-radius: 999px;
+	.status-badge {
 		font-size: 0.6875rem;
 		font-weight: 600;
+		padding: 0.1875rem 0.5rem;
+		border-radius: 999px;
 		letter-spacing: 0.02em;
-		background: rgba(16, 185, 129, 0.12);
+	}
+
+	.status-badge.enabled {
+		background: rgba(16, 185, 129, 0.1);
 		color: #10b981;
 	}
+
+	.badge-pending {
+		font-size: 0.6875rem;
+		font-weight: 500;
+		padding: 0.1875rem 0.5rem;
+		border-radius: 999px;
+		background: rgba(202, 138, 4, 0.1);
+		color: #ca8a04;
+	}
+
+	/* ── Link-style buttons ───────────────────────────────────────────────── */
+
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: 0.875rem;
+		font-family: inherit;
+		font-weight: 500;
+		color: var(--color-text-primary);
+		cursor: pointer;
+		white-space: nowrap;
+		transition: opacity 0.15s ease;
+		flex-shrink: 0;
+	}
+
+	.link-btn:hover:not(:disabled) { opacity: 0.6; }
+	.link-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+	.link-btn.danger { color: var(--color-accent); }
+
+	/* ── Inline actions (for confirm patterns) ────────────────────────────── */
+
+	.inline-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.875rem;
+	}
+
+	.tfa-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.dot-sep {
+		color: var(--color-text-muted);
+		font-size: 0.875rem;
+		line-height: 1;
+	}
+
+	/* ── Inline form ──────────────────────────────────────────────────────── */
+
+	.inline-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.input-row {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.input-row .input { flex: 1; }
 
 	/* ── Inputs ───────────────────────────────────────────────────────────── */
 
 	.input {
-		width: 100%;
 		background: var(--color-surface-raised);
 		border: 1px solid var(--color-border);
 		border-radius: 0.5rem;
-		padding: 0.625rem 0.75rem;
-		font-size: 0.9375rem;
+		padding: 0.5rem 0.75rem;
+		font-size: 0.875rem;
 		color: var(--color-text-primary);
 		font-family: inherit;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
 		outline: none;
+		transition: border-color 0.15s ease;
 		box-sizing: border-box;
 	}
 
-	.input::placeholder { color: var(--color-text-muted); opacity: 0.5; }
-	.input:focus { border-color: rgba(240, 240, 240, 0.25); box-shadow: 0 0 0 3px rgba(240, 240, 240, 0.04); }
-	.input:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	/* ── Forms ────────────────────────────────────────────────────────────── */
-
-	.row-form { display: flex; gap: 0.5rem; }
-	.row-form .input { flex: 1; }
-
-	.field-group { display: flex; flex-direction: column; gap: 0.625rem; }
-
-	.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.input::placeholder { color: var(--color-text-muted); opacity: 0.45; }
+	.input:focus { border-color: rgba(240, 240, 240, 0.22); }
+	.input:disabled { opacity: 0.45; cursor: not-allowed; }
 
 	/* ── Buttons ──────────────────────────────────────────────────────────── */
 
 	.btn-primary {
-		padding: 0.5rem 1rem;
+		padding: 0.5rem 0.875rem;
 		border-radius: 0.5rem;
 		border: none;
 		background: var(--color-text-primary);
 		color: var(--color-bg);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
 		white-space: nowrap;
-		transition: opacity 0.15s ease, transform 0.1s ease;
+		transition: opacity 0.15s ease;
 	}
 
 	.btn-primary:hover:not(:disabled) { opacity: 0.85; }
-	.btn-primary:active:not(:disabled) { transform: scale(0.97); }
-	.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+	.btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
 
 	.btn-ghost {
-		padding: 0.5rem 1rem;
+		padding: 0.5rem 0.875rem;
 		border-radius: 0.5rem;
 		border: 1px solid var(--color-border);
 		background: transparent;
 		color: var(--color-text-primary);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		font-weight: 500;
 		font-family: inherit;
 		cursor: pointer;
+		white-space: nowrap;
 		transition: background-color 0.15s ease;
 	}
 
 	.btn-ghost:hover:not(:disabled) { background: var(--color-surface-raised); }
-	.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.btn-ghost-danger { border-color: transparent; color: var(--color-accent); }
-	.btn-ghost-danger:hover:not(:disabled) { background: rgba(224, 82, 82, 0.06); }
+	.btn-ghost:disabled { opacity: 0.35; cursor: not-allowed; }
 
 	.btn-danger {
-		padding: 0.5rem 1rem;
+		padding: 0.5rem 0.875rem;
 		border-radius: 0.5rem;
 		border: none;
-		background: rgba(224, 82, 82, 0.12);
+		background: rgba(224, 82, 82, 0.1);
 		color: var(--color-accent);
-		font-size: 0.875rem;
+		font-size: 0.8125rem;
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
+		white-space: nowrap;
 		transition: background-color 0.15s ease;
 	}
 
-	.btn-danger:hover:not(:disabled) { background: rgba(224, 82, 82, 0.2); }
-	.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
+	.btn-danger:hover:not(:disabled) { background: rgba(224, 82, 82, 0.18); }
+	.btn-danger:disabled { opacity: 0.35; cursor: not-allowed; }
 
-	.btn-ghost-sm {
-		padding: 0.375rem 0.75rem;
-		border-radius: 0.375rem;
-		border: 1px solid var(--color-border);
-		background: transparent;
+	/* ── Hints / feedback ─────────────────────────────────────────────────── */
+
+	.hint {
+		font-size: 0.8125rem;
 		color: var(--color-text-muted);
-		font-size: 0.8125rem;
-		font-family: inherit;
-		cursor: pointer;
-		transition: color 0.15s ease;
+		margin: 0;
+		line-height: 1.5;
 	}
 
-	.btn-ghost-sm:hover:not(:disabled) { color: var(--color-text-primary); }
-	.btn-ghost-sm:disabled { opacity: 0.4; cursor: not-allowed; }
+	.hint-ok { color: #10b981; }
+	.hint-err { color: var(--color-accent); }
+	.hint-warn { color: #ca8a04; }
 
-	.btn-danger-sm {
-		padding: 0.375rem 0.75rem;
-		border-radius: 0.375rem;
-		border: none;
-		background: transparent;
-		color: var(--color-accent);
-		font-size: 0.8125rem;
-		font-family: inherit;
-		cursor: pointer;
-	}
+	/* ── 2FA panel ────────────────────────────────────────────────────────── */
 
-	.btn-danger-sm:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.btn-connect {
-		padding: 0.375rem 0.875rem;
-		border-radius: 0.375rem;
-		border: 1px solid var(--color-border);
-		background: transparent;
-		color: var(--color-text-primary);
-		font-size: 0.8125rem;
-		font-weight: 500;
-		font-family: inherit;
-		cursor: pointer;
-		transition: background-color 0.15s ease;
-	}
-
-	.btn-connect:hover { background: var(--color-surface-raised); }
-
-	/* ── Feedback ─────────────────────────────────────────────────────────── */
-
-	.msg { font-size: 0.8125rem; margin: 0; line-height: 1.4; }
-	.msg-ok { color: #10b981; }
-	.msg-err { color: var(--color-accent); }
-
-	/* ── 2FA panels ───────────────────────────────────────────────────────── */
-
-	.tfa-panel, .tfa-actions {
+	.tfa-panel {
 		display: flex;
 		flex-direction: column;
 		gap: 0.75rem;
 	}
 
 	.qr {
-		width: 9rem;
-		height: 9rem;
+		width: 8rem;
+		height: 8rem;
 		border-radius: 0.5rem;
-		align-self: flex-start;
 		background: #fff;
 		padding: 0.375rem;
 	}
 
-	.manual { font-size: 0.8125rem; color: var(--color-text-muted); }
-	.manual summary { cursor: pointer; }
+	.manual-entry { font-size: 0.8125rem; color: var(--color-text-muted); }
+	.manual-entry summary { cursor: pointer; }
 
 	.secret {
 		display: block;
@@ -694,15 +796,6 @@
 		word-break: break-all;
 		letter-spacing: 0.05em;
 	}
-
-	.hint {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-		margin: 0;
-		line-height: 1.5;
-	}
-
-	.hint-warn { color: #ca8a04; }
 
 	.codes-grid {
 		display: grid;
@@ -723,42 +816,11 @@
 		letter-spacing: 0.04em;
 	}
 
-	/* ── Integrations ─────────────────────────────────────────────────────── */
-
-	.integration-row {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.integration-left {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
-
-	.integration-name {
-		font-size: 0.9375rem;
-		font-weight: 500;
-		color: var(--color-text-primary);
-	}
-
-	.integration-sub {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-	}
-
-	.coming-soon {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-	}
-
 	/* ── Skeleton ─────────────────────────────────────────────────────────── */
 
 	.skeleton {
-		height: 1.75rem;
-		width: 10rem;
+		height: 1.5rem;
+		width: 8rem;
 		border-radius: 0.375rem;
 		background: var(--color-surface-raised);
 		animation: pulse 1.4s ease-in-out infinite;

@@ -263,6 +263,22 @@
 					{#if emailSuccess}
 						<p class="mobile-success">Check your inbox to verify your email.</p>
 					{/if}
+				
+					{#if authStore.user?.emailVerified && authStore.user?.email}
+						<div class="email-verified-row">
+							<svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+								stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+								<polyline points="20 6 9 17 4 12" />
+							</svg>
+							<span>{authStore.user.email}</span>
+							<span class="mobile-badge mobile-badge-on">Verified</span>
+						</div>
+					{:else if authStore.user?.email}
+						<div class="email-pending-row">
+							<span>{authStore.user.email}</span>
+							<span class="mobile-badge mobile-badge-pending">Pending verification</span>
+						</div>
+					{/if}
 					<form class="mobile-form" onsubmit={(e) => { e.preventDefault(); handleSetEmail(); }}>
 						<input
 							type="email"

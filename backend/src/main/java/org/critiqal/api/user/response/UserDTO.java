@@ -11,6 +11,9 @@ public record UserDTO(
         String name,
         String bio,
         String avatarUrl,
+        String email,
+        boolean emailVerified,
+        boolean twoFactorEnabled,
         Instant createdAt
 ) {
     public static UserDTO from(User user) {
@@ -20,6 +23,9 @@ public record UserDTO(
                 user.name,
                 user.bio,
                 user.avatarUrl,
+                user.email,
+                user.emailVerified,
+                user.twoFactorEnabled,
                 user.createdAt
         );
     }

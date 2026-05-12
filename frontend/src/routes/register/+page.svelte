@@ -42,8 +42,12 @@
 		error = '';
 		try {
 			const user = await authService.register({ username, password });
-			authStore.login(user);
-			step = 'onboarding';
+			await authStore.login(user);
+			if (user.emailVerified) {
+				goto('/');
+			} else {
+				step = 'onboarding';
+			}
 		} catch (err: unknown) {
 			if (err instanceof ApiError) {
 				error = err.message?.toLowerCase().includes('already taken')

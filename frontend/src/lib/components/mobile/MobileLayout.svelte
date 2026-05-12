@@ -11,12 +11,14 @@
 	import { sheetStore } from '$lib/stores/sheet.store.svelte';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import type { Post } from '$lib/types';
+	import { settingsNavStore } from '$lib/stores/settings-nav.store.svelte';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
 	import MobileExplore from './MobileExplore.svelte';
 	import MobileProfile from './MobileProfile.svelte';
 	import UserProfileOverlay from './UserProfileOverlay.svelte';
+	import MobileSettingsOverlay from './MobileSettingsOverlay.svelte';
 	import MobileCommentsSheet from './MobileCommentsSheet.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
@@ -84,11 +86,12 @@
 	// Watch overlay open/close to push/restore background.
 	$effect(() => {
 		const username = profileNavStore.username;
+		const settingsOpen = settingsNavStore.open;
 		if (!contentEl) return;
 		const sw = window.innerWidth;
 		const push = sw * PUSH_RATIO;
 
-		if (username) {
+		if (username || settingsOpen) {
 			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
 			contentEl.style.transform = `translateX(-${push}px)`;
 		} else {
@@ -152,6 +155,10 @@
 
 {#if profileNavStore.username}
 	<UserProfileOverlay username={profileNavStore.username} />
+{/if}
+
+{#if settingsNavStore.open}
+	<MobileSettingsOverlay />
 {/if}
 
 <MobileCommentsSheet />

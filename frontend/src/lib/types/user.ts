@@ -4,6 +4,9 @@ export interface User {
 	name: string | null;
 	bio: string | null;
 	avatarUrl: string | null;
+	email: string | null;
+	emailVerified: boolean;
+	twoFactorEnabled: boolean;
 	createdAt: string;
 }
 

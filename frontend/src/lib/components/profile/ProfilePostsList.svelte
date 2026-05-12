@@ -17,9 +17,6 @@
 
 	let { posts, postsLoading = false, postsError, onOpenComments, onRetry }: Props = $props();
 
-	// Stable map: only create a new UseReactions instance for posts that appear for the first time.
-	// $state so the template re-renders when new posts arrive; mutate in-place to preserve
-	// already-loaded reaction data (replacing the whole map would wipe it).
 	let reactionHooks = $state(new Map<string, UseReactions>());
 	$effect(() => {
 		const seen = new Set(posts.map((p) => p.id));
@@ -36,7 +33,6 @@
 				changed = true;
 			}
 		}
-		// Force reactivity update when the map changed in-place
 		if (changed) reactionHooks = new Map(reactionHooks);
 	});
 
@@ -57,107 +53,145 @@
 </script>
 
 {#if postsError}
-	<div class="posts-error" role="alert">
-		<p class="error-text">{postsError}</p>
+	<div class="state-box" role="alert">
+		<p class="state-text err">{postsError}</p>
 		<button class="retry-btn" onclick={onRetry}>Try again</button>
 	</div>
 {:else if postsLoading && posts.length === 0}
-	<div class="posts-skeleton" aria-busy="true" aria-label="Loading posts">
-		<div class="skeleton-post"></div>
-		<div class="skeleton-post"></div>
-		<div class="skeleton-post"></div>
+	<div class="skeleton-list" aria-busy="true" aria-label="Loading posts">
+		{#each [80, 56, 96] as h}
+			<div class="skeleton-post" style="--h:{h}px"></div>
+		{/each}
 	</div>
 {:else if posts.length === 0}
-	<div class="posts-empty">
-		<p class="posts-empty-text">No posts yet.</p>
+	<div class="state-box">
+		<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+			stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+			style="color:rgba(255,255,255,0.2)" aria-hidden="true">
+			<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+			<polyline points="14 2 14 8 20 8"/>
+		</svg>
+		<p class="state-text">No posts yet</p>
 	</div>
 {:else}
-	<div class="profile-feed" role="list" aria-label="Posts">
+	<ul class="feed" role="list" aria-label="Posts">
 		{#each posts as post (post.id)}
 			{@const rx = reactionHooks.get(post.id)}
-			<article class="profile-post-card" role="listitem" use:trackView={post.id}>
-				<p class="profile-post-content">{post.content}</p>
+			<li class="post-card" role="listitem" use:trackView={post.id}>
+				<p class="post-content">{post.content}</p>
 
 				{#if post.photos && post.photos.length > 0}
-					<div class="profile-photo-strip">
+					<div class="photo-strip">
 						{#each post.photos.slice().sort((a, b) => a.position - b.position) as photo (photo.id)}
-							<div class="profile-photo-item">
+							<div class="photo-item">
 								<img src={photo.url} alt="" loading="lazy" />
 							</div>
 						{/each}
 					</div>
 				{/if}
 
-				<div class="profile-action-row">
-					{#each REACTION_TYPES as type (type)}
-						{@const reactionVisual = REACTION_VISUALS[type]}
-						{@const isActive = rx?.myReaction === type}
-						{@const isPopping = rx?.poppingType === type}
-						{@const count = rx?.reactions[type] ?? 0}
+				<div class="action-row">
+					<!-- Reactions -->
+					<div class="reactions">
+						{#each REACTION_TYPES as type (type)}
+							{@const rv = REACTION_VISUALS[type]}
+							{@const isActive = rx?.myReaction === type}
+							{@const isPopping = rx?.poppingType === type}
+							{@const count = rx?.reactions[type] ?? 0}
+							<button
+								class="react-btn"
+								class:active={isActive}
+								onclick={() => handleReaction(post.id, type)}
+								aria-label="{type}, {count}"
+							>
+								{#if rv.assetPath}
+									<img src={rv.assetPath} alt={rv.label}
+										class="react-img" class:popping={isPopping} loading="lazy" />
+								{:else}
+									<span class="react-emoji" class:popping={isPopping} aria-hidden="true">
+										{rv.fallbackEmoji}
+									</span>
+								{/if}
+								{#if count > 0}
+									<span class="react-count">{count}</span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+
+					<!-- Right side: comments + views + time -->
+					<div class="post-meta">
 						<button
-							class="p-reaction-btn"
-							class:active={isActive}
-							onclick={() => handleReaction(post.id, type)}
-							aria-label="{type} reaction, count {count}"
+							class="comment-btn"
+							onclick={() => onOpenComments(post.id)}
+							aria-label="Comments"
 						>
-							{#if reactionVisual.assetPath}
-								<img
-									src={reactionVisual.assetPath}
-									alt={reactionVisual.label}
-									class="p-reaction-img"
-									class:p-reaction-popping={isPopping}
-									loading="lazy"
-								/>
-							{:else}
-								<span
-									class="p-reaction-emoji"
-									class:p-reaction-popping={isPopping}
-									aria-hidden="true"
-								>
-									{reactionVisual.fallbackEmoji}
-								</span>
-							{/if}
-							{#if count > 0}
-								<span class="p-reaction-count">{count}</span>
-							{/if}
+							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+								stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+								<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+							</svg>
 						</button>
-					{/each}
-
-					<span class="p-view-count" aria-label="{post.viewCount} views">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-							<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-							<circle cx="12" cy="12" r="3"/>
-						</svg>
-						{formatViews(post.viewCount)}
-					</span>
-
-					<button
-						class="p-reaction-btn p-comment-btn"
-						onclick={() => onOpenComments(post.id)}
-						aria-label="Comments"
-					>
-						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-						</svg>
-					</button>
-
-					<span class="profile-post-time">{formatRelativeTime(post.createdAt)}</span>
+						<span class="meta-dot" aria-hidden="true">·</span>
+						<span class="view-count" aria-label="{post.viewCount} views">
+							{formatViews(post.viewCount)}
+						</span>
+						<span class="meta-dot" aria-hidden="true">·</span>
+						<time class="post-time" datetime={post.createdAt}>
+							{formatRelativeTime(post.createdAt)}
+						</time>
+					</div>
 				</div>
-			</article>
+			</li>
 		{/each}
-	</div>
+	</ul>
 {/if}
 
 <style>
-	.posts-skeleton {
+	/* ── States ────────────────────────────────────────────────────────────── */
+
+	.state-box {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 10px;
+		padding: 48px 16px;
+	}
+
+	.state-text {
+		font-size: 14px;
+		color: rgba(255, 255, 255, 0.35);
+		margin: 0;
+		text-align: center;
+	}
+
+	.state-text.err { color: #e05252; }
+
+	.retry-btn {
+		padding: 8px 20px;
+		border-radius: 10px;
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: none;
+		color: rgba(255, 255, 255, 0.7);
+		font-size: 14px;
+		font-weight: 500;
+		cursor: pointer;
+		font-family: inherit;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.retry-btn:active { opacity: 0.7; }
+
+	/* ── Skeleton ──────────────────────────────────────────────────────────── */
+
+	.skeleton-list {
 		display: flex;
 		flex-direction: column;
 		gap: 1px;
 	}
 
 	.skeleton-post {
-		height: 80px;
-		background: var(--color-surface-raised, #1e1e1e);
+		height: var(--h, 80px);
+		background: rgba(255, 255, 255, 0.04);
 		animation: pulse 1.4s ease-in-out infinite;
 	}
 
@@ -166,180 +200,167 @@
 		50% { opacity: 0.4; }
 	}
 
-	.posts-error,
-	.posts-empty {
+	/* ── Feed ──────────────────────────────────────────────────────────────── */
+
+	.feed {
 		display: flex;
 		flex-direction: column;
-		align-items: center;
-		gap: 10px;
-		padding: 40px 16px;
-	}
-
-	.posts-empty-text {
-		font-size: 14px;
-		color: rgba(255, 255, 255, 0.4);
+		list-style: none;
+		padding: 0;
 		margin: 0;
 	}
 
-	.error-text {
-		font-size: 14px;
-		color: #e05252;
-		text-align: center;
-	}
-
-	.retry-btn {
-		padding: 8px 20px;
-		border-radius: 10px;
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
-		background: none;
-		color: var(--color-text-primary, #f0f0f0);
-		font-size: 14px;
-		font-weight: 500;
-		cursor: pointer;
-		font-family: inherit;
-	}
-
-	.retry-btn:active {
-		opacity: 0.7;
-	}
-
-	.profile-feed {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.profile-post-card {
+	.post-card {
 		padding: 14px 16px 10px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
-		cursor: pointer;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.profile-post-card:active {
-		background: rgba(255, 255, 255, 0.03);
-	}
+	/* ── Content ───────────────────────────────────────────────────────────── */
 
-	.profile-post-content {
+	.post-content {
 		font-size: 15px;
 		line-height: 1.5;
-		color: var(--color-text-primary, #f0f0f0);
+		color: var(--tg-theme-text-color, #f0f0f0);
 		margin: 0 0 10px;
 		word-break: break-word;
 	}
 
-	.profile-photo-strip {
+	/* ── Photos ────────────────────────────────────────────────────────────── */
+
+	.photo-strip {
 		display: flex;
 		overflow-x: auto;
 		scroll-snap-type: x mandatory;
-		scroll-behavior: smooth;
 		-webkit-overflow-scrolling: touch;
 		scrollbar-width: none;
-		border-radius: 12px;
+		border-radius: 10px;
 		overflow: hidden;
-		margin-bottom: 8px;
+		margin-bottom: 10px;
 	}
 
-	.profile-photo-strip::-webkit-scrollbar {
-		display: none;
-	}
+	.photo-strip::-webkit-scrollbar { display: none; }
 
-	.profile-photo-item {
+	.photo-item {
 		flex-shrink: 0;
 		width: 100%;
 		aspect-ratio: 4 / 3;
 		scroll-snap-align: start;
 	}
 
-	.profile-photo-item img {
+	.photo-item img {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
 
-	.profile-action-row {
+	/* ── Action row ────────────────────────────────────────────────────────── */
+
+	.action-row {
 		display: flex;
 		align-items: center;
-		gap: 2px;
-		margin-top: 6px;
+		justify-content: space-between;
+		margin-top: 4px;
 	}
 
-	.p-reaction-btn {
-		min-width: 44px;
-		min-height: 36px;
+	/* ── Reactions ─────────────────────────────────────────────────────────── */
+
+	.reactions {
+		display: flex;
+		align-items: center;
+		gap: 0;
+	}
+
+	.react-btn {
+		min-width: 40px;
+		min-height: 34px;
 		background: none;
 		border: none;
 		cursor: pointer;
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		padding: 5px 8px;
+		gap: 3px;
+		padding: 4px 6px;
 		border-radius: 8px;
-		transition: background 0.15s ease;
 		-webkit-tap-highlight-color: transparent;
+		transition: background-color 0.12s;
 	}
 
-	.p-reaction-btn.active {
-		background: rgba(224, 82, 82, 0.18);
-	}
+	.react-btn:active { background: rgba(255, 255, 255, 0.05); }
+	.react-btn.active { background: rgba(224, 82, 82, 0.12); }
 
-	.p-reaction-btn:active {
-		background: rgba(255, 255, 255, 0.06);
-	}
-
-	.p-reaction-img {
-		width: 20px;
-		height: 20px;
+	.react-img {
+		width: 18px;
+		height: 18px;
 		object-fit: contain;
 	}
 
-	.p-reaction-emoji {
-		width: 20px;
-		height: 20px;
+	.react-emoji {
+		font-size: 16px;
+		line-height: 1;
+		width: 18px;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 17px;
-		line-height: 1;
 	}
 
-	.p-reaction-count {
+	.react-count {
 		font-size: 12px;
 		font-weight: 500;
-		color: rgba(240, 240, 240, 0.6);
+		color: rgba(240, 240, 240, 0.5);
 	}
 
-	.p-reaction-btn.active .p-reaction-count {
-		color: #e05252;
-	}
+	.react-btn.active .react-count { color: #e05252; }
 
-	.p-view-count {
+	/* ── Post meta (right side) ────────────────────────────────────────────── */
+
+	.post-meta {
 		display: flex;
 		align-items: center;
-		gap: 4px;
-		margin-left: auto;
-		font-size: 12px;
-		color: rgba(240, 240, 240, 0.38);
-		user-select: none;
+		gap: 5px;
+		flex-shrink: 0;
 	}
 
-	.p-comment-btn {
-		color: rgba(240, 240, 240, 0.4);
+	.comment-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		color: rgba(240, 240, 240, 0.35);
+		padding: 4px;
+		display: flex;
+		align-items: center;
+		-webkit-tap-highlight-color: transparent;
+		border-radius: 6px;
+		transition: color 0.12s;
 	}
 
-	.profile-post-time {
-		font-size: 12px;
+	.comment-btn:active { color: rgba(240, 240, 240, 0.7); }
+
+	.meta-dot {
+		font-size: 10px;
+		color: rgba(255, 255, 255, 0.2);
+	}
+
+	.view-count {
+		font-size: 11px;
 		color: rgba(240, 240, 240, 0.3);
-		margin-left: 4px;
 	}
 
-	@keyframes profileReactionPop {
+	.post-time {
+		font-size: 11px;
+		color: rgba(240, 240, 240, 0.28);
+	}
+
+	/* ── Animation ─────────────────────────────────────────────────────────── */
+
+	@keyframes reactionPop {
 		0% { transform: scale(1); }
 		50% { transform: scale(1.4); }
 		100% { transform: scale(1); }
 	}
 
-	:global(.p-reaction-popping) {
-		animation: profileReactionPop 300ms ease-out;
+	:global(.popping) {
+		animation: reactionPop 300ms ease-out;
 	}
 </style>

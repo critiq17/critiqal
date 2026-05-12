@@ -68,6 +68,9 @@ export class UseProfile {
       this.isLoading = false;
       profileCache.set(username, { profile: user });
 
+      // Eagerly load follow counts in background so stats show immediately
+      if (!this.listsLoaded) this.loadFollowLists();
+
       if (!hasCachedProfile) this.postsLoading = true;
       const postsPage = await postsPromise;
       if (postsPage) {

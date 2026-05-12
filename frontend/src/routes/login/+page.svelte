@@ -68,7 +68,11 @@
 			}
 
 			await authStore.login(result);
-			step = 'onboarding';
+			if (result.emailVerified) {
+				goto('/');
+			} else {
+				step = 'onboarding';
+			}
 		} catch (err: unknown) {
 			error = mapError(err);
 			shakeKey++;
@@ -135,7 +139,7 @@
 							bind:value={totpCode}
 							autocomplete="one-time-code"
 							inputmode="numeric"
-							pattern="[0-9]{6}"
+							maxlength="6"
 							required
 							disabled={isSubmitting}
 							placeholder="123456"
@@ -170,7 +174,7 @@
 					type="submit"
 					class="submit-btn"
 					disabled={isSubmitting || (
-						mode === 'totp' ? totpCode.trim().length === 0 :
+						mode === 'totp' ? totpCode.trim().length !== 6 :
 						mode === 'recovery' ? !username.trim() || !recoveryCode.trim() :
 						!username.trim() || !password
 					)}
