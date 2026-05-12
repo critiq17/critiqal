@@ -4,6 +4,8 @@
 	import { fly, slide } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
+	import { apiClient } from '$lib/api/client';
+	import type { User } from '$lib/types';
 	import { twoFactorService } from '$lib/services/two-factor.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { recoveryService } from '$lib/services/recovery.service';
@@ -41,6 +43,24 @@
 			emailSuccess = true;
 			emailInput = '';
 			emailEditing = false;
+			const fresh = await apiClient.get<User>('/api/auth/me');
+			authStore.updateUser(fresh);
+		} catch (err: unknown) {
+			emailError = mapError(err);
+		} finally {
+			emailSubmitting = false;
+		}
+	}
+
+	async function handleResendVerification(): Promise<void> {
+		const pending = authStore.user?.pendingEmail;
+		if (!pending) return;
+		emailSubmitting = true;
+		emailError = '';
+		emailSuccess = false;
+		try {
+			await emailVerificationService.setEmail({ email: pending });
+			emailSuccess = true;
 		} catch (err: unknown) {
 			emailError = mapError(err);
 		} finally {
@@ -196,32 +216,51 @@
 		<section class="section">
 			<p class="section-label">Email</p>
 
-			<div class="setting-row">
-				<div class="setting-info">
-					{#if authStore.user?.email}
+			<!-- Verified email row -->
+			{#if authStore.user?.email && authStore.user.emailVerified}
+				<div class="setting-row">
+					<div class="setting-info">
 						<span class="setting-value">{authStore.user.email}</span>
-						{#if authStore.user.emailVerified}
-							<span class="status-dot verified" title="Verified"></span>
-						{:else}
-							<span class="badge-pending">Pending</span>
-						{/if}
-					{:else}
-						<span class="setting-placeholder">No email set</span>
+						<span class="status-dot verified" title="Verified"></span>
+					</div>
+					{#if !emailEditing}
+						<button class="link-btn" onclick={startEmailEdit}>Change</button>
 					{/if}
 				</div>
-				{#if !emailEditing}
-					<button class="link-btn" onclick={startEmailEdit}>
-						{authStore.user?.email ? 'Change' : 'Add'}
-					</button>
-				{/if}
-			</div>
+			{/if}
 
-			{#if !authStore.user?.emailVerified && authStore.user?.email}
-				<p class="hint" in:fly={{ y: -4, duration: 150 }}>Check your inbox and click the verification link.</p>
+			<!-- Pending email row -->
+			{#if authStore.user?.pendingEmail}
+				<div class="setting-row" in:fly={{ y: -4, duration: 180 }}>
+					<div class="setting-info col">
+						<div class="setting-info">
+							<span class="setting-value">{authStore.user.pendingEmail}</span>
+							<span class="badge-pending">Pending</span>
+						</div>
+						<span class="setting-sub">Check your inbox for the verification link</span>
+					</div>
+					{#if !emailEditing}
+						<button class="link-btn" disabled={emailSubmitting} onclick={handleResendVerification}>
+							{emailSubmitting ? '…' : 'Resend'}
+						</button>
+					{/if}
+				</div>
+			{/if}
+
+			<!-- No email at all -->
+			{#if !authStore.user?.email && !authStore.user?.pendingEmail && !emailEditing}
+				<div class="setting-row">
+					<span class="setting-placeholder">No email set</span>
+					<button class="link-btn" onclick={startEmailEdit}>Add</button>
+				</div>
 			{/if}
 
 			{#if emailSuccess}
 				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>Verification email sent — check your inbox.</p>
+			{/if}
+
+			{#if emailError && !emailEditing}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{emailError}</p>
 			{/if}
 
 			{#if emailEditing}
@@ -413,7 +452,7 @@
 
 	.page-layout {
 		display: grid;
-		grid-template-columns: 16rem 42rem 14rem;
+		grid-template-columns: 16rem 42rem;
 		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
@@ -433,13 +472,11 @@
 	.col-center::-webkit-scrollbar { display: none; }
 
 	.col-right {
-		overflow-y: auto;
-		padding: 1.5rem 1rem 1.5rem 1.5rem;
+		display: none;
 	}
 
-	@media (max-width: 1024px) {
+	@media (max-width: 900px) {
 		.page-layout { grid-template-columns: 4.5rem 1fr; }
-		.col-right { display: none; }
 	}
 
 	@media (max-width: 640px) {
@@ -452,18 +489,19 @@
 
 	.page-header {
 		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
 		position: sticky;
 		top: 0;
-		background: var(--color-bg);
+		background: rgba(12, 12, 12, 0.85);
+		backdrop-filter: blur(12px);
+		-webkit-backdrop-filter: blur(12px);
 		z-index: 10;
 	}
 
 	.page-title {
-		font-size: 1.0625rem;
-		font-weight: 700;
+		font-size: 1rem;
+		font-weight: 600;
 		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
+		letter-spacing: -0.015em;
 		margin: 0;
 	}
 

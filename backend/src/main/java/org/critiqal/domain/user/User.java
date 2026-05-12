@@ -38,6 +38,9 @@ public class User extends PanacheEntityBase {
     @Column(name = "email_verified", nullable = false)
     public boolean emailVerified = false;
 
+    @Column(name = "pending_email")
+    public String pendingEmail;
+
     @Column(name = "two_factor_enabled", nullable = false)
     public boolean twoFactorEnabled = false;
 

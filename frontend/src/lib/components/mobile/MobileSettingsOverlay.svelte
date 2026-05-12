@@ -9,11 +9,12 @@
 	import { recoveryService } from '$lib/services/recovery.service';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { goto } from '$app/navigation';
-	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
+	import { apiClient } from '$lib/api/client';
 	import { ApiError } from '$lib/types';
-	import type { TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import type { User, TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
 
-	// ── Swipe-to-dismiss (same pattern as UserProfileOverlay) ────────────────
+	// ── Swipe-to-dismiss ─────────────────────────────────────────────────────
 
 	let overlayEl: HTMLElement | null = null;
 
@@ -138,9 +139,26 @@
 		emailSuccess = false;
 		try {
 			await emailVerificationService.setEmail({ email: emailInput });
+			await authStore.refresh();
 			emailSuccess = true;
 			emailInput = '';
 			emailEditing = false;
+		} catch (err: unknown) {
+			emailError = mapError(err);
+		} finally {
+			emailSubmitting = false;
+		}
+	}
+
+	async function handleResendVerification(): Promise<void> {
+		const pending = authStore.user?.pendingEmail;
+		if (!pending) return;
+		emailSubmitting = true;
+		emailError = '';
+		emailSuccess = false;
+		try {
+			await emailVerificationService.setEmail({ email: pending });
+			emailSuccess = true;
 		} catch (err: unknown) {
 			emailError = mapError(err);
 		} finally {
@@ -325,8 +343,10 @@
 					</div>
 					<div class="row-body">
 						<span class="row-title">Email</span>
-						{#if authStore.user?.email}
+						{#if authStore.user?.email && authStore.user.emailVerified}
 							<span class="row-sub">{authStore.user.email}</span>
+						{:else if authStore.user?.pendingEmail}
+							<span class="row-sub">{authStore.user.pendingEmail}</span>
 						{:else}
 							<span class="row-sub dim">Not set</span>
 						{/if}
@@ -334,7 +354,7 @@
 					<div class="row-right">
 						{#if authStore.user?.emailVerified}
 							<span class="status-pill green">Verified</span>
-						{:else if authStore.user?.email}
+						{:else if authStore.user?.pendingEmail}
 							<span class="status-pill amber">Pending</span>
 						{/if}
 						<svg class="row-chevron" class:rotated={emailEditing} width="14" height="14" viewBox="0 0 24 24"
@@ -352,13 +372,24 @@
 						{#if emailSuccess}
 							<p class="feedback ok">Verification email sent — check your inbox.</p>
 						{/if}
-						{#if !emailSuccess}
+						{#if authStore.user?.pendingEmail && !emailSuccess}
+							<p class="feedback muted">Waiting for confirmation at <strong>{authStore.user.pendingEmail}</strong></p>
+							<div class="form-actions">
+								<button class="m-btn ghost" disabled={emailSubmitting} onclick={handleResendVerification}>
+									{emailSubmitting ? 'Sending…' : 'Resend email'}
+								</button>
+								<button class="m-btn ghost" disabled={emailSubmitting}
+									onclick={() => { emailEditing = false; emailError = ''; }}>
+									Cancel
+								</button>
+							</div>
+						{:else if !emailSuccess}
 							<div class="inline-form">
 								<input
 									type="email"
 									class="m-input"
 									bind:value={emailInput}
-									placeholder={authStore.user?.email ? 'New email address' : 'you@example.com'}
+									placeholder={authStore.user?.email && authStore.user.emailVerified ? 'New email address' : 'you@example.com'}
 									autocomplete="email"
 									disabled={emailSubmitting}
 								/>

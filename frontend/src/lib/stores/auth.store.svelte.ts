@@ -199,6 +199,15 @@ function createAuthStore() {
     state = { ...state, user };
   }
 
+  async function refresh(): Promise<void> {
+    try {
+      const user = await apiClient.get<User>('/api/auth/me');
+      if (isUser(user)) updateUser(user);
+    } catch {
+      /* non-fatal — keep current state */
+    }
+  }
+
   function _tryParseUser(raw: string | null | undefined): User | null {
     return parseCachedUser(raw ?? null);
   }
@@ -221,6 +230,7 @@ function createAuthStore() {
     login,
     logout,
     updateUser,
+    refresh,
   };
 }
 

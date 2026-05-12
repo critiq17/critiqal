@@ -66,9 +66,12 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
         tokenRepo.deleteByUserIdAndType(userId, VerificationTokenType.EMAIL_VERIFY);
 
+        var user = userService.getById(userId);
+        user.pendingEmail = normalizedEmail;
+
         var rawToken = generateSecureToken();
         var token = new VerificationToken();
-        token.user = userService.getById(userId);
+        token.user = user;
         token.tokenHash = hashToken(rawToken);
         token.type = VerificationTokenType.EMAIL_VERIFY;
         token.email = normalizedEmail;
@@ -95,6 +98,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         var user = token.user;
         user.email = token.email;
         user.emailVerified = true;
+        user.pendingEmail = null;
     }
 
     static String generateSecureToken() {

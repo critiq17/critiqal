@@ -19,28 +19,30 @@ public class QuarkusMailerEmailService implements EmailService {
     @Override
     public void sendEmailVerification(String to, String verificationUrl) {
         send(to,
-                "Verify your Critiqal email",
-                emailHtml(
-                        "Verify your email address",
-                        "Click below to verify your email. This link expires in 24 hours.",
-                        verificationUrl, "Verify Email"));
+                "Verify your email — Critiqal",
+                buildEmail(
+                        "Confirm your email",
+                        "You're one step away. Click the button below to verify your email address. The link expires in 24 hours.",
+                        verificationUrl,
+                        "Verify email",
+                        "If you didn't add this email to your Critiqal account, you can ignore this message."));
     }
 
     @Override
     public void sendPasswordReset(String to, String resetUrl) {
         send(to,
-                "Reset your Critiqal password",
-                emailHtml(
+                "Reset your password — Critiqal",
+                buildEmail(
                         "Reset your password",
-                        "Click below to reset your password. This link expires in 1 hour.",
-                        resetUrl, "Reset Password"));
+                        "We received a request to reset your password. Click the button below to choose a new one. The link expires in 1 hour.",
+                        resetUrl,
+                        "Reset password",
+                        "If you didn't request a password reset, your account is safe — no action needed."));
     }
 
     @Override
     public void sendSecurityAlert(String to, String subject, String message) {
-        send(to, subject,
-                "<html><body style=\"font-family:sans-serif;max-width:600px;margin:0 auto\">" +
-                        "<p>" + message + "</p></body></html>");;
+        send(to, subject, buildEmail("Security notice", message, null, null, null));
     }
 
     private void send(String to, String subject, String html) {
@@ -52,25 +54,85 @@ public class QuarkusMailerEmailService implements EmailService {
         }
     }
 
-    private String emailHtml(String title, String body, String url, String btnText) {
+    private String buildEmail(String title, String body, String url, String btnText, String footer) {
+        var btn = (url != null && btnText != null) ? """
+                <a href="%s"
+                   style="display:inline-block;background:#eaeaea;color:#0c0c0c;
+                          text-decoration:none;padding:12px 28px;border-radius:8px;
+                          font-size:14px;font-weight:600;letter-spacing:-0.01em;
+                          margin-top:8px">
+                  %s
+                </a>
+                """.formatted(url, btnText) : "";
+
+        var fallback = (url != null) ? """
+                <p style="margin:24px 0 0;font-size:12px;color:#555;word-break:break-all">
+                  Or copy this link:<br>
+                  <span style="color:#888">%s</span>
+                </p>
+                """.formatted(url) : "";
+
+        var footerHtml = (footer != null) ? """
+                <p style="margin:32px 0 0;font-size:12px;color:#555;line-height:1.6">%s</p>
+                """.formatted(footer) : "";
+
         return """
-               <html><body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px">
-               <h2>%s</h2>
-               <p>%s</p>
-               <p>
-                 <a href="%s"
-                    style="background:#000;color:#fff;padding:12px 24px;
-                           text-decoration:none;border-radius:4px;display:inline-block">
-                   %s
-                 </a>
-               </p>
-               <p style="color:#666;font-size:12px">
-                 Or copy this link: <br><code>%s</code>
-               </p>
-               <p style="color:#999;font-size:11px">
-                 If you didn't request this, you can safely ignore this email.
-               </p>
-               </body></html>
-               """.formatted(title, body, url, btnText, url);
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                  <meta charset="UTF-8" />
+                  <meta name="viewport" content="width=device-width,initial-scale=1" />
+                  <title>%s</title>
+                </head>
+                <body style="margin:0;padding:0;background:#0c0c0c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif">
+                  <table width="100%%" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                      <td align="center" style="padding:48px 16px">
+                        <table width="100%%" cellpadding="0" cellspacing="0" role="presentation"
+                               style="max-width:480px">
+
+                          <!-- Logo -->
+                          <tr>
+                            <td style="padding-bottom:40px">
+                              <span style="font-size:16px;font-weight:800;color:#eaeaea;
+                                           letter-spacing:-0.045em">critiqal</span>
+                            </td>
+                          </tr>
+
+                          <!-- Card -->
+                          <tr>
+                            <td style="background:#141414;border-radius:12px;padding:36px 32px">
+
+                              <h1 style="margin:0 0 12px;font-size:20px;font-weight:700;
+                                         color:#eaeaea;letter-spacing:-0.02em;line-height:1.3">
+                                %s
+                              </h1>
+
+                              <p style="margin:0 0 28px;font-size:15px;color:#8c8c8c;
+                                        line-height:1.6">
+                                %s
+                              </p>
+
+                              %s
+
+                              %s
+
+                            </td>
+                          </tr>
+
+                          <!-- Footer -->
+                          <tr>
+                            <td style="padding-top:28px">
+                              %s
+                            </td>
+                          </tr>
+
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """.formatted(title, title, body, btn, fallback, footerHtml);
     }
 }

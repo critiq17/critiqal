@@ -13,6 +13,7 @@ public record UserDTO(
         String avatarUrl,
         String email,
         boolean emailVerified,
+        String pendingEmail,
         boolean twoFactorEnabled,
         Instant createdAt
 ) {
@@ -25,6 +26,7 @@ public record UserDTO(
                 user.avatarUrl,
                 user.email,
                 user.emailVerified,
+                user.pendingEmail,
                 user.twoFactorEnabled,
                 user.createdAt
         );

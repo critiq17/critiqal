@@ -64,12 +64,13 @@
 	}
 
 	:global(:root) {
-		--color-bg: #0a0a0a;
-		--color-surface: #111111;
-		--color-surface-raised: #1a1a1a;
-		--color-border: #232323;
-		--color-text-primary: #f0f0f0;
-		--color-text-muted: #666666;
+		--color-bg: #0c0c0c;
+		--color-surface: #141414;
+		--color-surface-raised: #1e1e1e;
+		--color-border: #242424;
+		--color-text-primary: #eaeaea;
+		--color-text-secondary: #8c8c8c;
+		--color-text-muted: #575757;
 		--color-accent: #e05252;
 		--color-skeleton: #1e1e1e;
 
@@ -91,11 +92,13 @@
 		--transition-slow: 400ms ease;
 
 		font-family:
+			'Inter',
 			-apple-system,
 			BlinkMacSystemFont,
 			'Segoe UI',
 			system-ui,
 			sans-serif;
+		font-feature-settings: 'rlig' 1, 'calt' 1;
 		font-size: 16px;
 		line-height: 1.5;
 		color-scheme: dark;

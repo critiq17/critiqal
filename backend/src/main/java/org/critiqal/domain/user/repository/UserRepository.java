@@ -22,4 +22,6 @@ public interface UserRepository {
     List<User> search(String query);
 
     User save(User user);
+
+    int clearExpiredPendingEmails();
 }
