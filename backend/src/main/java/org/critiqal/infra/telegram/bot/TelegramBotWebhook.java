@@ -48,6 +48,7 @@ public class TelegramBotWebhook {
     @ConfigProperty(name = "telegram.bot-token") Optional<String> botToken;
     @ConfigProperty(name = "telegram.bot.app-url") String appUrl;
     @ConfigProperty(name = "telegram.bot.support-url") String supportUrl;
+    @ConfigProperty(name = "telegram.bot.tg-link") Optional<String> tgLink;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder()
@@ -72,10 +73,14 @@ public class TelegramBotWebhook {
     }
 
     private void sendWelcome(long chatId) throws Exception {
+        var openAppButton = tgLink
+                .map(link -> Map.<String, Object>of("text", "Open App", "url", link))
+                .orElseGet(() -> Map.of("text", "Open App", "web_app", Map.of("url", appUrl)));
+
         var keyboard = Map.of("inline_keyboard", List.of(
                 List.of(
-                        Map.of("text", "Open App", "url", appUrl),
-                        Map.of("text", "Support", "url", supportUrl)
+                        openAppButton,
+                        Map.<String, Object>of("text", "Support", "url", supportUrl)
                 )
         ));
 

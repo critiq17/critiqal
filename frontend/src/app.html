@@ -17,10 +17,25 @@
 				// Using tg.backgroundColor ensures the header blends seamlessly with app content.
 				tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
 
-				// requestFullscreen (Bot API 8.0+) makes the header fully transparent
-				// and extends the app to the full device screen including status bar.
-				try { tg.requestFullscreen && tg.requestFullscreen(); } catch(e) {}
 				try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e) {}
+
+				// requestFullscreen (Bot API 8.0+) hides the native Telegram header and extends
+				// the app to the full device screen. When opened via inline keyboard or Menu Button,
+				// Telegram animates a "sheet" upward — calling requestFullscreen during this animation
+				// is silently ignored. We retry with increasing delays to cover all entry points.
+				function tryFullscreen() {
+					if (tg.isFullscreen) return;
+					try { tg.requestFullscreen && tg.requestFullscreen(); } catch(e) {}
+				}
+
+				tryFullscreen();
+				setTimeout(tryFullscreen, 200);
+				setTimeout(tryFullscreen, 600);
+
+				// If fullscreen is not supported on the device, fall back to expand().
+				tg.onEvent('fullscreenFailed', function() {
+					tg.expand();
+				});
 
 				function applyViewport() {
 					var h = tg.viewportHeight || window.innerHeight;
@@ -39,7 +54,12 @@
 					}
 				}
 
-				tg.onEvent('viewportChanged', applyViewport);
+				// After viewport stabilizes (animation done), retry fullscreen if still not active.
+				tg.onEvent('viewportChanged', function(params) {
+					applyViewport();
+					if (params && !params.isStateStable) return;
+					tryFullscreen();
+				});
 				tg.onEvent('fullscreenChanged', applyViewport);
 				// safeAreaChanged fires when safe area insets update (can lag behind fullscreenChanged)
 				tg.onEvent('safeAreaChanged', applyViewport);

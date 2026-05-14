@@ -99,10 +99,7 @@ function applyThemeVars(tg: TelegramWebApp): void {
 
 function applyViewportVars(tg: TelegramWebApp): void {
   const root = document.documentElement;
-  root.style.setProperty(
-    '--tg-viewport-height',
-    (tg.viewportHeight || window.innerHeight) + 'px'
-  );
+  root.style.setProperty('--tg-viewport-height', (tg.viewportHeight || window.innerHeight) + 'px');
 
   // contentSafeAreaInset is the space taken by transparent Telegram UI in fullscreen mode.
   // Telegram SDK sets --tg-content-safe-area-inset-* CSS vars automatically (Bot API 8.0+),
@@ -142,6 +139,8 @@ export function initTelegram(): void {
   // with the actual non-zero inset values — must listen to both.
   tg.onEvent('safeAreaChanged', () => applyViewportVars(tg));
   tg.onEvent('contentSafeAreaChanged', () => applyViewportVars(tg));
+  // Fullscreen not supported — fall back to expand() so content fills available height.
+  tg.onEvent('fullscreenFailed', () => tg.expand());
 
   tg.disableVerticalSwipes?.();
 }
