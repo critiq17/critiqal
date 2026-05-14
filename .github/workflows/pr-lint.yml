@@ -24,6 +24,6 @@ jobs:
             test
             build
           requireScope: false
-          subjectPattern: ^.{1.100}$
+          subjectPattern: ^.{1,100}$
           subjectPatternError: |
             PR title subject must be 1-100 characters.
