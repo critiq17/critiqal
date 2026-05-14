@@ -46,8 +46,9 @@ public class TelegramBotWebhook {
             """;
 
     @ConfigProperty(name = "telegram.bot-token") Optional<String> botToken;
-    @ConfigProperty(name = "telegram.bot.app-url") String appUrl;
-    @ConfigProperty(name = "telegram.bot.support-url") String supportUrl;
+    @ConfigProperty(name = "telegram.enabled", defaultValue = "false") boolean enabled;
+    @ConfigProperty(name = "telegram.bot.app-url") Optional<String> appUrl;
+    @ConfigProperty(name = "telegram.bot.support-url") Optional<String> supportUrl;
     @ConfigProperty(name = "telegram.bot.tg-link") Optional<String> tgLink;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -57,6 +58,10 @@ public class TelegramBotWebhook {
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
     public Response onUpdate(String body) {
+        var config = resolveConfig();
+        if (config.isEmpty()) {
+            return Response.ok().build();
+        }
         try {
             JsonNode update = objectMapper.readTree(body);
             String text = update.path("message").path("text").asText("");
@@ -65,22 +70,41 @@ public class TelegramBotWebhook {
             if (chatId == 0 || !text.startsWith("/start")) {
                 return Response.ok().build();
             }
-            sendWelcome(chatId);
+            sendWelcome(chatId, config.get());
         } catch (Exception e) {
             log.warnf("Bot webhook error: %s", e.getMessage());
         }
         return Response.ok().build();
     }
 
-    private void sendWelcome(long chatId) throws Exception {
-        var openAppButton = tgLink
+    private Optional<WelcomeConfig> resolveConfig() {
+        if (!enabled) {
+            return Optional.empty();
+        }
+        if (botToken.isEmpty()) {
+            log.warn("Telegram webhook is enabled but telegram.bot-token is missing");
+            return Optional.empty();
+        }
+        if (supportUrl.isEmpty()) {
+            log.warn("Telegram webhook is enabled but telegram.bot.support-url is missing");
+            return Optional.empty();
+        }
+        if (tgLink.isEmpty() && appUrl.isEmpty()) {
+            log.warn("Telegram webhook is enabled but neither telegram.bot.tg-link nor telegram.bot.app-url is configured");
+            return Optional.empty();
+        }
+        return Optional.of(new WelcomeConfig(botToken.get(), appUrl, supportUrl.get(), tgLink));
+    }
+
+    private void sendWelcome(long chatId, WelcomeConfig config) throws Exception {
+        var openAppButton = config.tgLink()
                 .map(link -> Map.<String, Object>of("text", "Open App", "url", link))
-                .orElseGet(() -> Map.of("text", "Open App", "web_app", Map.of("url", appUrl)));
+                .orElseGet(() -> Map.of("text", "Open App", "web_app", Map.of("url", config.appUrl().orElseThrow())));
 
         var keyboard = Map.of("inline_keyboard", List.of(
                 List.of(
                         openAppButton,
-                        Map.<String, Object>of("text", "Support", "url", supportUrl)
+                        Map.<String, Object>of("text", "Support", "url", config.supportUrl())
                 )
         ));
 
@@ -92,7 +116,7 @@ public class TelegramBotWebhook {
         );
 
         var req = HttpRequest.newBuilder()
-                .uri(URI.create(API + botToken.orElseThrow() + "/sendMessage"))
+                .uri(URI.create(API + config.botToken() + "/sendMessage"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(payload)))
                 .timeout(Duration.ofSeconds(10))
@@ -103,5 +127,13 @@ public class TelegramBotWebhook {
                     if (ex != null) log.warnf("Telegram send failed: %s", ex.getMessage());
                     else if (resp.statusCode() != 200) log.warnf("Telegram non-200: %s", resp.body());
                 });
+    }
+
+    private record WelcomeConfig(
+            String botToken,
+            Optional<String> appUrl,
+            String supportUrl,
+            Optional<String> tgLink
+    ) {
     }
 }
