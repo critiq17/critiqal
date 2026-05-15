@@ -10,6 +10,7 @@ import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.api.post.response.PostDTO;
 import org.critiqal.api.user.request.UpdateProfileRequest;
 import org.critiqal.api.user.response.UserDTO;
+import org.critiqal.api.user.response.UserStatsDTO;
 import org.critiqal.domain.follow.service.FollowService;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.user.Username;
@@ -99,6 +100,19 @@ public class UserResource {
         UUID userId = currentUser.id();
         return postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size())
                 .map(PostDTO::from);
+    }
+
+    @GET
+    @Path("/{id}/stats")
+    public UserStatsDTO getStats(@PathParam("id") UUID userId) {
+        // Touch the user once so a bogus id returns 404 instead of zeroed counts.
+        userService.getById(userId);
+        var followStats = followService.getStats(userId);
+        return new UserStatsDTO(
+                postService.countByAuthor(userId),
+                followStats.followers(),
+                followStats.following()
+        );
     }
 
     @GET

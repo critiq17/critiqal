@@ -100,6 +100,43 @@ class UserControllerIT {
     }
 
     @Test
+    void getStats_freshUser_returnsZeros() {
+        var userId = TestAuthHelper.registerAndGetUserId("stats_fresh_user");
+
+        given()
+        .when().get("/api/users/" + userId + "/stats")
+        .then()
+            .statusCode(200)
+            .body("postsCount", equalTo(0))
+            .body("followersCount", equalTo(0))
+            .body("followingCount", equalTo(0));
+    }
+
+    @Test
+    void getStats_afterFollow_reflectsRelationship() {
+        var followerSid = TestAuthHelper.registerAndGetSessionCookie("stats_follower");
+        var targetId = TestAuthHelper.registerAndGetUserId("stats_target");
+
+        given()
+            .cookie(TestAuthHelper.COOKIE, followerSid)
+        .when().post("/api/users/" + targetId + "/follow")
+        .then().statusCode(200);
+
+        given()
+        .when().get("/api/users/" + targetId + "/stats")
+        .then()
+            .statusCode(200)
+            .body("followersCount", equalTo(1));
+    }
+
+    @Test
+    void getStats_unknownUser_returns404() {
+        given()
+        .when().get("/api/users/" + uuid(404) + "/stats")
+        .then().statusCode(404);
+    }
+
+    @Test
     void searchUsers_returns200() {
         TestAuthHelper.registerAndGetSessionCookie("search_target_user");
 

@@ -1,4 +1,4 @@
-export type { User, UpdateProfileRequest } from './user';
+export type { User, UpdateProfileRequest, UserStats } from './user';
 export type {
   LoginResponse,
   RegisterResponse,

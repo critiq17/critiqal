@@ -33,6 +33,7 @@ interface TelegramWebApp {
   openTelegramLink(url: string): void;
   disableVerticalSwipes?(): void;
   BackButton: {
+    readonly isVisible: boolean;
     show(): void;
     hide(): void;
     onClick(fn: () => void): void;
