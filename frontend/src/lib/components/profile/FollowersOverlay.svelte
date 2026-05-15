@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
+	import { registerSheet } from '$lib/actions/registerSheet';
 	import { getInitials } from '$lib/utils/getInitials';
 	import type { User } from '$lib/types';
 
@@ -120,6 +121,7 @@
 {#if open}
 	<div
 		class="overlay"
+		use:registerSheet
 		bind:this={overlayEl}
 		ontouchstart={onTouchStart}
 		ontouchmove={onTouchMove}

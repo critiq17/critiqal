@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
+	import { registerSheet } from '$lib/actions/registerSheet';
 
 	interface Props {
 		open: boolean;
@@ -133,6 +134,7 @@
 	<!-- Panel -->
 	<div
 		class="panel"
+		use:registerSheet
 		bind:this={panelEl}
 		ontouchstart={onTouchStart}
 		ontouchmove={onTouchMove}

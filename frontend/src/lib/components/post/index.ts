@@ -1,4 +1,5 @@
 export { default as Post } from './Post.svelte';
+export { default as MobilePostList } from './MobilePostList.svelte';
 export { default as PostHeader } from './PostHeader.svelte';
 export { default as PostBody } from './PostBody.svelte';
 export { default as PostFooter } from './PostFooter.svelte';

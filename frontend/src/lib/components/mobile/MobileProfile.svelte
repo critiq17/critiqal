@@ -6,9 +6,10 @@
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { openSettings } from '$lib/stores/settings-nav.store.svelte';
+	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { UseProfile } from '$lib/features/profile/useProfile.svelte';
 	import { formatCount } from '$lib/utils/formatCount';
-	import ProfilePostsList from '$lib/components/profile/ProfilePostsList.svelte';
+	import { MobilePostList } from '$lib/components/post';
 	import FollowersOverlay from '$lib/components/profile/FollowersOverlay.svelte';
 	import ProfileEditOverlay from '$lib/components/profile/ProfileEditOverlay.svelte';
 	import ProfileStravaWidget from '$lib/components/profile/ProfileStravaWidget.svelte';
@@ -238,17 +239,19 @@
 			tabindex="0"
 			class="tabpanel"
 		>
-			{#if profile.posts.length === 0 && !profile.postsLoading}
-				<ProfileEmptyPosts isOwnProfile={true} />
-			{:else}
-				<ProfilePostsList
-					posts={profile.posts}
-					postsLoading={profile.postsLoading}
-					postsError={profile.profileError}
-					onOpenComments={openComments}
-					onRetry={() => profile.load()}
-				/>
-			{/if}
+			<MobilePostList
+				posts={profile.posts}
+				loading={profile.postsLoading}
+				error={profile.profileError}
+				onOpenComments={openComments}
+				onAuthorClick={(username) => openProfile(username)}
+				onDeleted={(id) => profile.handlePostDeleted(id)}
+				onRetry={() => profile.load()}
+			>
+				{#snippet empty()}
+					<ProfileEmptyPosts isOwnProfile={true} />
+				{/snippet}
+			</MobilePostList>
 		</div>
 	{/if}
 </div>

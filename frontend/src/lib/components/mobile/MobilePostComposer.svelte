@@ -7,6 +7,7 @@
 	import ComposerTextarea from '$lib/components/composer/ComposerTextarea.svelte';
 	import ComposerPhotoPicker from '$lib/components/composer/ComposerPhotoPicker.svelte';
 	import ComposerPhotoPreview from '$lib/components/composer/ComposerPhotoPreview.svelte';
+	import { registerSheet } from '$lib/actions/registerSheet';
 
 	interface Props {
 		open: boolean;
@@ -92,7 +93,7 @@
 	});
 </script>
 
-<div class="composer" class:open role="dialog" aria-modal="true" aria-label="New post">
+<div class="composer" class:open use:registerSheet role="dialog" aria-modal="true" aria-label="New post">
 	<div class="composer-header">
 		<button class="cancel-btn" onclick={onClose} disabled={composer.loading} type="button">
 			Cancel

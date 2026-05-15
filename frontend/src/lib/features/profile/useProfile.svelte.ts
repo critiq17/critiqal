@@ -144,6 +144,25 @@ export class UseProfile {
     this.saveError = null;
   }
 
+  // Optimistic removal after a post is deleted from the shared Post component.
+  handlePostDeleted(id: string): void {
+    this.posts = this.posts.filter((p) => p.id !== id);
+    if (this.postsCount !== null) this.postsCount = Math.max(0, this.postsCount - 1);
+
+    const username = authStore.user?.username;
+    if (!username) return;
+    profileCache.set(username, { posts: this.posts });
+    if (this.postsCount !== null) {
+      profileCache.set(username, {
+        stats: {
+          postsCount: this.postsCount,
+          followersCount: this.followersCount ?? 0,
+          followingCount: this.followingCount ?? 0,
+        },
+      });
+    }
+  }
+
   cancelEdit(): void {
     this.isEditing = false;
     this.saveError = null;

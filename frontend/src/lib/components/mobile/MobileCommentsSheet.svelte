@@ -8,6 +8,7 @@
 	import type { Comment, User } from '$lib/types';
 	import { getInitials } from '$lib/utils/getInitials';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
+	import { registerSheet } from '$lib/actions/registerSheet';
 
 	interface ReplyUiState {
 		items: Comment[];
@@ -507,7 +508,7 @@
 </script>
 
 {#if $mobileComments.open}
-	<div class="comments-root">
+	<div class="comments-root" use:registerSheet>
 		<button
 			class="comments-backdrop"
 			type="button"

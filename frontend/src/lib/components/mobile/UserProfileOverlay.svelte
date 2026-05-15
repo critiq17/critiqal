@@ -4,10 +4,12 @@
 	import { userService } from '$lib/services/user.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import { closeProfile } from '$lib/stores/profile-nav.store.svelte';
+	import { closeProfile, openProfile } from '$lib/stores/profile-nav.store.svelte';
+	import { openMobileComments } from '$lib/stores/mobile-comments.store';
 	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
+	import { registerSheet } from '$lib/actions/registerSheet';
 	import OverlayProfileInfo from './OverlayProfileInfo.svelte';
-	import OverlayPostsList from './OverlayPostsList.svelte';
+	import { MobilePostList } from '$lib/components/post';
 
 	// ── Swipe-to-dismiss (direct DOM at 60fps) ────────────────────────────────
 	// CSS animations with fill-mode override inline style.transform, so we
@@ -194,6 +196,7 @@
 	class="overlay"
 	role="dialog"
 	aria-label="{username}'s profile"
+	use:registerSheet
 	bind:this={overlayEl}
 	ontouchstart={onSwipeTouchStart}
 	ontouchmove={onSwipeTouchMove}
@@ -228,7 +231,12 @@
 				{isTogglingFollow}
 				onToggleFollow={toggleFollow}
 			/>
-			<OverlayPostsList {posts} {postsLoading} />
+			<MobilePostList
+				{posts}
+				loading={postsLoading}
+				onOpenComments={(postId) => openMobileComments(postId)}
+				onAuthorClick={(u) => openProfile(u)}
+			/>
 		{/if}
 	</div>
 </div>

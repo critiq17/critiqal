@@ -4,7 +4,6 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { profileNavStore } from '$lib/stores/profile-nav.store.svelte';
-	import { mobileComments } from '$lib/stores/mobile-comments.store';
 	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
 	import type { SwipePhase } from '$lib/overlay-swipe';
 	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
@@ -147,7 +146,7 @@
 				{/if}
 			</div>
 		</div>
-		{#if !sheetStore.anyOpen && !$mobileComments.open}
+		{#if !sheetStore.anyOpen}
 			<BottomNav />
 		{/if}
 	{/if}

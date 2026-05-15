@@ -13,6 +13,7 @@
 	import { ApiError } from '$lib/types';
 	import type { User, TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
 	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
+	import { registerSheet } from '$lib/actions/registerSheet';
 
 	// ── Swipe-to-dismiss ─────────────────────────────────────────────────────
 
@@ -282,6 +283,7 @@
 
 <div
 	class="overlay"
+	use:registerSheet
 	bind:this={overlayEl}
 	ontouchstart={onSwipeTouchStart}
 	ontouchmove={onSwipeTouchMove}
