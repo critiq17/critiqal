@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { registerSheet } from '$lib/actions/registerSheet';
+	import { elasticDrag } from '$lib/actions/elasticDrag';
+	import { pushBackHandler } from '$lib/tma/back-button';
 
 	interface Props {
 		open: boolean;
@@ -30,70 +32,14 @@
 	let panelEl: HTMLElement | null = null;
 	let backdropEl: HTMLElement | null = null;
 
-	// ── Swipe-down to dismiss ────────────────────────────────────────────────
-
-	let _startY = 0;
-	let _currentY = 0;
-	let _dirLocked: 'v' | 'h' | null = null;
-	let _lastY = 0;
-	let _lastT = 0;
-	let _velocity = 0;
-
-	const DISMISS_RATIO = 0.3;
-	const VELOCITY_PX_MS = 0.5;
-
-	function _applyTransform(y: number, transition: string): void {
-		if (!panelEl) return;
-		panelEl.style.transition = transition;
-		panelEl.style.transform = `translateY(${y}px)`;
-		if (backdropEl) {
-			const h = panelEl.offsetHeight || window.innerHeight * 0.7;
-			const opacity = Math.max(0, 1 - y / h);
-			backdropEl.style.opacity = String(opacity);
-		}
+	// Swipe-down to dismiss — physics handled by the shared elasticDrag action.
+	function dismiss(): void {
+		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
+		onCancel();
 	}
 
-	function onTouchStart(e: TouchEvent): void {
-		const t = e.touches[0];
-		if (!t) return;
-		_applyTransform(_currentY, 'none');
-		_startY = t.clientY;
-		_dirLocked = null;
-		_velocity = 0;
-		_lastY = t.clientY;
-		_lastT = Date.now();
-	}
-
-	function onTouchMove(e: TouchEvent): void {
-		const t = e.touches[0];
-		if (!t) return;
-		const dy = t.clientY - _startY;
-		const dx = Math.abs(t.clientX - (e.touches[0]?.clientX ?? t.clientX));
-		if (!_dirLocked && (Math.abs(dy) > 5 || Math.abs(dx) > 5)) {
-			_dirLocked = Math.abs(dy) >= Math.abs(dx) ? 'v' : 'h';
-		}
-		if (_dirLocked !== 'v' || dy < 0) return;
-		const now = Date.now();
-		const dt = now - _lastT;
-		if (dt > 0) _velocity = (t.clientY - _lastY) / dt;
-		_lastY = t.clientY;
-		_lastT = now;
-		_currentY = dy;
-		_applyTransform(dy, 'none');
-	}
-
-	function onTouchEnd(): void {
-		if (_currentY <= 0) return;
-		const h = panelEl?.offsetHeight ?? window.innerHeight * 0.7;
-		if (_currentY > h * DISMISS_RATIO || _velocity > VELOCITY_PX_MS) {
-			getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
-			_applyTransform(h, 'transform 0.22s cubic-bezier(0.4, 0, 1, 1)');
-			setTimeout(onCancel, 230);
-		} else {
-			_currentY = 0;
-			_applyTransform(0, 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)');
-		}
-		_currentY = 0;
+	function fadeBackdrop(progress: number): void {
+		if (backdropEl) backdropEl.style.opacity = String(1 - progress);
 	}
 
 	onMount(() => {
@@ -110,14 +56,7 @@
 
 	$effect(() => {
 		if (!open) return;
-		const tg = getTelegramWebApp();
-		if (!tg) return;
-		tg.BackButton.show();
-		tg.BackButton.onClick(onCancel);
-		return () => {
-			tg.BackButton.offClick(onCancel);
-			tg.BackButton.hide();
-		};
+		return pushBackHandler(onCancel);
 	});
 </script>
 
@@ -133,18 +72,29 @@
 
 	<!-- Panel -->
 	<div
-		class="panel"
+		class="panel glass"
 		use:registerSheet
 		bind:this={panelEl}
-		ontouchstart={onTouchStart}
-		ontouchmove={onTouchMove}
-		ontouchend={onTouchEnd}
 		role="dialog"
 		aria-label="Edit profile"
 		aria-modal="true"
 	>
-		<!-- Drag handle -->
-		<div class="drag-handle" aria-hidden="true"></div>
+		<!-- Drag handle — the only drag affordance so inputs/scroll are safe -->
+		<div
+			class="drag-handle-area"
+			aria-hidden="true"
+			use:elasticDrag={{
+				target: () => panelEl,
+				dismissDistance: 140,
+				dismissVelocity: 0.5,
+				onDismiss: dismiss,
+				onProgress: fadeBackdrop,
+				stretch: 0.04,
+				stretchOrigin: 'bottom center'
+			}}
+		>
+			<div class="drag-handle"></div>
+		</div>
 
 		<div class="panel-header">
 			<button class="cancel-btn" onclick={onCancel} disabled={isSaving}>Cancel</button>
@@ -211,7 +161,7 @@
 		left: 0;
 		right: 0;
 		z-index: 300;
-		background: var(--tg-bg, #111);
+		/* glass class supplies background/blur/border/shadow */
 		border-radius: 20px 20px 0 0;
 		will-change: transform;
 		max-height: 90dvh;
@@ -221,12 +171,20 @@
 
 	/* ── Drag handle ────────────────────────────────────────────────────────── */
 
+	.drag-handle-area {
+		display: flex;
+		justify-content: center;
+		padding: 8px 0 6px;
+		cursor: grab;
+		touch-action: none;
+		flex-shrink: 0;
+	}
+
 	.drag-handle {
 		width: 36px;
 		height: 4px;
 		border-radius: 2px;
 		background: rgba(255, 255, 255, 0.18);
-		margin: 10px auto 0;
 		flex-shrink: 0;
 	}
 

@@ -91,6 +91,17 @@
 		--transition-base: 250ms ease;
 		--transition-slow: 400ms ease;
 
+		/* Glass surface system — medium intensity, Telegram-iOS style.
+		   One source of truth: surfaces opt in with class="glass". */
+		--glass-blur: 24px;
+		--glass-saturate: 180%;
+		--glass-bg: rgba(20, 20, 20, 0.78);
+		--glass-bg-strong: rgba(20, 20, 20, 0.88);
+		--glass-bg-soft: rgba(20, 20, 20, 0.5);
+		--glass-border: rgba(255, 255, 255, 0.08);
+		--glass-highlight: rgba(255, 255, 255, 0.1);
+		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
 		font-family:
 			'Inter',
 			-apple-system,
@@ -118,6 +129,40 @@
 
 	:global(button) {
 		font-family: inherit;
+	}
+
+	/* Reusable glass surface. The inset highlight is the cheap "liquid"
+	   top-edge light cue; blur/saturate is GPU work so it lives only on
+	   small, non-scrolling surfaces (menus, sheets, buttons). */
+	:global(.glass) {
+		background: var(--glass-bg);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+	}
+
+	:global(.glass-strong) {
+		background: var(--glass-bg-strong);
+	}
+
+	/* More transparent / liquid — for floating surfaces (the menu) where you
+	   want the content behind to glow through. Slightly more blur keeps it
+	   readable despite the lower opacity. */
+	:global(.glass-soft) {
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+	}
+
+	/* No backdrop-filter support (or disabled for perf) → solid fallback
+	   so text contrast never breaks. */
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		:global(.glass),
+		:global(.glass-strong),
+		:global(.glass-soft) {
+			background: var(--color-surface);
+		}
 	}
 
 	:global(img) {

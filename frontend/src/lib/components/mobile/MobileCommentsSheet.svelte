@@ -9,6 +9,7 @@
 	import { getInitials } from '$lib/utils/getInitials';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 	import { registerSheet } from '$lib/actions/registerSheet';
+	import { pushBackHandler } from '$lib/tma/back-button';
 
 	interface ReplyUiState {
 		items: Comment[];
@@ -30,6 +31,10 @@
 		name: null,
 		bio: null,
 		avatarUrl: null,
+		email: null,
+		emailVerified: false,
+		pendingEmail: null,
+		twoFactorEnabled: false,
 		createdAt: ''
 	};
 
@@ -479,7 +484,6 @@
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 
-		const tg = getTelegramWebApp();
 		if (!$mobileComments.open) {
 			composerInset = baseInset();
 			return;
@@ -487,10 +491,9 @@
 
 		applyComposerInset();
 
-		if (tg) {
-			tg.BackButton.show();
-			tg.BackButton.onClick(requestClose);
-		}
+		// Topmost back handler while the sheet is open → back closes the
+		// sheet only, leaving any underlying overlay stack intact.
+		const disposeBack = pushBackHandler(requestClose);
 
 		window.visualViewport?.addEventListener('resize', applyComposerInset);
 		window.visualViewport?.addEventListener('scroll', applyComposerInset);
@@ -498,11 +501,7 @@
 		return () => {
 			window.visualViewport?.removeEventListener('resize', applyComposerInset);
 			window.visualViewport?.removeEventListener('scroll', applyComposerInset);
-
-			if (tg) {
-				tg.BackButton.offClick(requestClose);
-				tg.BackButton.hide();
-			}
+			disposeBack();
 		};
 	});
 </script>
@@ -518,7 +517,7 @@
 			ontouchend={requestClose}
 		></button>
 
-		<div class="comments-panel" role="dialog" aria-modal="true" aria-label="Comments">
+		<div class="comments-panel glass-strong" role="dialog" aria-modal="true" aria-label="Comments">
 			<header class="comments-header">
 				<div class="comments-handle" aria-hidden="true"></div>
 				<div class="comments-header-row">
@@ -807,17 +806,16 @@
 		height: min(74dvh, 42rem);
 		min-height: 19rem;
 		border-radius: 1.4rem 1.4rem 0 0;
-		background: #111111;
-		box-shadow: 0 -10px 36px rgba(0, 0, 0, 0.32);
+		/* glass-strong supplies translucent background + blur + border + shadow:
+		   readable, but the feed glows softly through. */
 		overflow: hidden;
-		border-top: 1px solid rgba(255, 255, 255, 0.07);
 	}
 
 	.comments-header {
 		flex-shrink: 0;
 		padding: 0.5rem 1rem 0.55rem;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-		background: #111111;
+		/* transparent — lets the panel glass show through (minimal) */
 	}
 
 	.comments-handle {
@@ -859,20 +857,37 @@
 		right: 0;
 		top: 50%;
 		transform: translateY(-50%);
-		width: 1.95rem;
-		height: 1.95rem;
-		border: none;
+		width: 1.85rem;
+		height: 1.85rem;
 		border-radius: 9999px;
-		background: rgba(255, 255, 255, 0.09);
-		color: rgba(255, 255, 255, 0.84);
+		/* Minimal liquid-glass chip */
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: inset 0 1px 0 var(--glass-highlight);
+		color: rgba(255, 255, 255, 0.7);
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
+		transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+	}
+
+	.comments-close-btn:active {
+		transform: translateY(-50%) scale(0.88);
+		transition-duration: 0.07s;
+		color: #fff;
 	}
 
 	.comments-close-btn svg {
-		width: 0.86rem;
-		height: 0.86rem;
+		width: 0.8rem;
+		height: 0.8rem;
+		stroke-width: 1.75;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.comments-close-btn { transition: color 0.15s ease; }
+		.comments-close-btn:active { transform: translateY(-50%); }
 	}
 
 	.comments-area {

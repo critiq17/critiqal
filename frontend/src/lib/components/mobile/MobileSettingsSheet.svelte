@@ -352,7 +352,7 @@
 								class="mobile-input"
 								bind:value={tfaConfirmCode}
 								inputmode="numeric"
-								pattern="[0-9]{6}"
+								pattern={'[0-9]{6}'}
 								maxlength={6}
 								placeholder="6-digit code"
 								autocomplete="one-time-code"
@@ -394,7 +394,7 @@
 								class="mobile-input"
 								bind:value={tfaDisableCode}
 								inputmode="numeric"
-								pattern="[0-9]{6}"
+								pattern={'[0-9]{6}'}
 								maxlength={6}
 								placeholder="6-digit code to disable"
 								autocomplete="one-time-code"

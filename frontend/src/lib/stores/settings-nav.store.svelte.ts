@@ -1,21 +1,11 @@
-class SettingsNavStore {
-	open = $state(false);
-
-	show(): void {
-		this.open = true;
-	}
-
-	hide(): void {
-		this.open = false;
-	}
-}
-
-export const settingsNavStore = new SettingsNavStore();
+// Backward-compatible facade over the unified navStack. Settings is just
+// another entry on the overlay history stack.
+import { navStack } from './nav-stack.store.svelte';
 
 export function openSettings(): void {
-	settingsNavStore.show();
+	navStack.pushSettings();
 }
 
 export function closeSettings(): void {
-	settingsNavStore.hide();
+	navStack.pop();
 }

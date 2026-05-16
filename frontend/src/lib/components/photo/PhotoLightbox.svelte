@@ -2,6 +2,7 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import type { PostPhoto } from '$lib/types';
 	import { pushBackButton, hapticLight } from '$lib/tma/buttons';
+	import { registerSheet } from '$lib/actions/registerSheet';
 
 	interface Props {
 		photos: PostPhoto[];
@@ -112,6 +113,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
 	class="lightbox"
+	use:registerSheet
 	role="dialog"
 	aria-modal="true"
 	aria-label="Photo viewer"
@@ -225,6 +227,8 @@
 		scroll-snap-type: x mandatory;
 		scrollbar-width: none;
 		-webkit-overflow-scrolling: touch;
+		/* Explicit horizontal paging; no vertical gestures (close = header button). */
+		touch-action: pan-x;
 	}
 
 	.lightbox-track::-webkit-scrollbar {
@@ -240,8 +244,8 @@
 		scroll-snap-align: center;
 		scroll-snap-stop: always;
 		padding: 1rem;
-		/* Allow native pinch-zoom on the slide; we keep our zoom for double-tap. */
-		touch-action: pinch-zoom;
+		/* Horizontal swipe between photos + pinch-zoom. */
+		touch-action: pan-x pinch-zoom;
 	}
 
 	.lightbox-img {
@@ -264,29 +268,32 @@
 
 	.lightbox-close {
 		position: absolute;
-		top: calc(
-			0.75rem +
-				var(
-					--tg-content-top,
-					var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))
-				)
-		);
+		/* Full clearance (with the 44px floor) so it never hides under the
+		   native Telegram Close / ⋯ buttons. */
+		top: var(--tg-top-clearance);
 		right: 0.75rem;
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.12);
+		width: 2.4rem;
+		height: 2.4rem;
+		border-radius: 9999px;
+		background: var(--glass-bg-soft, rgba(255, 255, 255, 0.12));
+		backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
+		border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+		box-shadow: inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.1));
 		color: #fff;
-		border: none;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		z-index: 2;
-		transition: background-color 0.15s ease;
+		z-index: 4;
+		transition:
+			transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1),
+			background-color 0.15s ease;
 	}
 
-	.lightbox-close:hover {
+	.lightbox-close:active {
+		transform: scale(0.88);
+		transition-duration: 0.07s;
 		background: rgba(255, 255, 255, 0.22);
 	}
 
@@ -297,13 +304,7 @@
 
 	.lightbox-counter {
 		position: absolute;
-		top: calc(
-			1rem +
-				var(
-					--tg-content-top,
-					var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))
-				)
-		);
+		top: calc(var(--tg-top-clearance) + 0.4rem);
 		left: 50%;
 		transform: translateX(-50%);
 		color: rgba(255, 255, 255, 0.85);
@@ -393,6 +394,9 @@
 		.lightbox-arrow,
 		.lightbox-close {
 			transition: none;
+		}
+		.lightbox-close:active {
+			transform: none;
 		}
 	}
 </style>

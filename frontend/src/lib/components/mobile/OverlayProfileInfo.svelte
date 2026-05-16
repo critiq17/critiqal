@@ -10,6 +10,8 @@
 		isFollowing: boolean;
 		isTogglingFollow: boolean;
 		onToggleFollow: () => void;
+		onOpenFollowers?: () => void;
+		onOpenFollowing?: () => void;
 	}
 
 	let {
@@ -20,7 +22,9 @@
 		isOwnProfile,
 		isFollowing,
 		isTogglingFollow,
-		onToggleFollow
+		onToggleFollow,
+		onOpenFollowers,
+		onOpenFollowing
 	}: Props = $props();
 
 	function formatCount(n: number): string {
@@ -71,14 +75,14 @@
 		<span class="stat-value">{formatCount(postsCount)}</span>
 		<span class="stat-label">Posts</span>
 	</div>
-	<div class="stat-item">
+	<button class="stat-item stat-item--btn" type="button" onclick={onOpenFollowers} disabled={!onOpenFollowers}>
 		<span class="stat-value">{formatCount(followerCount)}</span>
 		<span class="stat-label">Followers</span>
-	</div>
-	<div class="stat-item">
+	</button>
+	<button class="stat-item stat-item--btn" type="button" onclick={onOpenFollowing} disabled={!onOpenFollowing}>
 		<span class="stat-value">{formatCount(followingCount)}</span>
 		<span class="stat-label">Following</span>
-	</div>
+	</button>
 </div>
 
 <style>
@@ -174,6 +178,26 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
+	}
+
+	.stat-item--btn {
+		background: none;
+		border: none;
+		padding: 4px 8px;
+		margin: -4px -8px;
+		border-radius: 10px;
+		cursor: pointer;
+		font-family: inherit;
+		-webkit-tap-highlight-color: transparent;
+		transition: background-color 0.12s ease;
+	}
+
+	.stat-item--btn:disabled {
+		cursor: default;
+	}
+
+	.stat-item--btn:not(:disabled):active {
+		background: rgba(255, 255, 255, 0.06);
 	}
 
 	.stat-value {

@@ -126,6 +126,9 @@
 		scroll-behavior: smooth;
 		-webkit-overflow-scrolling: touch;
 		scrollbar-width: none;
+		/* touch-action left as default (auto): the browser routes a horizontal
+		   swipe to this carousel and a vertical swipe to the page scroll. */
+		overscroll-behavior-x: contain;
 	}
 
 	.photo-strip::-webkit-scrollbar {

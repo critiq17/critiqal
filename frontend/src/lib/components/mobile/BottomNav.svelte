@@ -3,6 +3,7 @@
   import type { MobileTab } from '$lib/stores/mobile-tab.store.svelte';
   import { openCompose } from '$lib/stores/compose.store.svelte';
   import { getTelegramWebApp } from '$lib/telegram';
+  import { elasticDrag } from '$lib/actions/elasticDrag';
 
   function selectTab(tab: MobileTab): void {
     tabStore.active = tab;
@@ -15,7 +16,17 @@
   }
 </script>
 
-<nav class="nav-pill" aria-label="Main navigation">
+<nav
+  class="nav-pill glass glass-soft"
+  aria-label="Main navigation"
+  use:elasticDrag={{
+    axis: 'free',
+    stretch: 0.17,
+    stretchOrigin: 'center',
+    stiffness: 240,
+    damping: 13
+  }}
+>
   <button
     class="tab-btn"
     class:active={tabStore.active === 'feed'}
@@ -73,17 +84,15 @@
     /* In fullscreen mode use --tg-content-bottom for Telegram UI overlap at bottom.
        Falls back to Telegram SDK CSS var, then device safe area. */
     bottom: calc(16px + var(--tg-content-bottom, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
-    left: 50%;
-    transform: translateX(-50%);
+    /* Transform-free centering — elasticDrag owns `transform`. */
+    left: 0;
+    right: 0;
+    margin-inline: auto;
     width: fit-content;
     min-width: 200px;
-    background: rgba(18, 18, 18, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 28px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     padding: 10px 24px;
+    touch-action: none;
     display: flex;
     gap: 32px;
     align-items: center;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	interface Props {
-		variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+		variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'glass';
 		size?: 'sm' | 'md' | 'lg';
 		disabled?: boolean;
 		loading?: boolean;
@@ -43,12 +43,26 @@
 		border-radius: var(--radius-md);
 		font-weight: 600;
 		cursor: pointer;
-		transition: opacity var(--transition-fast), background var(--transition-fast);
+		/* Springy press: snappy scale-down on press, elastic overshoot back
+		   on release (the bouncy cubic-bezier). Pure CSS — no per-button JS. */
+		transition:
+			opacity var(--transition-fast),
+			background var(--transition-fast),
+			transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
 		white-space: nowrap;
 	}
 
 	.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-	.btn:active:not(:disabled) { opacity: 0.8; }
+	.btn:active:not(:disabled) {
+		opacity: 0.85;
+		transform: scale(0.94);
+		transition-duration: 0.34s, 0.34s, 0.07s;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.btn { transition: opacity var(--transition-fast), background var(--transition-fast); }
+		.btn:active:not(:disabled) { transform: none; }
+	}
 
 	.btn-sm { padding: 6px 12px; font-size: 0.8rem; }
 	.btn-md { padding: 10px 20px; font-size: 0.9rem; }
@@ -61,6 +75,16 @@
 	.btn-ghost { background: transparent; color: var(--color-text-muted); }
 	.btn-ghost:hover:not(:disabled) { color: var(--color-text-primary); }
 	.btn-danger { background: #c0392b; color: #fff; }
+	/* Translucent glass button — pairs with the .glass surface system */
+	.btn-glass {
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: inset 0 1px 0 var(--glass-highlight);
+		color: var(--color-text-primary);
+	}
+	.btn-glass:hover:not(:disabled) { background: var(--glass-bg); }
 
 	.spinner {
 		width: 16px;

@@ -4,6 +4,12 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 		<link rel="icon" type="image/png" href="/assets/critiqal-favicon.png" />
+		<!-- Official Telegram Mini App SDK. MUST be the first script and load
+		     synchronously, before the init code below: methods like
+		     disableVerticalSwipes() and the BackButton/MainButton click events
+		     live in this file, not in the client's auto-injected object.
+		     Without it the swipe lock and native buttons silently do nothing. -->
+		<script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 		<script>
 			// Initialize Telegram Mini App before first paint to prevent flash of unstyled content.
 			if (window.Telegram?.WebApp) {
@@ -17,7 +23,15 @@
 				// Using tg.backgroundColor ensures the header blends seamlessly with app content.
 				tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
 
+				// Disable swipe-down-to-minimize/close. With the SDK loaded this
+				// now actually reaches the client. Re-asserted on every gesture
+				// and viewport change from telegram.ts.
 				try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch(e) {}
+
+				// Last-resort safety net: if a swipe ever still reaches the
+				// client, Telegram shows a native "Close?" confirm instead of
+				// closing outright. Never fires during scrolling.
+				try { tg.enableClosingConfirmation && tg.enableClosingConfirmation(); } catch(e) {}
 
 				// requestFullscreen (Bot API 8.0+) hides the native Telegram header and extends
 				// the app to the full device screen. When opened via inline keyboard or Menu Button,

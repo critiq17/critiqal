@@ -1,35 +1,18 @@
 import { getTelegramWebApp } from '$lib/telegram';
+import { pushBackHandler } from './back-button';
 
 /**
- * Shows the TG BackButton and wires a click handler.
- * Returns a cleanup function to call on component destroy.
+ * Shows the TG BackButton wired to `handler` while the caller is active.
+ * Routed through the single BackButton owner so nested screens unwind one
+ * level per press, in reverse order. Returns a disposer for destroy.
  */
 export function showBackButton(handler: () => void): () => void {
-  const tg = getTelegramWebApp();
-  if (!tg) return () => {};
-  tg.BackButton.show();
-  tg.BackButton.onClick(handler);
-  return () => {
-    tg.BackButton.offClick(handler);
-    tg.BackButton.hide();
-  };
+  return pushBackHandler(handler);
 }
 
-/**
- * Like showBackButton but preserves any pre-existing BackButton visibility,
- * so a nested overlay (e.g. lightbox over a profile overlay) doesn't strip
- * the parent's back-nav on close.
- */
+/** Alias kept for callers that opened over another back-nav screen. */
 export function pushBackButton(handler: () => void): () => void {
-  const tg = getTelegramWebApp();
-  if (!tg) return () => {};
-  const wasVisible = tg.BackButton.isVisible;
-  tg.BackButton.show();
-  tg.BackButton.onClick(handler);
-  return () => {
-    tg.BackButton.offClick(handler);
-    if (!wasVisible) tg.BackButton.hide();
-  };
+  return pushBackHandler(handler);
 }
 
 /** Trigger a light haptic impact, no-op outside Telegram. */

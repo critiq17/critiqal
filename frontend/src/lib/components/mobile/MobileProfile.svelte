@@ -6,24 +6,31 @@
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { openSettings } from '$lib/stores/settings-nav.store.svelte';
-	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
+	import { navStack } from '$lib/stores/nav-stack.store.svelte';
+	import { sheetStore } from '$lib/stores/sheet.store.svelte';
 	import { UseProfile } from '$lib/features/profile/useProfile.svelte';
-	import { formatCount } from '$lib/utils/formatCount';
+	import { elasticDrag } from '$lib/actions/elasticDrag';
 	import { MobilePostList } from '$lib/components/post';
-	import FollowersOverlay from '$lib/components/profile/FollowersOverlay.svelte';
 	import ProfileEditOverlay from '$lib/components/profile/ProfileEditOverlay.svelte';
 	import ProfileStravaWidget from '$lib/components/profile/ProfileStravaWidget.svelte';
 	import ProfileShareButton from '$lib/components/profile/ProfileShareButton.svelte';
 	import ProfileInlineStats from '$lib/components/profile/ProfileInlineStats.svelte';
 	import ProfileTabs from '$lib/components/profile/ProfileTabs.svelte';
+	import CollapsingHeader from './CollapsingHeader.svelte';
 	import ProfileEmptyPosts from '$lib/components/profile/ProfileEmptyPosts.svelte';
 
 	const profile = new UseProfile();
 
-	let followersOverlayType = $state<'followers' | 'following' | null>(null);
 	let stravaNotification = $state<'connected' | 'denied' | null>(null);
 	let editOpen = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
+	let containerEl = $state<HTMLDivElement | undefined>(undefined);
+	// Compact name-header is invisible at the top and frosts in on scroll.
+	let scrolled = $state(false);
+
+	function onScroll(): void {
+		scrolled = (containerEl?.scrollTop ?? 0) > 8;
+	}
 
 	const tabs = $derived([
 		{ id: 'posts', label: 'Posts', count: profile.postsCount ?? profile.posts.length },
@@ -38,13 +45,9 @@
 			.toUpperCase()
 	);
 
-	function openFollowersOverlay(type: 'followers' | 'following'): void {
-		followersOverlayType = type;
-		if (!profile.listsLoaded && !profile.listsLoading) profile.loadFollowLists();
-	}
-
-	function closeFollowersOverlay(): void {
-		followersOverlayType = null;
+	function openConnections(tab: 'followers' | 'following'): void {
+		const u = profile.profile?.username;
+		if (u) navStack.pushConnections(u, tab);
 	}
 
 	function openComments(postId: string): void {
@@ -102,7 +105,30 @@
 	tabindex="-1"
 />
 
-<div class="profile-container">
+<!-- Settings is position:fixed, so it must be removed (not just hidden) while
+     any fullscreen surface is open (photo lightbox, sheets, overlays) —
+     otherwise it floats above them. sheetStore tracks that globally. -->
+{#if !sheetStore.anyOpen}
+	<button class="settings-btn" type="button" onclick={openSettings} aria-label="Settings">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<circle cx="12" cy="12" r="3" />
+			<path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+		</svg>
+	</button>
+{/if}
+
+<div
+	class="profile-container"
+	bind:this={containerEl}
+	onscroll={onScroll}
+	use:elasticDrag={{
+		axis: 'y',
+		positiveOnly: true,
+		canStart: () => (containerEl?.scrollTop ?? 0) <= 0,
+		stiffness: 200,
+		damping: 20
+	}}
+>
 	{#if stravaNotification}
 		<div
 			class="strava-toast"
@@ -128,27 +154,7 @@
 		</div>
 	{/if}
 
-	<header class="top-bar">
-		<div class="top-bar__title">
-			<h1 class="top-bar__name">{displayName || ' '}</h1>
-			{#if profile.profile}
-				<span class="top-bar__sub">
-					{formatCount(profile.postsCount ?? profile.posts.length)} posts
-				</span>
-			{/if}
-		</div>
-		<button
-			class="icon-btn"
-			type="button"
-			onclick={openSettings}
-			aria-label="Settings"
-		>
-			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-				<circle cx="12" cy="12" r="3" />
-				<path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-			</svg>
-		</button>
-	</header>
+	<CollapsingHeader title={displayName} {scrolled} />
 
 	{#if profile.isLoading && !profile.profile}
 		<div class="skeleton" aria-busy="true" aria-label="Loading profile">
@@ -216,8 +222,8 @@
 					postsCount={profile.postsCount}
 					followersCount={profile.followersCount}
 					followingCount={profile.followingCount}
-					onOpenFollowers={() => openFollowersOverlay('followers')}
-					onOpenFollowing={() => openFollowersOverlay('following')}
+					onOpenFollowers={() => openConnections('followers')}
+					onOpenFollowing={() => openConnections('following')}
 				/>
 			</div>
 		</section>
@@ -244,7 +250,7 @@
 				loading={profile.postsLoading}
 				error={profile.profileError}
 				onOpenComments={openComments}
-				onAuthorClick={(username) => openProfile(username)}
+				onAuthorClick={(username) => navStack.pushProfile(username)}
 				onDeleted={(id) => profile.handlePostDeleted(id)}
 				onRetry={() => profile.load()}
 			>
@@ -256,13 +262,6 @@
 	{/if}
 </div>
 
-<FollowersOverlay
-	open={followersOverlayType !== null}
-	type={followersOverlayType}
-	list={followersOverlayType === 'followers' ? profile.followersList : profile.followingList}
-	listsLoading={profile.listsLoading}
-	onClose={closeFollowersOverlay}
-/>
 
 <ProfileEditOverlay
 	open={editOpen}
@@ -308,77 +307,51 @@
 		overscroll-behavior-y: contain;
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
+		/* No static will-change: it creates a stacking context that would trap
+		   the fullscreen photo lightbox under the fixed settings button.
+		   elasticDrag sets will-change only during the pull gesture. */
 	}
 
-	.top-bar {
-		position: sticky;
-		top: 0;
-		z-index: 10;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		padding: calc(
-				0.625rem +
-					var(
-						--tg-content-top,
-						var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))
-					)
-			) 0.5rem 0.625rem 1rem;
-		background: rgba(15, 15, 15, 0.78);
-		backdrop-filter: blur(14px) saturate(160%);
-		-webkit-backdrop-filter: blur(14px) saturate(160%);
-		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-	}
+	/* Header markup/styling now lives in the shared CollapsingHeader. */
 
-	.top-bar__title {
-		display: flex;
-		align-items: baseline;
-		gap: 0.5rem;
-		min-width: 0;
-	}
-
-	.top-bar__name {
-		margin: 0;
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--tg-theme-text-color, #f0f0f0);
-		letter-spacing: -0.015em;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.top-bar__sub {
-		font-size: 0.8125rem;
-		color: rgba(240, 240, 240, 0.45);
-		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
-	}
-
-	.icon-btn {
-		background: none;
-		border: none;
+	/* Lower than the name and clear of Telegram's ⋯ (full clearance floor).
+	   Fixed so the pull-down stretch never drags it. */
+	.settings-btn {
+		position: fixed;
+		right: 0.75rem;
+		top: var(--tg-top-clearance);
+		z-index: 11;
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: inset 0 1px 0 var(--glass-highlight);
 		cursor: pointer;
-		color: rgba(240, 240, 240, 0.5);
-		padding: 0.5rem;
-		min-width: 2.5rem;
-		min-height: 2.5rem;
+		color: rgba(240, 240, 240, 0.7);
+		width: 2.2rem;
+		height: 2.2rem;
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		border-radius: 0.625rem;
+		border-radius: 9999px;
 		-webkit-tap-highlight-color: transparent;
-		transition: color 0.15s ease;
+		transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
 	}
 
-	.icon-btn svg {
-		width: 1.25rem;
-		height: 1.25rem;
+	.settings-btn svg {
+		width: 1.15rem;
+		height: 1.15rem;
 	}
 
-	.icon-btn:active {
-		color: rgba(240, 240, 240, 0.85);
+	.settings-btn:active {
+		transform: scale(0.88);
+		transition-duration: 0.07s;
+		color: #fff;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.settings-btn { transition: color 0.15s ease; }
+		.settings-btn:active { transform: none; }
 	}
 
 	.identity-card {
@@ -530,9 +503,9 @@
 		padding: 0 1rem;
 		position: sticky;
 		top: 3.25rem;
-		background: rgba(15, 15, 15, 0.85);
-		backdrop-filter: blur(12px) saturate(160%);
-		-webkit-backdrop-filter: blur(12px) saturate(160%);
+		/* Same colour as the page so the sticky strip is seamless — no band /
+		   line that reads lighter than the background. */
+		background: var(--tg-bg, var(--color-bg, #0c0c0c));
 		z-index: 9;
 	}
 

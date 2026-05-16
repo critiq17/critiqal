@@ -43,7 +43,7 @@
 	.tabs {
 		display: flex;
 		gap: 0.25rem;
-		border-bottom: 1px solid var(--color-border);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 		padding: 0;
 	}
 
