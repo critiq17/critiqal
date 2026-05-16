@@ -2,7 +2,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import type { Post } from '$lib/types';
 	import { getTelegramWebApp } from '$lib/telegram';
-	import { showBackButton, showMainButton, setMainButtonLoading, setMainButtonEnabled } from '$lib/tma/buttons';
+	import { showBackButton } from '$lib/tma/buttons';
+	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { getInitials } from '$lib/utils/getInitials';
 	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
 	import ComposerTextarea from '$lib/components/composer/ComposerTextarea.svelte';
 	import ComposerPhotoPicker from '$lib/components/composer/ComposerPhotoPicker.svelte';
@@ -20,13 +22,19 @@
 	const composer = new UseComposer();
 
 	let textareaEl: HTMLTextAreaElement | null = null;
-	let footerEl: HTMLElement | null = null;
+	let bottomEl: HTMLElement | null = null;
 	let viewingPhotoUrl = $state<string | null>(null);
-	let hasTgMainButton = $state(false);
 
-	$effect(() => {
-		if (hasTgMainButton) setMainButtonEnabled(composer.canPost);
-	});
+	const user = $derived(authStore.user);
+	const displayName = $derived(user?.name?.trim() || user?.username || 'You');
+
+	// Circular progress ring around the character counter.
+	const RING_R = 13;
+	const RING_C = 2 * Math.PI * RING_R;
+	const usedFraction = $derived(
+		Math.min(Math.max((composer.maxChars - composer.charsLeft) / composer.maxChars, 0), 1)
+	);
+	const ringOffset = $derived(RING_C * (1 - usedFraction));
 
 	function autoGrow(el: HTMLTextAreaElement): void {
 		el.style.height = 'auto';
@@ -39,27 +47,20 @@
 	}
 
 	async function submitPost(): Promise<void> {
-		if (hasTgMainButton) setMainButtonLoading(true);
+		if (!composer.canPost) return;
 		const post = await composer.submit();
 		if (post) {
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
 			onPosted(post);
-		} else if (hasTgMainButton) {
-			setMainButtonLoading(false);
 		}
 	}
 
 	let cleanupBackButton: (() => void) | null = null;
-	let cleanupMainButton: (() => void) | null = null;
 
 	onMount(() => {
 		const tg = getTelegramWebApp();
-
 		if (tg?.platform && tg.platform !== 'unknown') {
 			cleanupBackButton = showBackButton(onClose);
-			cleanupMainButton = showMainButton('Post', submitPost);
-			setMainButtonEnabled(false);
-			hasTgMainButton = true;
 		}
 
 		const focusTimer = setTimeout(() => {
@@ -69,12 +70,12 @@
 			}
 		}, 350);
 
+		// Keep the bottom bar docked above the soft keyboard.
 		const vpHandler = (): void => {
-			if (!window.visualViewport || !footerEl) return;
+			if (!window.visualViewport || !bottomEl) return;
 			const kbHeight =
 				window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-			footerEl.style.paddingBottom =
-				kbHeight > 0 ? `${kbHeight + 8}px` : 'calc(var(--safe-bottom, 0px) + 8px)';
+			bottomEl.style.transform = kbHeight > 0 ? `translateY(-${kbHeight}px)` : '';
 		};
 
 		window.visualViewport?.addEventListener('resize', vpHandler);
@@ -89,36 +90,59 @@
 
 	onDestroy(() => {
 		cleanupBackButton?.();
-		cleanupMainButton?.();
 	});
 </script>
 
 <div class="composer" class:open use:registerSheet role="dialog" aria-modal="true" aria-label="New post">
-	<div class="composer-header">
-		<button class="cancel-btn" onclick={onClose} disabled={composer.loading} type="button">
-			Cancel
+	<header class="composer-header">
+		<button class="hbtn glass" onclick={onClose} disabled={composer.loading} type="button" aria-label="Close">
+			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
+				<line x1="18" y1="6" x2="6" y2="18" />
+				<line x1="6" y1="6" x2="18" y2="18" />
+			</svg>
+			<span>Close</span>
 		</button>
+
 		<span class="hdr-title">New post</span>
-		{#if !hasTgMainButton}
-			<button
-				class="post-btn"
-				class:ready={composer.canPost}
-				onclick={submitPost}
-				disabled={!composer.canPost}
-				type="button"
-			>
-				{composer.loading ? '…' : 'Post'}
-			</button>
-		{:else}
-			<span class="hdr-space" aria-hidden="true"></span>
-		{/if}
-	</div>
+
+		<button
+			class="hbtn post-btn glass"
+			class:ready={composer.canPost}
+			onclick={submitPost}
+			disabled={!composer.canPost}
+			type="button"
+		>
+			{#if composer.loading}
+				<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" aria-hidden="true">
+					<path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round" />
+				</svg>
+			{:else}
+				Post
+			{/if}
+		</button>
+	</header>
 
 	{#if composer.errorMessage}
 		<p class="error-msg" role="alert">{composer.errorMessage}</p>
 	{/if}
 
 	<div class="composer-body">
+		<div class="author-row">
+			<div class="avatar" aria-hidden="true">
+				{#if user?.avatarUrl}
+					<img src={user.avatarUrl} alt="" />
+				{:else}
+					<span class="avatar-initial">{getInitials(user?.name, user?.username)}</span>
+				{/if}
+			</div>
+			<div class="author-meta">
+				<span class="author-name">{displayName}</span>
+				{#if user?.username}
+					<span class="author-handle">@{user.username}</span>
+				{/if}
+			</div>
+		</div>
+
 		<ComposerTextarea
 			value={composer.text}
 			disabled={composer.loading}
@@ -126,30 +150,50 @@
 			onInput={autoGrow}
 			bindEl={(el) => { textareaEl = el; }}
 		/>
+	</div>
 
+	<div class="composer-bottom" bind:this={bottomEl}>
 		<ComposerPhotoPreview
 			previewUrls={composer.previewUrls}
 			onRemove={removePhoto}
 			onView={(url) => { viewingPhotoUrl = url; }}
 		/>
-	</div>
 
-	<div class="composer-footer" bind:this={footerEl}>
-		<div class="footer-left">
-			{#if composer.selectedFiles.length < composer.maxPhotos}
-				<ComposerPhotoPicker
-					disabled={composer.loading}
-					onFiles={(files) => composer.addFiles(files)}
-				/>
-			{/if}
+		<div class="toolbar">
+			<div class="toolbar-left">
+				{#if composer.selectedFiles.length < composer.maxPhotos}
+					<ComposerPhotoPicker
+						disabled={composer.loading}
+						onFiles={(files) => composer.addFiles(files)}
+					/>
+				{/if}
+				<span class="photo-hint">
+					{composer.selectedFiles.length}/{composer.maxPhotos}
+				</span>
+			</div>
+
+			<div
+				class="counter"
+				class:warn={composer.charsLeft <= 20 && !composer.overLimit}
+				class:over={composer.overLimit}
+				aria-label="{composer.charsLeft} characters left"
+			>
+				{#if composer.charsLeft <= 60}
+					<span class="counter-num">{composer.charsLeft}</span>
+				{/if}
+				<svg class="ring" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+					<circle class="ring-track" cx="16" cy="16" r={RING_R} />
+					<circle
+						class="ring-progress"
+						cx="16"
+						cy="16"
+						r={RING_R}
+						stroke-dasharray={RING_C}
+						stroke-dashoffset={ringOffset}
+					/>
+				</svg>
+			</div>
 		</div>
-		<span
-			class="char-counter"
-			class:warn={composer.charsLeft <= 20}
-			class:over={composer.overLimit}
-		>
-			{composer.charsLeft}
-		</span>
 	</div>
 </div>
 
@@ -163,7 +207,7 @@
 		></button>
 		<img src={viewingPhotoUrl} alt="Full size preview" class="viewer-img" />
 		<button
-			class="viewer-close"
+			class="viewer-close glass"
 			onclick={() => { viewingPhotoUrl = null; }}
 			aria-label="Close"
 			type="button"
@@ -181,11 +225,11 @@
 		position: fixed;
 		inset: 0;
 		z-index: 160;
-		background: var(--tg-bg, #111);
+		background: var(--tg-bg, #0f0f0f);
 		display: flex;
 		flex-direction: column;
 		transform: translateY(100%);
-		transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+		transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
 		pointer-events: none;
 	}
 
@@ -194,108 +238,230 @@
 		pointer-events: auto;
 	}
 
+	/* ── Header ─────────────────────────────────────────────────────────── */
 	.composer-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding-top: max(
-			var(--tg-content-safe-area-inset-top, 0px),
-			calc(env(safe-area-inset-top, 20px) + 44px)
-		);
-		padding-left: 16px;
-		padding-right: 16px;
-		padding-bottom: 10px;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		gap: 12px;
+		padding: max(
+				var(--tg-content-safe-area-inset-top, 0px),
+				calc(env(safe-area-inset-top, 20px) + 44px)
+			)
+			16px 12px;
 		flex-shrink: 0;
 	}
 
 	.hdr-title {
-		font-size: 15px;
-		font-weight: 600;
+		font-size: 16px;
+		font-weight: 700;
 		color: var(--tg-text, #f0f0f0);
+		letter-spacing: -0.01em;
 	}
 
-	.cancel-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 15px;
+	/* Black glass buttons — no accent colour anywhere. */
+	.hbtn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
+		height: 36px;
+		min-width: 76px;
+		padding: 0 16px;
+		border-radius: 18px;
+		font-size: 14px;
+		font-weight: 600;
 		font-family: inherit;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
-		padding: 6px 0;
-		min-width: 64px;
-		text-align: left;
+		color: rgba(255, 255, 255, 0.7);
+		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
+		transition:
+			transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+			color 0.18s ease,
+			opacity 0.18s ease,
+			box-shadow 0.18s ease;
 	}
 
-	.cancel-btn:active { opacity: 0.6; }
-	.cancel-btn:disabled { cursor: default; }
+	.hbtn:active {
+		transform: scale(0.93);
+	}
 
 	.post-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 15px;
-		font-weight: 600;
-		font-family: inherit;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.25));
-		padding: 6px 0;
-		min-width: 64px;
-		text-align: right;
-		transition: color 0.15s ease;
-		-webkit-tap-highlight-color: transparent;
+		color: rgba(255, 255, 255, 0.32);
 	}
 
-	.post-btn.ready { color: var(--tg-accent, #e05252); }
-	.post-btn:disabled { cursor: default; }
-	.hdr-space { min-width: 64px; }
+	.post-btn.ready {
+		color: #fff;
+		box-shadow:
+			var(--glass-shadow, 0 8px 32px rgba(0, 0, 0, 0.4)),
+			inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.14)),
+			0 0 0 1px rgba(255, 255, 255, 0.14);
+	}
+
+	.post-btn:disabled {
+		cursor: default;
+	}
+
+	.spin {
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
 
 	.error-msg {
 		font-size: 13px;
 		color: #e05252;
-		padding: 8px 16px 0;
+		padding: 4px 20px 0;
 		flex-shrink: 0;
+		margin: 0;
 	}
 
+	/* ── Body ───────────────────────────────────────────────────────────── */
 	.composer-body {
 		flex: 1;
 		overflow-y: auto;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior: contain;
-		padding: 16px;
-		display: flex;
-		flex-direction: column;
-		gap: 16px;
+		padding: 8px 20px 20px;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
 	}
 
-	.composer-footer {
+	.composer-body::-webkit-scrollbar {
+		display: none;
+	}
+
+	.author-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 14px;
+	}
+
+	.avatar {
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		overflow: hidden;
 		flex-shrink: 0;
+		background: var(--color-surface-raised, #242424);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.avatar-initial {
+		font-size: 14px;
+		font-weight: 600;
+		color: rgba(255, 255, 255, 0.55);
+		user-select: none;
+	}
+
+	.author-meta {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+		line-height: 1.3;
+	}
+
+	.author-name {
+		font-size: 15px;
+		font-weight: 600;
+		color: var(--tg-text, #f0f0f0);
+	}
+
+	.author-handle {
+		font-size: 13px;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.4));
+	}
+
+	/* ── Bottom bar (preview strip + glass toolbar) ─────────────────────── */
+	.composer-bottom {
+		flex-shrink: 0;
+		background: var(--glass-bg, rgba(20, 20, 20, 0.78));
+		backdrop-filter: blur(var(--glass-blur, 24px)) saturate(var(--glass-saturate, 180%));
+		-webkit-backdrop-filter: blur(var(--glass-blur, 24px)) saturate(var(--glass-saturate, 180%));
+		border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+		padding-bottom: calc(var(--safe-bottom, 0px) + 8px);
+		will-change: transform;
+	}
+
+	.toolbar {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		padding: 8px 16px calc(var(--safe-bottom, 0px) + 8px);
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
-		transition: padding-bottom 0.1s ease;
+		padding: 8px 16px;
 	}
 
-	.footer-left {
+	.toolbar-left {
 		display: flex;
 		align-items: center;
-		gap: 4px;
+		gap: 10px;
 	}
 
-	.char-counter {
-		font-size: 13px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.3));
-		min-width: 32px;
-		text-align: right;
-		transition: color 0.15s ease;
+	.photo-hint {
+		font-size: 12px;
+		color: var(--tg-hint, rgba(255, 255, 255, 0.35));
 		font-variant-numeric: tabular-nums;
 	}
 
-	.char-counter.warn { color: rgba(255, 165, 0, 0.8); }
-	.char-counter.over { color: #e05252; font-weight: 600; }
+	.counter {
+		position: relative;
+		width: 30px;
+		height: 30px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: rgba(255, 255, 255, 0.5);
+	}
 
+	.counter.warn {
+		color: #f0a92b;
+	}
+
+	.counter.over {
+		color: #e05252;
+	}
+
+	.counter-num {
+		position: absolute;
+		font-size: 10px;
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		color: currentColor;
+	}
+
+	.ring {
+		transform: rotate(-90deg);
+	}
+
+	.ring-track {
+		fill: none;
+		stroke: rgba(255, 255, 255, 0.1);
+		stroke-width: 2.5;
+	}
+
+	.ring-progress {
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2.5;
+		stroke-linecap: round;
+		transition:
+			stroke-dashoffset 0.2s ease,
+			stroke 0.2s ease;
+	}
+
+	/* ── Full-size photo viewer ─────────────────────────────────────────── */
 	.photo-viewer {
 		position: fixed;
 		inset: 0;
@@ -321,7 +487,7 @@
 		max-width: 100%;
 		max-height: 90dvh;
 		object-fit: contain;
-		border-radius: 8px;
+		border-radius: 10px;
 		pointer-events: none;
 	}
 
@@ -330,23 +496,23 @@
 		top: calc(var(--tg-content-top, env(safe-area-inset-top, 0px)) + 12px);
 		right: 16px;
 		z-index: 2;
-		background: rgba(255, 255, 255, 0.1);
-		backdrop-filter: blur(8px);
-		-webkit-backdrop-filter: blur(8px);
-		border: 1px solid rgba(255, 255, 255, 0.15);
 		cursor: pointer;
-		width: 36px;
-		height: 36px;
+		width: 38px;
+		height: 38px;
 		border-radius: 50%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: white;
+		color: #fff;
 		-webkit-tap-highlight-color: transparent;
 	}
 
 	@keyframes fadeIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
+		from {
+			opacity: 0;
+		}
+		to {
+			opacity: 1;
+		}
 	}
 </style>

@@ -9,9 +9,9 @@
 </script>
 
 {#if previewUrls.length > 0}
-	<div class="photo-grid" class:single={previewUrls.length === 1}>
+	<div class="photo-strip" role="list" aria-label="Attached photos">
 		{#each previewUrls as url, i (url)}
-			<div class="photo-card">
+			<div class="photo-card" role="listitem">
 				<button
 					class="photo-tap"
 					onclick={() => onView(url)}
@@ -21,7 +21,7 @@
 					<img src={url} alt="Photo {i + 1}" />
 				</button>
 				<button
-					class="remove-btn"
+					class="remove-btn glass"
 					onclick={() => onRemove(i)}
 					type="button"
 					aria-label="Remove photo {i + 1}"
@@ -41,25 +41,31 @@
 {/if}
 
 <style>
-	.photo-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 6px;
+	/* Horizontal, scrollable thumbnail strip — sits just above the toolbar
+	   so attachments stay in view while typing. */
+	.photo-strip {
+		display: flex;
+		gap: 10px;
+		overflow-x: auto;
+		overflow-y: visible;
+		padding: 14px 16px 16px;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+		scroll-snap-type: x proximity;
+		-webkit-overflow-scrolling: touch;
 	}
 
-	.photo-grid.single {
-		grid-template-columns: 1fr;
-	}
-
-	.photo-grid.single .photo-card {
-		aspect-ratio: 4 / 3;
+	.photo-strip::-webkit-scrollbar {
+		display: none;
 	}
 
 	.photo-card {
 		position: relative;
-		aspect-ratio: 1;
-		border-radius: 12px;
-		overflow: visible;
+		flex: 0 0 auto;
+		width: 76px;
+		height: 76px;
+		scroll-snap-align: start;
+		animation: pop 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 	}
 
 	.photo-tap {
@@ -70,9 +76,15 @@
 		border: none;
 		background: none;
 		cursor: pointer;
-		border-radius: 12px;
+		border-radius: 14px;
 		overflow: hidden;
 		-webkit-tap-highlight-color: transparent;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+		transition: transform 0.16s ease;
+	}
+
+	.photo-tap:active {
+		transform: scale(0.94);
 	}
 
 	.photo-tap img {
@@ -80,35 +92,38 @@
 		height: 100%;
 		object-fit: cover;
 		display: block;
-		border-radius: 12px;
-		transition: opacity 0.15s ease;
-	}
-
-	.photo-tap:active img {
-		opacity: 0.8;
 	}
 
 	.remove-btn {
 		position: absolute;
-		top: -8px;
-		right: -8px;
-		width: 24px;
-		height: 24px;
+		top: -7px;
+		right: -7px;
+		width: 22px;
+		height: 22px;
 		border-radius: 50%;
-		background: rgba(20, 20, 20, 0.9);
-		border: 1.5px solid rgba(255, 255, 255, 0.15);
 		cursor: pointer;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: rgba(255, 255, 255, 0.85);
+		color: rgba(255, 255, 255, 0.9);
 		padding: 0;
 		z-index: 1;
 		-webkit-tap-highlight-color: transparent;
-		transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+		transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
 	.remove-btn:active {
-		transform: scale(0.85);
+		transform: scale(0.82);
+	}
+
+	@keyframes pop {
+		from {
+			opacity: 0;
+			transform: scale(0.7);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
+		}
 	}
 </style>

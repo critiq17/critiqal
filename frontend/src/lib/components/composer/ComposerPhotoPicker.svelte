@@ -20,7 +20,7 @@
 </script>
 
 <button
-	class="footer-icon-btn"
+	class="footer-icon-btn glass"
 	onclick={() => {
 		const el = document.querySelector<HTMLInputElement>('.composer-photo-input-hidden');
 		el?.click();
@@ -68,21 +68,28 @@
 		border: 0;
 	}
 
+	/* Black glass action button — no accent colour. */
 	.footer-icon-btn {
-		background: none;
-		border: none;
 		cursor: pointer;
-		padding: 8px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.5));
+		width: 42px;
+		height: 42px;
+		padding: 0;
+		color: rgba(255, 255, 255, 0.75);
 		display: flex;
 		align-items: center;
-		border-radius: 8px;
+		justify-content: center;
+		border-radius: 14px;
 		-webkit-tap-highlight-color: transparent;
-		transition: color 0.15s ease;
+		transition:
+			color 0.15s ease,
+			transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+			background-color 0.15s ease;
 	}
 
 	.footer-icon-btn:active {
-		color: var(--tg-text, #f0f0f0);
+		color: #fff;
+		transform: scale(0.9);
+		background-color: rgba(255, 255, 255, 0.06);
 	}
 
 	.footer-icon-btn:disabled {

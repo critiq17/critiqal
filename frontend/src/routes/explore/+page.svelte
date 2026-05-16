@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import type { Post } from '$lib/types';
 	import { UseSearch } from '$lib/features/explore/useSearch.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import ExplorePostsTab from '$lib/components/explore/ExplorePostsTab.svelte';
@@ -42,8 +41,8 @@
 		scheduleOrFetch(query, activeTab);
 	});
 
-	function handlePostTap(post: Post): void {
-		goto(`/${post.author.username}`);
+	function handleAuthorClick(username: string): void {
+		goto(`/${username}`);
 	}
 </script>
 
@@ -118,7 +117,8 @@
 					{search}
 					{query}
 					onRetry={() => search.fetchResults(query, activeTab)}
-					onPostTap={handlePostTap}
+					onAuthorClick={handleAuthorClick}
+					onPostDeleted={(id) => search.removePost(id)}
 				/>
 			{:else}
 				<ExplorePeopleTab

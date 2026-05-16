@@ -25,6 +25,8 @@ export interface ElasticDragOptions {
   onProgress?: (progress: number) => void;
   /** Scale-stretch while pulling. ~0.06 lively, 0 off. */
   stretch?: number;
+  /** Stretch in place: deform with the pull but never translate (stays put). */
+  pinned?: boolean;
   /** transform-origin for the stretch (e.g. 'center', 'bottom center'). */
   stretchOrigin?: string;
   /** Spring constants. Lower damping = bouncier "jump". Default 180 / 22. */
@@ -74,7 +76,9 @@ export function elasticDrag(node: HTMLElement, options: ElasticDragOptions = {})
 
   function paint(x: number, y: number): void {
     const el = resolveTarget();
-    let transform = `translate3d(${x}px, ${y}px, 0)`;
+    // Pinned surfaces deform around their own centre and never shift; the
+    // x/y offsets still drive the stretch magnitude (and the release spring).
+    let transform = opts.pinned ? '' : `translate3d(${x}px, ${y}px, 0)`;
     if (opts.stretch) {
       const w = el.offsetWidth || 1;
       const h = el.offsetHeight || 1;

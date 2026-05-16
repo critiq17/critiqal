@@ -25,6 +25,10 @@
 	let editOpen = $state(false);
 	let fileInputEl = $state<HTMLInputElement | null>(null);
 	let containerEl = $state<HTMLDivElement | undefined>(undefined);
+	// Only this inner surface is transformed by the pull — the scroll
+	// container and its sticky header stay put, so the gesture never
+	// fights native scroll or forces per-frame sticky recalculation.
+	let pullSurfaceEl = $state<HTMLDivElement | undefined>(undefined);
 	// Compact name-header is invisible at the top and frosts in on scroll.
 	let scrolled = $state(false);
 
@@ -124,6 +128,7 @@
 	use:elasticDrag={{
 		axis: 'y',
 		positiveOnly: true,
+		target: () => pullSurfaceEl,
 		canStart: () => (containerEl?.scrollTop ?? 0) <= 0,
 		stiffness: 200,
 		damping: 20
@@ -156,6 +161,7 @@
 
 	<CollapsingHeader title={displayName} {scrolled} />
 
+	<div class="pull-surface" bind:this={pullSurfaceEl}>
 	{#if profile.isLoading && !profile.profile}
 		<div class="skeleton" aria-busy="true" aria-label="Loading profile">
 			<div class="skeleton-avatar"></div>
@@ -260,6 +266,7 @@
 			</MobilePostList>
 		</div>
 	{/if}
+	</div>
 </div>
 
 
@@ -307,9 +314,21 @@
 		overscroll-behavior-y: contain;
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
+		scrollbar-width: none;
+		-ms-overflow-style: none;
 		/* No static will-change: it creates a stacking context that would trap
 		   the fullscreen photo lightbox under the fixed settings button.
 		   elasticDrag sets will-change only during the pull gesture. */
+	}
+
+	.profile-container::-webkit-scrollbar {
+		display: none;
+	}
+
+	/* Pull target: elasticDrag owns its transform. No static will-change —
+	   the action sets it only for the duration of the gesture. */
+	.pull-surface {
+		transform: translateZ(0);
 	}
 
 	/* Header markup/styling now lives in the shared CollapsingHeader. */
