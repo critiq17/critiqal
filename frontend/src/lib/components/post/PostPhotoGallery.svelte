@@ -11,9 +11,34 @@
 	interface Props {
 		photos: PostPhoto[];
 		postId: string;
+		/**
+		 * Called when the media is double-tapped. Kept as a plain callback so the
+		 * gallery stays decoupled from the like state — the parent decides what a
+		 * double-tap means (force-like, idempotent).
+		 */
+		onDoubleTapLike?: () => void;
 	}
 
-	let { photos, postId }: Props = $props();
+	let { photos, postId, onDoubleTapLike }: Props = $props();
+
+	const DOUBLE_TAP_MS = 320;
+	let lastTapAt = 0;
+	// Suppress the single-tap lightbox open that rides along on a double-tap.
+	let suppressClickUntil = 0;
+	// Bumped on every double-tap so the bloom animation re-mounts and restarts.
+	let bloomKey = $state(0);
+
+	function onStripPointerDown(): void {
+		const now = performance.now();
+		if (now - lastTapAt < DOUBLE_TAP_MS) {
+			bloomKey += 1;
+			suppressClickUntil = now + 400;
+			onDoubleTapLike?.();
+			lastTapAt = 0;
+		} else {
+			lastTapAt = now;
+		}
+	}
 
 	const sorted = $derived([...photos].sort((a, b) => a.position - b.position));
 	const total = $derived(sorted.length);
@@ -39,6 +64,7 @@
 	}
 
 	function openAt(index: number): void {
+		if (performance.now() < suppressClickUntil) return;
 		lightboxStartIndex = index;
 		lightboxOpen = true;
 	}
@@ -61,6 +87,7 @@
 			role="region"
 			aria-label="Post photos for post {postId}"
 			onscroll={onStripScroll}
+			onpointerdown={onStripPointerDown}
 		>
 			{#each sorted as photo, i (photo.id)}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -92,8 +119,20 @@
 				{/each}
 			</div>
 
-			<div class="counter" aria-hidden="true">{scrollIndex + 1}/{total}</div>
+			<div class="page-pill" aria-hidden="true">{scrollIndex + 1}/{total}</div>
 		{/if}
+
+		{#key bloomKey}
+			{#if bloomKey > 0}
+				<div class="big-heart" aria-hidden="true">
+					<svg viewBox="0 0 24 24" fill="currentColor" width="92" height="92">
+						<path
+							d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+						/>
+					</svg>
+				</div>
+			{/if}
+		{/key}
 	</div>
 
 	{#if lightboxOpen}
@@ -101,6 +140,7 @@
 			photos={sorted}
 			startIndex={lightboxStartIndex}
 			onClose={() => (lightboxOpen = false)}
+			{onDoubleTapLike}
 		/>
 	{/if}
 {/if}
@@ -164,44 +204,94 @@
 
 	.dots {
 		position: absolute;
-		bottom: 0.5rem;
+		bottom: 12px;
 		left: 50%;
 		transform: translateX(-50%);
 		display: flex;
-		gap: 0.3125rem;
-		padding: 0.25rem 0.5rem;
-		background: rgba(0, 0, 0, 0.32);
+		align-items: center;
+		gap: 5px;
+		padding: 6px 8px;
+		background: rgba(0, 0, 0, 0.4);
 		border-radius: 999px;
-		backdrop-filter: blur(4px);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
+		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
 		pointer-events: none;
 	}
 
 	.dot {
-		width: 0.3125rem;
-		height: 0.3125rem;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.55);
-		transition: background-color 0.18s ease, width 0.18s ease;
+		width: 5px;
+		height: 5px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.4);
+		transition: all 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
 	.dot--active {
 		background: #fff;
-		width: 0.625rem;
-		border-radius: 999px;
+		width: 16px;
 	}
 
-	.counter {
+	/* page indicator pill — black glass, top-right (handoff spec) */
+	.page-pill {
 		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		padding: 0.125rem 0.5rem;
-		background: rgba(0, 0, 0, 0.45);
+		top: 10px;
+		right: 10px;
+		height: 24px;
+		padding: 0 10px;
+		display: inline-flex;
+		align-items: center;
+		background: rgba(0, 0, 0, 0.42);
 		color: #fff;
-		font-size: 0.75rem;
+		font-size: 11.5px;
 		font-variant-numeric: tabular-nums;
+		letter-spacing: 0.02em;
 		border-radius: 999px;
 		pointer-events: none;
-		backdrop-filter: blur(4px);
+		backdrop-filter: blur(12px) saturate(140%);
+		-webkit-backdrop-filter: blur(12px) saturate(140%);
+		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+	}
+
+	/* big white heart that blooms over the photo on double-tap */
+	.big-heart {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 92px;
+		height: 92px;
+		transform: translate(-50%, -50%) scale(0);
+		color: #fff;
+		opacity: 0;
+		pointer-events: none;
+		filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
+		z-index: 3;
+		animation: bigHeart 900ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+	}
+
+	.big-heart svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+
+	@keyframes bigHeart {
+		0% {
+			transform: translate(-50%, -50%) scale(0.2);
+			opacity: 0;
+		}
+		25% {
+			transform: translate(-50%, -50%) scale(1.15);
+			opacity: 1;
+		}
+		55% {
+			transform: translate(-50%, -50%) scale(0.95);
+			opacity: 1;
+		}
+		100% {
+			transform: translate(-50%, -50%) scale(1.4);
+			opacity: 0;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -211,6 +301,11 @@
 
 		.photo-strip {
 			scroll-behavior: auto;
+		}
+
+		.big-heart {
+			animation: none;
+			opacity: 0;
 		}
 	}
 </style>
