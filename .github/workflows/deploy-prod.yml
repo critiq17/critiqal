@@ -117,9 +117,10 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           port: ${{ secrets.DEPLOY_PORT }}
           source: "frontend-build/"
-          target: "/opt/critiqal/prod/frontend/build/"
+          target: "/opt/critiqal/prod/frontend/"
           strip_components: 1
           overwrite: true
+          rm: true
 
       - name: Deploy on server (pull image, restart, healthcheck)
         uses: appleboy/ssh-action@v1.0.3
@@ -154,7 +155,7 @@ jobs:
               sleep 2
             done
 
-            cd /opt/critiqal/prod/frontend/build
+            cd /opt/critiqal/prod/frontend
             npm ci --omit=dev --prefer-offline --no-audit --fund=false --silent
             PORT=3000 pm2 reload critiqal-prod --update-env 2>/dev/null || \
               PORT=3000 pm2 start index.js --name critiqal-prod
