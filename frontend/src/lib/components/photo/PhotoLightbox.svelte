@@ -1,42 +1,53 @@
 <script lang="ts">
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import type { PostPhoto } from '$lib/types';
 	import { pushBackButton, hapticLight } from '$lib/tma/buttons';
 	import { registerSheet } from '$lib/actions/registerSheet';
+	import { portal } from '$lib/actions/portal';
 
 	interface Props {
 		photos: PostPhoto[];
 		startIndex?: number;
 		onClose: () => void;
+		/** Double-tap the photo to like the post (idempotent — set by the caller). */
+		onDoubleTapLike?: () => void;
 	}
 
-	let { photos, startIndex = 0, onClose }: Props = $props();
+	let { photos, startIndex = 0, onClose, onDoubleTapLike }: Props = $props();
 
-	// Snapshot the initial start index — the lightbox owns navigation after mount.
+	const sorted = $derived([...photos].sort((a, b) => a.position - b.position));
+	const total = $derived(sorted.length);
+
 	// svelte-ignore state_referenced_locally
-	let currentIndex = $state(startIndex);
-	let trackEl: HTMLDivElement | undefined = $state();
-	let overlayEl: HTMLDivElement | undefined = $state();
-	let zoom = $state(1);
+	let currentIndex = $state(Math.max(0, Math.min(startIndex, photos.length - 1)));
+	// Live horizontal drag offset in px (0 when not dragging).
+	let dragDX = $state(0);
+	let dragging = $state(false);
+	// Bumped on every double-tap so the heart bloom re-mounts and replays.
+	let bloomKey = $state(0);
 
-	const total = $derived(photos.length);
 	const hasPrev = $derived(currentIndex > 0);
 	const hasNext = $derived(currentIndex < total - 1);
+
+	let trackEl: HTMLDivElement | undefined = $state();
+	let overlayEl: HTMLDivElement | undefined = $state();
 
 	let lastBodyOverflow = '';
 	let cleanupBackButton: (() => void) | null = null;
 
-	onMount(async () => {
+	// Pointer bookkeeping (not reactive — raw gesture math).
+	let pointerId: number | null = null;
+	let startX = 0;
+	let startY = 0;
+	let axisLocked: 'none' | 'x' | 'y' = 'none';
+	let lastTapAt = 0;
+	const DOUBLE_TAP_MS = 320;
+
+	onMount(() => {
 		lastBodyOverflow = document.body.style.overflow;
 		document.body.style.overflow = 'hidden';
-		// Telegram Mini App: route hardware back / chevron through onClose,
-		// preserving any back button that an outer overlay may have shown.
+		// The ONLY way to close: the Telegram header back/chevron button.
 		cleanupBackButton = pushBackButton(onClose);
-		await tick();
-		// Position track on the requested photo without animation.
-		if (trackEl) {
-			trackEl.scrollLeft = trackEl.clientWidth * startIndex;
-		}
 		overlayEl?.focus();
 	});
 
@@ -45,110 +56,137 @@
 		cleanupBackButton?.();
 	});
 
-	function syncIndexFromScroll(e: Event): void {
-		const el = e.currentTarget as HTMLDivElement;
-		const next = Math.round(el.scrollLeft / el.clientWidth);
-		if (next !== currentIndex) {
-			currentIndex = next;
-			resetZoom();
+	function goTo(index: number): void {
+		const clamped = Math.max(0, Math.min(total - 1, index));
+		if (clamped !== currentIndex) {
+			currentIndex = clamped;
 			hapticLight();
 		}
 	}
 
-	function goTo(index: number, smooth = true): void {
-		if (!trackEl) return;
-		const clamped = Math.max(0, Math.min(total - 1, index));
-		trackEl.scrollTo({
-			left: trackEl.clientWidth * clamped,
-			behavior: smooth ? 'smooth' : 'auto',
-		});
-	}
-
-	function prev(): void {
-		if (hasPrev) goTo(currentIndex - 1);
-	}
-
-	function next(): void {
-		if (hasNext) goTo(currentIndex + 1);
-	}
-
-	function resetZoom(): void {
-		zoom = 1;
-	}
+	const prev = (): void => goTo(currentIndex - 1);
+	const next = (): void => goTo(currentIndex + 1);
 
 	function onKey(e: KeyboardEvent): void {
-		switch (e.key) {
-			case 'Escape':
-				onClose();
-				break;
-			case 'ArrowLeft':
-				e.preventDefault();
-				prev();
-				break;
-			case 'ArrowRight':
-				e.preventDefault();
-				next();
-				break;
+		if (e.key === 'Escape') onClose();
+		else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
+			prev();
+		} else if (e.key === 'ArrowRight') {
+			e.preventDefault();
+			next();
 		}
 	}
 
-	function onOverlayClick(e: MouseEvent): void {
-		// Close only when clicking the dark backdrop, not a child (image, button).
-		if (e.target === e.currentTarget) {
-			onClose();
+	function triggerLike(): void {
+		bloomKey += 1;
+		onDoubleTapLike?.();
+	}
+
+	// ── Gestures ────────────────────────────────────────────────────────────
+	// The track owns every pointer gesture (touch-action: none) so neither the
+	// browser nor Telegram can read a drag as scroll / close. A horizontal drag
+	// pages photos; a short tap that repeats within 320 ms likes the post.
+	// Vertical drags do nothing — closing is header-button only.
+
+	function onPointerDown(e: PointerEvent): void {
+		if (pointerId !== null) return;
+		pointerId = e.pointerId;
+		startX = e.clientX;
+		startY = e.clientY;
+		axisLocked = 'none';
+		dragging = true;
+		trackEl?.setPointerCapture(e.pointerId);
+	}
+
+	function onPointerMove(e: PointerEvent): void {
+		if (e.pointerId !== pointerId) return;
+		const dx = e.clientX - startX;
+		const dy = e.clientY - startY;
+
+		if (axisLocked === 'none') {
+			if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+			axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
 		}
+		if (axisLocked !== 'x' || total < 2) {
+			dragDX = 0;
+			return;
+		}
+
+		// Rubber-band when dragging past the first / last photo.
+		const atEdge = (dx > 0 && !hasPrev) || (dx < 0 && !hasNext);
+		dragDX = atEdge ? dx * 0.35 : dx;
 	}
 
-	// Double-tap / double-click toggles 2× zoom for the active image.
-	function onImageDoubleClick(): void {
-		zoom = zoom > 1 ? 1 : 2;
-	}
+	function endDrag(e: PointerEvent): void {
+		if (e.pointerId !== pointerId) return;
+		try {
+			trackEl?.releasePointerCapture(e.pointerId);
+		} catch {
+			/* pointer already released */
+		}
+		pointerId = null;
+		dragging = false;
 
-	const sorted = $derived([...photos].sort((a, b) => a.position - b.position));
+		const movedX = e.clientX - startX;
+		const movedY = e.clientY - startY;
+
+		if (axisLocked === 'x' && total > 1) {
+			const width = trackEl?.clientWidth ?? 1;
+			const threshold = Math.min(80, width * 0.18);
+			if (dragDX <= -threshold) next();
+			else if (dragDX >= threshold) prev();
+		} else if (Math.abs(movedX) < 8 && Math.abs(movedY) < 8) {
+			// A tap, not a drag → detect double-tap to like.
+			const now = performance.now();
+			if (now - lastTapAt < DOUBLE_TAP_MS) {
+				triggerLike();
+				lastTapAt = 0;
+			} else {
+				lastTapAt = now;
+			}
+		}
+
+		dragDX = 0;
+		axisLocked = 'none';
+	}
 </script>
 
 <svelte:window onkeydown={onKey} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <div
 	class="lightbox"
+	use:portal
 	use:registerSheet
 	role="dialog"
 	aria-modal="true"
 	aria-label="Photo viewer"
 	tabindex="-1"
 	bind:this={overlayEl}
-	onclick={onOverlayClick}
 >
-	<button class="lightbox-close" type="button" aria-label="Close" onclick={onClose}>
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-			<line x1="6" y1="6" x2="18" y2="18" />
-			<line x1="18" y1="6" x2="6" y2="18" />
-		</svg>
-	</button>
-
 	{#if total > 1}
 		<div class="lightbox-counter" aria-live="polite">{currentIndex + 1} / {total}</div>
 	{/if}
 
 	<div
 		class="lightbox-track"
+		class:dragging
 		bind:this={trackEl}
-		onscroll={syncIndexFromScroll}
+		style:transform="translate3d(calc({-currentIndex * 100}% + {dragDX}px), 0, 0)"
+		onpointerdown={onPointerDown}
+		onpointermove={onPointerMove}
+		onpointerup={endDrag}
+		onpointercancel={endDrag}
 		role="region"
 		aria-label="Photo carousel"
 	>
 		{#each sorted as photo, i (photo.id)}
 			<div class="lightbox-slide">
-				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<img
 					src={photo.url}
 					alt=""
 					class="lightbox-img"
-					class:lightbox-img--zoomed={i === currentIndex && zoom > 1}
-					style:--zoom={i === currentIndex ? zoom : 1}
-					ondblclick={i === currentIndex ? onImageDoubleClick : undefined}
 					decoding="async"
 					loading={Math.abs(i - currentIndex) <= 1 ? 'eager' : 'lazy'}
 					draggable="false"
@@ -156,6 +194,18 @@
 			</div>
 		{/each}
 	</div>
+
+	{#key bloomKey}
+		{#if bloomKey > 0}
+			<div class="lightbox-bloom" aria-hidden="true">
+				<svg viewBox="0 0 24 24" fill="currentColor" width="104" height="104">
+					<path
+						d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+					/>
+				</svg>
+			</div>
+		{/if}
+	{/key}
 
 	{#if total > 1}
 		{#if hasPrev}
@@ -205,47 +255,38 @@
 		position: fixed;
 		inset: 0;
 		width: 100vw;
-		/* Prefer Telegram-reported viewport (fullscreen WebApp), then dvh, then vh. */
 		height: var(--tg-viewport-height, 100dvh);
 		min-height: 100dvh;
-		background: rgba(0, 0, 0, 0.96);
+		background: #000;
 		z-index: 1000;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		overflow: hidden;
 		outline: none;
-		/* Avoid OS pull-to-refresh / overscroll fighting our scroll-snap track. */
-		overscroll-behavior: contain;
 	}
 
 	.lightbox-track {
+		display: flex;
 		width: 100%;
 		height: 100%;
-		display: flex;
-		overflow-x: auto;
-		overflow-y: hidden;
-		scroll-snap-type: x mandatory;
-		scrollbar-width: none;
-		-webkit-overflow-scrolling: touch;
-		/* Explicit horizontal paging; no vertical gestures (close = header button). */
-		touch-action: pan-x;
+		will-change: transform;
+		/* Own every gesture: the browser/Telegram never see scroll or a
+		   close-drag. Only our horizontal pager moves the track. */
+		touch-action: none;
+		transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
 	}
 
-	.lightbox-track::-webkit-scrollbar {
-		display: none;
+	.lightbox-track.dragging {
+		transition: none;
+		cursor: grabbing;
 	}
 
 	.lightbox-slide {
 		flex: 0 0 100%;
+		width: 100%;
 		height: 100%;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		scroll-snap-align: center;
-		scroll-snap-stop: always;
 		padding: 1rem;
-		/* Horizontal swipe between photos + pinch-zoom. */
-		touch-action: pan-x pinch-zoom;
 	}
 
 	.lightbox-img {
@@ -253,53 +294,51 @@
 		max-height: 100%;
 		width: auto;
 		height: auto;
-		/* contain = full photo always visible, never cropped. */
 		object-fit: contain;
 		user-select: none;
 		-webkit-user-drag: none;
-		transform: scale(var(--zoom, 1));
-		transition: transform 0.25s ease;
-		cursor: zoom-in;
+		pointer-events: none;
 	}
 
-	.lightbox-img--zoomed {
-		cursor: zoom-out;
-	}
-
-	.lightbox-close {
+	/* Big heart that blooms on double-tap, mirroring the in-feed like. */
+	.lightbox-bloom {
 		position: absolute;
-		/* Full clearance (with the 44px floor) so it never hides under the
-		   native Telegram Close / ⋯ buttons. */
-		top: var(--tg-top-clearance);
-		right: 0.75rem;
-		width: 2.4rem;
-		height: 2.4rem;
-		border-radius: 9999px;
-		background: var(--glass-bg-soft, rgba(255, 255, 255, 0.12));
-		backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
-		-webkit-backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
-		border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
-		box-shadow: inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.1));
+		left: 50%;
+		top: 50%;
+		width: 104px;
+		height: 104px;
+		transform: translate(-50%, -50%) scale(0);
 		color: #fff;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		z-index: 4;
-		transition:
-			transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1),
-			background-color 0.15s ease;
+		opacity: 0;
+		pointer-events: none;
+		z-index: 3;
+		filter: drop-shadow(0 8px 22px rgba(0, 0, 0, 0.5));
+		animation: lightboxBloom 900ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 	}
 
-	.lightbox-close:active {
-		transform: scale(0.88);
-		transition-duration: 0.07s;
-		background: rgba(255, 255, 255, 0.22);
+	.lightbox-bloom svg {
+		display: block;
+		width: 100%;
+		height: 100%;
 	}
 
-	.lightbox-close svg {
-		width: 1.25rem;
-		height: 1.25rem;
+	@keyframes lightboxBloom {
+		0% {
+			transform: translate(-50%, -50%) scale(0.2);
+			opacity: 0;
+		}
+		25% {
+			transform: translate(-50%, -50%) scale(1.15);
+			opacity: 1;
+		}
+		55% {
+			transform: translate(-50%, -50%) scale(0.95);
+			opacity: 1;
+		}
+		100% {
+			transform: translate(-50%, -50%) scale(1.4);
+			opacity: 0;
+		}
 	}
 
 	.lightbox-counter {
@@ -329,7 +368,7 @@
 		justify-content: center;
 		cursor: pointer;
 		z-index: 2;
-		transition: background-color 0.15s ease, opacity 0.15s ease;
+		transition: background-color 0.15s ease;
 	}
 
 	.lightbox-arrow:hover {
@@ -349,7 +388,7 @@
 		right: 0.75rem;
 	}
 
-	/* Hide arrows on touch devices — swipe is the primary affordance there. */
+	/* Touch devices page by swipe — hide the arrows there. */
 	@media (hover: none) {
 		.lightbox-arrow {
 			display: none;
@@ -389,14 +428,13 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.lightbox-img,
-		.lightbox-dot,
-		.lightbox-arrow,
-		.lightbox-close {
+		.lightbox-track,
+		.lightbox-dot {
 			transition: none;
 		}
-		.lightbox-close:active {
-			transform: none;
+		.lightbox-bloom {
+			animation: none;
+			opacity: 0;
 		}
 	}
 </style>
