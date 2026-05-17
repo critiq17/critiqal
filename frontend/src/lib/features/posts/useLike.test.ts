@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('$lib/stores/auth.store.svelte', () => ({
   authStore: { isAuthenticated: true },
@@ -12,6 +12,10 @@ const mutableAuth = authStore as unknown as { isAuthenticated: boolean };
 
 beforeEach(() => {
   mutableAuth.isAuthenticated = true;
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('UseLike', () => {
@@ -96,5 +100,46 @@ describe('UseLike', () => {
     resolve({ likedByMe: true, count: 1 });
     await first;
     expect(like.count).toBe(1);
+  });
+
+  it('floors the optimistic count at zero when unliking from zero', async () => {
+    const fn = vi
+      .fn<() => Promise<LikeResponse>>()
+      .mockResolvedValue({ likedByMe: false, count: 0 });
+    const like = new UseLike(fn, true, 0);
+
+    const promise = like.toggle();
+    expect(like.count).toBe(0); // never goes negative
+
+    await promise;
+    expect(like.liked).toBe(false);
+    expect(like.count).toBe(0);
+  });
+
+  it('pops while liking and clears the flag after the pop window', async () => {
+    vi.useFakeTimers();
+    const fn = vi
+      .fn<() => Promise<LikeResponse>>()
+      .mockResolvedValue({ likedByMe: true, count: 1 });
+    const like = new UseLike(fn, false, 0);
+
+    const promise = like.toggle();
+    expect(like.popping).toBe(true);
+
+    vi.advanceTimersByTime(360);
+    expect(like.popping).toBe(false);
+
+    await promise;
+  });
+
+  it('does not pop when unliking', async () => {
+    const fn = vi
+      .fn<() => Promise<LikeResponse>>()
+      .mockResolvedValue({ likedByMe: false, count: 0 });
+    const like = new UseLike(fn, true, 1);
+
+    await like.toggle();
+
+    expect(like.popping).toBe(false);
   });
 });
