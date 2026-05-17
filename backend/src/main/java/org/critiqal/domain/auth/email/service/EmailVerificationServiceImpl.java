@@ -1,5 +1,6 @@
 package org.critiqal.domain.auth.email.service;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.auth.verification.VerificationToken;
@@ -50,7 +51,6 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     }
 
     @Override
-    @Transactional
     public void sendEmailVerification(UUID userId, String email) {
         if (email == null || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
             throw new DomainException("Invalid email address");
@@ -58,6 +58,17 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
         var normalizedEmail = email.trim().toLowerCase();
 
+        // Persist the pending email + token in its own committed transaction.
+        // Mail delivery is external I/O and must not run inside a DB transaction
+        // — a delivery failure should not discard the saved pending state.
+        var rawToken = QuarkusTransaction.requiringNew()
+                .call(() -> persistPendingEmail(userId, normalizedEmail));
+
+        var url = appBaseUrl + "/verify-email?token=" + rawToken;
+        emailService.sendEmailVerification(normalizedEmail, url);
+    }
+
+    private String persistPendingEmail(UUID userId, String normalizedEmail) {
         userRepo.findByEmail(normalizedEmail).ifPresent(existing -> {
             if (!existing.id.equals(userId)) {
                 throw new ConflictException("Email is already in use");
@@ -78,8 +89,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         token.expiresAt = Instant.now().plus(expiryHours, ChronoUnit.HOURS);
         tokenRepo.save(token);
 
-        var url = appBaseUrl + "/verify-email?token=" + rawToken;
-        emailService.sendEmailVerification(normalizedEmail, url);
+        return rawToken;
     }
 
     @Override

@@ -4,29 +4,39 @@
 
 	interface Props {
 		post: Post;
+		onDoubleTapLike?: () => void;
 	}
 
-	let { post }: Props = $props();
+	let { post, onDoubleTapLike }: Props = $props();
 </script>
 
-<div class="post-body">
-	<p class="post-content">{post.content}</p>
-</div>
+{#if post.content?.trim()}
+	<p class="p-text">{post.content}</p>
+{/if}
 {#if post.photos && post.photos.length > 0}
-	<PostPhotoGallery photos={post.photos} postId={post.id} />
+	<div class="p-media-wrap">
+		<PostPhotoGallery photos={post.photos} postId={post.id} {onDoubleTapLike} />
+	</div>
 {/if}
 
 <style>
-	.post-body {
-		padding: 0 16px 10px;
+	.p-text {
+		margin: 4px 0 12px;
+		font-size: 14.5px;
+		line-height: 1.5;
+		color: var(--color-text-primary);
+		letter-spacing: -0.003em;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		text-wrap: pretty;
 	}
 
-	.post-content {
-		margin: 0;
-		font-size: 0.9375rem;
-		line-height: 1.55;
-		color: var(--color-text-primary);
-		white-space: pre-wrap;
-		word-break: break-word;
+	.p-media-wrap {
+		margin-bottom: 12px;
+	}
+
+	/* Soften the gallery corners to match the glass card radius. */
+	.p-media-wrap :global(.gallery) {
+		border-radius: 16px;
 	}
 </style>

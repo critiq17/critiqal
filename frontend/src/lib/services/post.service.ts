@@ -5,8 +5,7 @@ import type {
   CreatePostRequest,
   Comment,
   AddCommentRequest,
-  ReactionsMap,
-  ReactionType,
+  LikeResponse,
   PageResponse,
 } from '$lib/types';
 
@@ -61,21 +60,13 @@ export const postService = {
     return apiClient.post<Comment>(API.posts.replies(postId, commentId), req);
   },
 
-  // --- Reactions ---
+  // --- Likes ---
 
-  getReactions(postId: string): Promise<ReactionsMap> {
-    return apiClient.get<ReactionsMap>(API.posts.reactions(postId));
+  toggleLike(postId: string): Promise<LikeResponse> {
+    return apiClient.post<LikeResponse>(API.posts.likes(postId), {});
   },
 
-  getMyReaction(postId: string): Promise<ReactionType | undefined> {
-    return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`);
-  },
-
-  react(postId: string, type: ReactionType): Promise<void> {
-    return apiClient.post<void>(API.posts.reactions(postId), { type });
-  },
-
-  removeReaction(postId: string): Promise<void> {
-    return apiClient.delete(API.posts.reactions(postId));
+  toggleCommentLike(postId: string, commentId: string): Promise<LikeResponse> {
+    return apiClient.post<LikeResponse>(API.posts.commentLikes(postId, commentId), {});
   },
 };

@@ -172,7 +172,7 @@
 							bind:value={totpCode}
 							autocomplete="one-time-code"
 							inputmode="numeric"
-							pattern="[0-9]{6}"
+							pattern={'[0-9]{6}'}
 							required
 							disabled={loading}
 							placeholder="123456"

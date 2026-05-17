@@ -9,6 +9,7 @@ export class UseProfile {
   posts = $state<Post[]>([]);
   followersList = $state<User[]>([]);
   followingList = $state<User[]>([]);
+  postsCount = $state<number | null>(null);
   followersCount = $state<number | null>(null);
   followingCount = $state<number | null>(null);
   listsLoaded = $state(false);
@@ -37,9 +38,24 @@ export class UseProfile {
     if (cached?.listsLoaded) {
       this.followersList = cached.followersList;
       this.followingList = cached.followingList;
-      this.followersCount = cached.followersList.length;
-      this.followingCount = cached.followingList.length;
       this.listsLoaded = true;
+    }
+    if (cached?.stats) {
+      this.postsCount = cached.stats.postsCount;
+      this.followersCount = cached.stats.followersCount;
+      this.followingCount = cached.stats.followingCount;
+    }
+  }
+
+  private async loadStats(userId: string, username: string): Promise<void> {
+    try {
+      const stats = await userService.getStats(userId);
+      this.postsCount = stats.postsCount;
+      this.followersCount = stats.followersCount;
+      this.followingCount = stats.followingCount;
+      profileCache.set(username, { stats });
+    } catch {
+      // non-critical
     }
   }
 
@@ -68,8 +84,8 @@ export class UseProfile {
       this.isLoading = false;
       profileCache.set(username, { profile: user });
 
-      // Eagerly load follow counts in background so stats show immediately
-      if (!this.listsLoaded) this.loadFollowLists();
+      // Fire stats in parallel — populates counters without pulling full lists.
+      this.loadStats(user.id, username);
 
       if (!hasCachedProfile) this.postsLoading = true;
       const postsPage = await postsPromise;
@@ -105,8 +121,6 @@ export class UseProfile {
       ]);
       this.followersList = followers;
       this.followingList = following;
-      this.followersCount = followers.length;
-      this.followingCount = following.length;
       this.listsLoaded = true;
       if (username) {
         profileCache.set(username, {
@@ -128,6 +142,25 @@ export class UseProfile {
     this.editBio = this.profile.bio ?? '';
     this.isEditing = true;
     this.saveError = null;
+  }
+
+  // Optimistic removal after a post is deleted from the shared Post component.
+  handlePostDeleted(id: string): void {
+    this.posts = this.posts.filter((p) => p.id !== id);
+    if (this.postsCount !== null) this.postsCount = Math.max(0, this.postsCount - 1);
+
+    const username = authStore.user?.username;
+    if (!username) return;
+    profileCache.set(username, { posts: this.posts });
+    if (this.postsCount !== null) {
+      profileCache.set(username, {
+        stats: {
+          postsCount: this.postsCount,
+          followersCount: this.followersCount ?? 0,
+          followingCount: this.followingCount ?? 0,
+        },
+      });
+    }
   }
 
   cancelEdit(): void {

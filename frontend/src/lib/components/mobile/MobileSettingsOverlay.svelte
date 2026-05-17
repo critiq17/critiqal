@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
+	import { slide, fade } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
-	import { closeSettings } from '$lib/stores/settings-nav.store.svelte';
+	import { navStack } from '$lib/stores/nav-stack.store.svelte';
 	import { twoFactorService } from '$lib/services/two-factor.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { recoveryService } from '$lib/services/recovery.service';
@@ -12,115 +12,30 @@
 	import { apiClient } from '$lib/api/client';
 	import { ApiError } from '$lib/types';
 	import type { User, TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
-	import { notifyOverlaySwipe } from '$lib/overlay-swipe';
 
-	// ── Swipe-to-dismiss ─────────────────────────────────────────────────────
-
-	let overlayEl: HTMLElement | null = null;
-
-	let _touchStartX = 0;
-	let _touchStartY = 0;
-	let _dirLocked: 'h' | 'v' | null = null;
-	let _lastX = 0;
-	let _lastT = 0;
-	let _velocity = 0;
-	let _currentX = 0;
-
-	const DISMISS_RATIO = 0.35;
-	const VELOCITY_PX_MS = 0.45;
-
-	function _applyTransform(x: number, transition: string): void {
-		if (!overlayEl) return;
-		overlayEl.style.transition = transition;
-		overlayEl.style.transform = `translateX(${x}px)`;
+	// Navigation (swipe + Telegram BackButton + slide-in) is owned by
+	// OverlayHost — this view is purely presentational content.
+	interface Props {
+		onBack: () => void;
 	}
 
-	function onSwipeTouchStart(): void {
-		_applyTransform(_currentX, 'none');
-		_touchStartX = 0;
-		_dirLocked = null;
-		_velocity = 0;
+	// Back is handled by the native Telegram BackButton (wired in OverlayHost);
+	// onBack is kept for the OverlayHost contract.
+	let { onBack }: Props = $props();
+	void onBack;
+
+	let scrollEl = $state<HTMLDivElement | undefined>(undefined);
+	// "Settings" header is invisible at rest and frosts in on scroll.
+	let scrolled = $state(false);
+	function onScroll(): void {
+		scrolled = (scrollEl?.scrollTop ?? 0) > 8;
 	}
 
-	function onSwipeTouchMove(e: TouchEvent): void {
-		const t = e.touches[0];
-		if (!t) return;
-
-		if (!_dirLocked && _touchStartX === 0) {
-			_touchStartX = t.clientX;
-			_touchStartY = t.clientY;
-			_lastX = t.clientX;
-			_lastT = Date.now();
-		}
-
-		const dx = t.clientX - _touchStartX;
-		const dy = t.clientY - _touchStartY;
-
-		if (!_dirLocked && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
-			_dirLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
-		}
-
-		if (_dirLocked !== 'h' || dx < 0) return;
-
-		const now = Date.now();
-		const dt = now - _lastT;
-		if (dt > 0) _velocity = (t.clientX - _lastX) / dt;
-		_lastX = t.clientX;
-		_lastT = now;
-		_currentX = dx;
-
-		if (overlayEl) overlayEl.style.transform = `translateX(${dx}px)`;
-		notifyOverlaySwipe(dx, window.innerWidth, 'drag');
+	function openOwnProfile(): void {
+		if (authStore.user) navStack.pushProfile(authStore.user.username);
 	}
-
-	function onSwipeTouchEnd(): void {
-		if (_currentX <= 0) return;
-
-		const sw = window.innerWidth;
-		const threshold = sw * DISMISS_RATIO;
-
-		if (_currentX > threshold || _velocity > VELOCITY_PX_MS) {
-			getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
-			_applyTransform(sw, 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)');
-			notifyOverlaySwipe(sw, sw, 'dismiss');
-			setTimeout(() => closeSettings(), 260);
-		} else {
-			_applyTransform(0, 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)');
-			notifyOverlaySwipe(0, sw, 'cancel');
-		}
-		_currentX = 0;
-	}
-
-	function handleBack(): void {
-		getTelegramWebApp()?.HapticFeedback.impactOccurred('light');
-		closeSettings();
-	}
-
-	// ── Telegram Back Button ─────────────────────────────────────────────────
-
-	$effect(() => {
-		const tg = getTelegramWebApp();
-		if (!tg) return;
-		tg.BackButton.show();
-		tg.BackButton.onClick(handleBack);
-		return () => {
-			tg.BackButton.offClick(handleBack);
-			tg.BackButton.hide();
-		};
-	});
-
-	// ── Slide-in on mount ────────────────────────────────────────────────────
 
 	onMount(() => {
-		if (overlayEl) {
-			overlayEl.style.transform = `translateX(${window.innerWidth}px)`;
-			overlayEl.style.transition = 'none';
-			requestAnimationFrame(() => {
-				if (!overlayEl) return;
-				overlayEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
-				overlayEl.style.transform = 'translateX(0)';
-			});
-		}
 		loadTfaStatus();
 		stravaStore.load();
 	});
@@ -168,7 +83,13 @@
 
 	// ── 2FA ──────────────────────────────────────────────────────────────────
 
-	type TwoFaView = 'idle' | 'setup-qr' | 'show-codes' | 'disable-confirm' | 'regen-codes';
+	type TwoFaView =
+		| 'idle'
+		| 'setup-qr'
+		| 'show-codes'
+		| 'disable-confirm'
+		| 'regen-confirm'
+		| 'regen-codes';
 
 	let tfaStatus = $state<TwoFactorStatusResponse | null>(null);
 	let tfaLoading = $state(true);
@@ -269,7 +190,7 @@
 
 	async function handleLogout(): Promise<void> {
 		await authStore.logout();
-		closeSettings();
+		navStack.reset();
 		goto('/');
 	}
 
@@ -280,32 +201,21 @@
 	}
 </script>
 
-<div
-	class="overlay"
-	bind:this={overlayEl}
-	ontouchstart={onSwipeTouchStart}
-	ontouchmove={onSwipeTouchMove}
-	ontouchend={onSwipeTouchEnd}
->
-	<!-- Header -->
-	<header class="overlay-header">
-		<button class="back-btn" onclick={handleBack} aria-label="Back">
-			<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-				stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-				<polyline points="15 18 9 12 15 6" />
-			</svg>
-		</button>
-		<span class="header-title">Settings</span>
-		<div class="header-spacer" aria-hidden="true"></div>
-	</header>
+<header class="settings-header" class:scrolled>
+	<h1 class="settings-header__title">Settings</h1>
+</header>
 
-	<div class="scroll-area mobile-scroll-container">
+<div
+	class="scroll-area mobile-scroll-container"
+	bind:this={scrollEl}
+	onscroll={onScroll}
+>
 
 		<!-- Profile -->
 		{#if authStore.user}
 			<div class="group-label">Profile</div>
 			<div class="group">
-				<a href="/{authStore.user.username}" class="row row-link" onclick={closeSettings}>
+				<button type="button" class="row row-link" onclick={openOwnProfile}>
 					<div class="avatar">
 						{#if authStore.user.avatarUrl}
 							<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="avatar-img" />
@@ -323,7 +233,7 @@
 						stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<polyline points="9 18 15 12 9 6" />
 					</svg>
-				</a>
+				</button>
 			</div>
 		{/if}
 
@@ -514,11 +424,28 @@
 						</div>
 					</div>
 
+				{:else if !tfaLoading && tfaView === 'regen-confirm'}
+					<div class="row-expanded" transition:slide={{ duration: 200 }}>
+						<p class="feedback amber">
+							This invalidates your current recovery codes and issues new ones. Continue?
+						</p>
+						<div class="form-actions">
+							<button class="m-btn primary" disabled={tfaSubmitting} onclick={handleRegenCodes}>
+								{tfaSubmitting ? 'Regenerating…' : 'Yes, regenerate'}
+							</button>
+							<button class="m-btn ghost" disabled={tfaSubmitting}
+								onclick={() => { tfaView = 'idle'; tfaError = ''; }}>
+								Cancel
+							</button>
+						</div>
+					</div>
+
 				{:else if !tfaLoading && tfaStatus?.enabled && tfaView === 'idle'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<div class="tfa-actions">
-							<button class="m-text-btn" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-								{tfaSubmitting ? 'Regenerating…' : 'Regenerate codes'}
+							<button class="m-text-btn"
+								onclick={() => { tfaView = 'regen-confirm'; tfaError = ''; }}>
+								Regenerate codes
 							</button>
 							<span class="dot-sep" aria-hidden="true">·</span>
 							<button class="m-text-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
@@ -632,69 +559,60 @@
 		<!-- Safe area spacer -->
 		<div class="safe-bottom" aria-hidden="true"></div>
 	</div>
-</div>
 
 <style>
-	/* ── Overlay shell ────────────────────────────────────────────────────── */
-
-	.overlay {
-		position: fixed;
-		inset: 0;
-		background: var(--tg-bg, var(--color-bg, #0a0a0a));
-		z-index: 200;
-		display: flex;
-		flex-direction: column;
-		will-change: transform;
-		overflow: hidden;
-	}
-
-	/* ── Header ───────────────────────────────────────────────────────────── */
-
-	.overlay-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0 4px 0 4px;
-		padding-top: var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px)));
-		height: calc(52px + var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 0px))));
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-		flex-shrink: 0;
-		background: var(--tg-bg, var(--color-bg, #0a0a0a));
-	}
-
-	.back-btn {
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: var(--tg-text, var(--color-text-primary, #f0f0f0));
-		padding: 10px 12px;
-		-webkit-tap-highlight-color: transparent;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		opacity: 0.7;
-		transition: opacity 0.15s;
-	}
-
-	.back-btn:active { opacity: 0.4; }
-
-	.header-title {
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--tg-text, var(--color-text-primary, #f0f0f0));
-		letter-spacing: -0.01em;
-	}
-
-	.header-spacer { width: 44px; }
-
 	/* ── Scroll area ──────────────────────────────────────────────────────── */
 
 	.scroll-area {
 		flex: 1;
 		overflow-y: auto;
+		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
-		padding-top: 0 !important;
+		overscroll-behavior: contain;
+		/* clear the fixed header + Telegram chrome */
+		padding-top: var(--tg-top-clearance) !important;
 		padding-bottom: 0 !important;
+	}
+
+	/* "Settings" rides high between the native Telegram buttons; invisible at
+	   rest, frosts in on scroll — same language as the profile header. */
+	.settings-header {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: calc(
+				0.4rem +
+					var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 6px)))
+			)
+			3rem 0.55rem;
+		background: transparent;
+		border-bottom: 1px solid transparent;
+		transition: background 0.25s ease, border-color 0.25s ease;
+	}
+
+	.settings-header.scrolled {
+		background: var(--glass-bg);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		border-bottom-color: var(--glass-border);
+	}
+
+	.settings-header__title {
+		margin: 0;
+		font-size: 1.05rem;
+		font-weight: 700;
+		color: var(--tg-text, #f0f0f0);
+		letter-spacing: -0.015em;
+		max-width: 70vw;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		text-align: center;
 	}
 
 	/* ── Group labels ─────────────────────────────────────────────────────── */
@@ -742,20 +660,43 @@
 		min-height: 52px;
 	}
 
-	.row-tappable {
-		cursor: pointer;
-		transition: background-color 0.12s ease;
-	}
-
-	.row-tappable:active { background: rgba(255, 255, 255, 0.05); }
-
+	.row-tappable,
 	.row-link {
-		text-decoration: none;
 		cursor: pointer;
-		transition: background-color 0.12s ease;
+		transition:
+			background-color 0.14s ease,
+			transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
 	}
 
-	.row-link:active { background: rgba(255, 255, 255, 0.05); }
+	.row-link { text-decoration: none; }
+
+	.row-tappable:active,
+	.row-link:active {
+		background: rgba(255, 255, 255, 0.05);
+		transform: scale(0.987);
+		transition-duration: 0.14s, 0.08s;
+	}
+
+	/* Groups gently settle in when Settings opens (staggered). */
+	.group {
+		animation: group-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+	}
+	.group:nth-of-type(2) { animation-delay: 0.04s; }
+	.group:nth-of-type(3) { animation-delay: 0.08s; }
+	.group:nth-of-type(4) { animation-delay: 0.12s; }
+
+	@keyframes group-in {
+		from { opacity: 0; transform: translateY(8px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.row-tappable,
+		.row-link { transition: background-color 0.14s ease; }
+		.row-tappable:active,
+		.row-link:active { transform: none; }
+		.group { animation: none; }
+	}
 
 	.row-section {
 		display: flex;

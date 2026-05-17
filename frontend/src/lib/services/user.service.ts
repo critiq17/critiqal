@@ -1,6 +1,6 @@
 import { apiClient } from '$lib/api/client';
 import { API } from '$lib/api/endpoints';
-import type { User, UpdateProfileRequest, Post, PageResponse } from '$lib/types';
+import type { User, UpdateProfileRequest, UserStats, Post, PageResponse } from '$lib/types';
 
 export const userService = {
   getProfile(username: string): Promise<User> {
@@ -29,6 +29,10 @@ export const userService = {
 
   getFollowing(userId: string): Promise<User[]> {
     return apiClient.get<User[]>(API.users.following(userId));
+  },
+
+  getStats(userId: string): Promise<UserStats> {
+    return apiClient.get<UserStats>(API.users.stats(userId));
   },
 
   getUserPosts(username: string, page = 0, size = 20): Promise<PageResponse<Post>> {

@@ -29,7 +29,9 @@ export const API = {
     comment: (postId: string, commentId: string) => `/api/posts/${postId}/comments/${commentId}`,
     replies: (postId: string, commentId: string) =>
       `/api/posts/${postId}/comments/${commentId}/replies`,
-    reactions: (postId: string) => `/api/posts/${postId}/reactions`,
+    likes: (postId: string) => `/api/posts/${postId}/likes`,
+    commentLikes: (postId: string, commentId: string) =>
+      `/api/posts/${postId}/comments/${commentId}/likes`,
   },
   users: {
     profile: (username: string) => `/api/users/${encodeURIComponent(username)}`,
@@ -39,6 +41,7 @@ export const API = {
     follow: (id: string) => `/api/users/${id}/follow`,
     followers: (id: string) => `/api/users/${id}/followers`,
     following: (id: string) => `/api/users/${id}/following`,
+    stats: (id: string) => `/api/users/${id}/stats`,
     followingFeed: '/api/users/notifications/posts',
   },
   media: {

@@ -3,22 +3,17 @@
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
-	import { profileNavStore } from '$lib/stores/profile-nav.store.svelte';
-	import { mobileComments } from '$lib/stores/mobile-comments.store';
-	import { registerOverlaySwipeListener } from '$lib/overlay-swipe';
-	import type { SwipePhase } from '$lib/overlay-swipe';
+	import { navStack } from '$lib/stores/nav-stack.store.svelte';
 	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
 	import { sheetStore } from '$lib/stores/sheet.store.svelte';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import type { Post } from '$lib/types';
-	import { settingsNavStore } from '$lib/stores/settings-nav.store.svelte';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
 	import MobileExplore from './MobileExplore.svelte';
 	import MobileProfile from './MobileProfile.svelte';
-	import UserProfileOverlay from './UserProfileOverlay.svelte';
-	import MobileSettingsOverlay from './MobileSettingsOverlay.svelte';
+	import OverlayHost from './OverlayHost.svelte';
 	import MobileCommentsSheet from './MobileCommentsSheet.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
@@ -51,51 +46,22 @@
 		tabStore.active = 'feed';
 	}
 
-	// Reference to the content div that gets pushed during overlay navigation
+	// Reference to the content div that gets pushed behind the overlay stack.
 	let contentEl = $state<HTMLElement | null>(null);
 
-	// iOS-style push ratio: background shifts left by this fraction of screen
-	// while the overlay is on top, then tracks back to 0 as overlay is swiped away.
-	const PUSH_RATIO = 0.28;
+	// iOS-style depth cue: the app content sits slightly pushed-left while any
+	// overlay is on the stack, and springs back when the stack empties.
+	const PUSH_RATIO = 0.22;
 
-	function applyContentTransform(x: number, sw: number, transition: string): void {
-		if (!contentEl) return;
-		// Interpolate: when overlay is at 0 (fully shown) → content at -PUSH.
-		//              when overlay is at sw (dismissed)  → content at 0.
-		const bgX = PUSH_RATIO * (x / sw - 1) * sw;
-		contentEl.style.transition = transition;
-		contentEl.style.transform = `translateX(${bgX}px)`;
-	}
-
-	function onOverlaySwipe(x: number, sw: number, phase: SwipePhase): void {
-		if (phase === 'drag') {
-			applyContentTransform(x, sw, 'none');
-		} else if (phase === 'dismiss') {
-			// Match overlay's dismiss curve
-			contentEl!.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
-			contentEl!.style.transform = 'translateX(0)';
-		} else {
-			// Cancel / snap-back: spring back to pushed position, match overlay curve
-			if (!contentEl) return;
-			const push = sw * PUSH_RATIO;
-			contentEl.style.transition = 'transform 0.38s cubic-bezier(0.34, 1.56, 0.64, 1)';
-			contentEl.style.transform = `translateX(-${push}px)`;
-		}
-	}
-
-	// Watch overlay open/close to push/restore background.
 	$effect(() => {
-		const username = profileNavStore.username;
-		const settingsOpen = settingsNavStore.open;
+		const hasOverlay = navStack.depth > 0;
 		if (!contentEl) return;
-		const sw = window.innerWidth;
-		const push = sw * PUSH_RATIO;
-
-		if (username || settingsOpen) {
-			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.4, 0, 0.2, 1)';
+		if (hasOverlay) {
+			const push = window.innerWidth * PUSH_RATIO;
+			contentEl.style.transition = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
 			contentEl.style.transform = `translateX(-${push}px)`;
 		} else {
-			contentEl.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 1, 1)';
+			contentEl.style.transition = 'transform 0.26s cubic-bezier(0.32, 0.72, 0, 1)';
 			contentEl.style.transform = 'translateX(0)';
 		}
 	});
@@ -106,12 +72,6 @@
 			const tg = getTelegramWebApp();
 			colorScheme = tg?.colorScheme ?? null;
 		}
-
-		const unregisterSwipe = registerOverlaySwipeListener(onOverlaySwipe);
-
-		return () => {
-			unregisterSwipe();
-		};
 	});
 </script>
 
@@ -147,19 +107,13 @@
 				{/if}
 			</div>
 		</div>
-		{#if !sheetStore.anyOpen && !$mobileComments.open}
+		{#if !sheetStore.anyOpen}
 			<BottomNav />
 		{/if}
 	{/if}
 </div>
 
-{#if profileNavStore.username}
-	<UserProfileOverlay username={profileNavStore.username} />
-{/if}
-
-{#if settingsNavStore.open}
-	<MobileSettingsOverlay />
-{/if}
+<OverlayHost />
 
 <MobileCommentsSheet />
 
@@ -177,6 +131,15 @@
 		--safe-bottom: env(safe-area-inset-bottom, 0px);
 		--safe-top: env(safe-area-inset-top, 0px);
 		--content-bottom-padding: calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px);
+		/* Vertical space the native Telegram header chrome (Close ✕ / ⋯ menu)
+		   occupies in fullscreen. Uses the values Telegram reports, but with a
+		   guaranteed floor so headers never collapse under the buttons even
+		   when Telegram reports 0 — same proven formula the feed uses. */
+		--tg-top-clearance: max(
+			var(--tg-content-top, 0px),
+			var(--tg-content-safe-area-inset-top, 0px),
+			calc(env(safe-area-inset-top, 20px) + 44px)
+		);
 	}
 
 	.loading-screen {
@@ -184,9 +147,14 @@
 		background: var(--tg-bg, var(--color-bg, #0a0a0a));
 	}
 
+	:global(html),
 	:global(body) {
 		height: var(--tg-viewport-height, 100dvh);
 		overflow: hidden;
+		/* Stop scroll/overscroll from chaining to the Telegram webview,
+		   which is what lets a swipe drag the mini-app down or close it. */
+		overscroll-behavior: none;
+		touch-action: pan-x pan-y;
 	}
 
 	.mobile-layout {

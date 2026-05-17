@@ -15,6 +15,8 @@ public record PostDTO(
         String content,
         List<PostPhotoDTO> photos,
         long viewCount,
+        long likeCount,
+        boolean likedByMe,
         PostStatus status,
         Instant createdAt
 ) {
@@ -24,7 +26,7 @@ public record PostDTO(
         }
     }
 
-    public static PostDTO from(Post post) {
+    public static PostDTO from(Post post, long likeCount, boolean likedByMe) {
         var photos = post.photos != null
                 ? post.photos.stream().map(PostPhotoDTO::from).toList()
                 : List.<PostPhotoDTO>of();
@@ -34,6 +36,8 @@ public record PostDTO(
                 post.content,
                 photos,
                 post.viewCount,
+                likeCount,
+                likedByMe,
                 post.status,
                 post.createdAt
         );

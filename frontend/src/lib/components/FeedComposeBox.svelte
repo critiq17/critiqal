@@ -122,8 +122,26 @@
 	.compose-box {
 		display: flex;
 		gap: 0.75rem;
-		padding: 1.25rem 0;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+		padding: 1.125rem 1.25rem;
+		margin: 0.5rem 0 1rem;
+		border-radius: 1rem;
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: inset 0 1px 0 var(--glass-highlight);
+		transition: box-shadow 0.2s ease;
+	}
+
+	.compose-box:focus-within {
+		box-shadow: inset 0 1px 0 var(--glass-highlight),
+			0 0 0 1px var(--glass-highlight);
+	}
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.compose-box {
+			background: var(--color-surface);
+		}
 	}
 
 	.compose-avatar {

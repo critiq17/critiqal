@@ -73,6 +73,11 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public long countByAuthor(UUID authorId) {
+        return postRepo.countByAuthor(authorId);
+    }
+
+    @Override
     public Page<Post> getLatestFeed(int page, int size) {
         var ids = postRepo.findLatestIds(page, size);
         var posts = postRepo.findByIdsWithRelations(ids);

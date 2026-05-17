@@ -16,3 +16,9 @@ export interface UpdateProfileRequest {
   bio?: string;
   avatarUrl?: string;
 }
+
+export interface UserStats {
+  postsCount: number;
+  followersCount: number;
+  followingCount: number;
+}

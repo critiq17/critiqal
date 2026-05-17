@@ -1,22 +1,27 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, untrack, tick } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { UseProfilePage } from '$lib/features/profile/useProfilePage.svelte';
 	import { infiniteScroll } from '$lib/actions/infiniteScroll';
+	import { formatCount } from '$lib/utils/formatCount';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 	import ProfileStravaWidget from '$lib/components/profile/ProfileStravaWidget.svelte';
 	import ProfileAvatarUpload from '$lib/components/profile/ProfileAvatarUpload.svelte';
 	import ProfileEditForm from '$lib/components/profile/ProfileEditForm.svelte';
-	import ProfileStats from '$lib/components/profile/ProfileStats.svelte';
 	import ProfileFollowButton from '$lib/components/profile/ProfileFollowButton.svelte';
+	import ProfileShareButton from '$lib/components/profile/ProfileShareButton.svelte';
+	import ProfileInlineStats from '$lib/components/profile/ProfileInlineStats.svelte';
+	import ProfileTabs from '$lib/components/profile/ProfileTabs.svelte';
+	import ProfileEmptyPosts from '$lib/components/profile/ProfileEmptyPosts.svelte';
 	import FollowersModal from '$lib/components/profile/FollowersModal.svelte';
 
-	const username = $page.params.username as string;
-	const profilePage = new UseProfilePage(username);
+	let username = $state($page.params.username as string);
+	let profilePage = $state(new UseProfilePage($page.params.username as string));
 
 	const isOwnProfile = $derived(authStore.user?.username === username);
 	const SKELETON_COUNT = 3;
@@ -28,26 +33,42 @@
 	function openModal(tab: ModalTab): void {
 		modalTab = tab;
 		modalOpen = true;
-		// Lazy-load follower/following lists only when user actually opens the modal.
 		profilePage.loadFollowLists();
 	}
 
-	function formatCount(n: number): string {
-		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-		return String(n);
-	}
+	const tabs = $derived([
+		{ id: 'posts', label: 'Posts', count: profilePage.postsCount ?? profilePage.posts.length },
+	] as const);
+
+	const displayName = $derived(
+		profilePage.profile?.name ?? profilePage.profile?.username ?? username
+	);
 
 	onMount(() => {
 		profilePage.loadProfile();
 		if (isOwnProfile) stravaStore.load();
 	});
 
+	// The [username] route component is reused across profile→profile
+	// navigations, so onMount fires only once. afterNavigate fires on every
+	// navigation; when the username param actually changed, swap in a fresh
+	// feature hook and load it so the new profile never gets stuck on the
+	// previous one's (or an infinite) skeleton.
+	afterNavigate(async () => {
+		const next = $page.params.username as string;
+		if (next === username) return;
+		username = next;
+		profilePage = new UseProfilePage(next);
+		await tick();
+		profilePage.loadProfile();
+		if (authStore.user?.username === next) stravaStore.load();
+	});
+
 	$effect(() => {
 		const profileId = profilePage.profile?.id;
 		if (profileId && !isOwnProfile) {
 			// untrack: stravaStore.loadPublic reads internal $state synchronously,
-			// which would create a dep and cause this effect to loop on every strava update.
+			// which would otherwise create a dep and loop on every strava update.
 			untrack(() => stravaStore.loadPublic(profileId));
 		}
 	});
@@ -72,24 +93,20 @@
 
 	<main class="col-center" aria-label="Profile">
 		<header class="page-header">
-			<h1 class="page-title">
-				{#if profilePage.profileState === 'loaded' && profilePage.profile}
-					{profilePage.profile.name ?? `@${profilePage.profile.username}`}
-				{:else}
-					@{username}
-				{/if}
-			</h1>
-			{#if !profilePage.postsLoading && profilePage.posts.length > 0}
-				<span class="post-count-label">{formatCount(profilePage.posts.length)} posts</span>
+			<h1 class="page-title">{displayName}</h1>
+			{#if profilePage.profile}
+				<span class="post-count-label">
+					{formatCount(profilePage.postsCount ?? profilePage.posts.length)} posts
+				</span>
 			{/if}
 		</header>
 
 		{#if profilePage.profileState === 'loading' && !profilePage.profile}
 			<div class="profile-skeleton" aria-hidden="true">
-				<div class="skeleton-avatar-lg"></div>
+				<div class="skeleton-avatar"></div>
 				<div class="skeleton-info">
 					<div class="skeleton-line" style="width:8rem;height:1rem;"></div>
-					<div class="skeleton-line" style="width:5rem;height:.75rem;margin-top:.25rem;"></div>
+					<div class="skeleton-line" style="width:5rem;height:.75rem;margin-top:.375rem;"></div>
 					<div class="skeleton-line" style="width:100%;height:.75rem;margin-top:.875rem;"></div>
 					<div class="skeleton-line" style="width:72%;height:.75rem;margin-top:.375rem;"></div>
 				</div>
@@ -101,8 +118,8 @@
 				<button class="retry-btn" onclick={() => profilePage.loadProfile()}>Try again</button>
 			</div>
 		{:else if profilePage.profile}
-			<section class="profile-section" aria-label="Profile info">
-				<div class="profile-top">
+			<section class="identity-card" aria-label="Profile info">
+				<div class="identity-avatar">
 					{#if isOwnProfile}
 						<ProfileAvatarUpload
 							profile={profilePage.profile}
@@ -111,7 +128,7 @@
 							onUpload={(file) => profilePage.uploadAvatar(file)}
 						/>
 					{:else}
-						<div class="avatar-display">
+						<div class="avatar-display" aria-hidden="true">
 							{#if profilePage.profile.avatarUrl}
 								<img
 									src={profilePage.profile.avatarUrl}
@@ -120,98 +137,124 @@
 								/>
 							{:else}
 								<span class="avatar-initial">
-									{(profilePage.profile.name ?? profilePage.profile.username).charAt(0).toUpperCase()}
+									{(profilePage.profile.name ?? profilePage.profile.username)
+										.charAt(0)
+										.toUpperCase()}
 								</span>
 							{/if}
 						</div>
 					{/if}
-
-					<div class="profile-action">
-						{#if isOwnProfile && !profilePage.isEditing}
-							<button class="btn btn-outline" onclick={() => profilePage.startEdit()}>
-								Edit profile
-							</button>
-						{:else if !isOwnProfile && authStore.isAuthenticated}
-							<ProfileFollowButton
-								isFollowing={profilePage.isFollowing}
-								isLoading={profilePage.isFollowLoading}
-								onFollow={() => profilePage.toggleFollow()}
-							/>
-						{/if}
-					</div>
 				</div>
 
-				{#if profilePage.isEditing}
-					<ProfileEditForm
-						editName={profilePage.editName}
-						editBio={profilePage.editBio}
-						isSaving={profilePage.isSaving}
-						saveError={profilePage.saveError}
-						onSave={() => profilePage.saveEdit()}
-						onCancel={() => profilePage.cancelEdit()}
-						onNameChange={(v) => { profilePage.editName = v; }}
-						onBioChange={(v) => { profilePage.editBio = v; }}
-					/>
-				{:else}
-					<div class="profile-info">
-						<p class="profile-name">
-							{profilePage.profile.name ?? profilePage.profile.username}
-						</p>
-						<p class="profile-username">@{profilePage.profile.username}</p>
+				<div class="identity-body">
+					{#if profilePage.isEditing}
+						<ProfileEditForm
+							editName={profilePage.editName}
+							editBio={profilePage.editBio}
+							isSaving={profilePage.isSaving}
+							saveError={profilePage.saveError}
+							onSave={() => profilePage.saveEdit()}
+							onCancel={() => profilePage.cancelEdit()}
+							onNameChange={(v) => {
+								profilePage.editName = v;
+							}}
+							onBioChange={(v) => {
+								profilePage.editBio = v;
+							}}
+						/>
+					{:else}
+						<div class="identity-top">
+							<div class="identity-names">
+								<p class="display-name">
+									{profilePage.profile.name ?? profilePage.profile.username}
+								</p>
+								<p class="username">@{profilePage.profile.username}</p>
+							</div>
+							<div class="identity-actions">
+								<ProfileShareButton
+									username={profilePage.profile.username}
+									displayName={profilePage.profile.name}
+								/>
+								{#if isOwnProfile}
+									<button class="btn btn-outline" onclick={() => profilePage.startEdit()}>
+										Edit profile
+									</button>
+								{:else if authStore.isAuthenticated}
+									<ProfileFollowButton
+										isFollowing={profilePage.isFollowing}
+										isLoading={profilePage.isFollowLoading}
+										onFollow={() => profilePage.toggleFollow()}
+									/>
+								{/if}
+							</div>
+						</div>
+
 						{#if profilePage.profile.bio}
-							<p class="profile-bio">{profilePage.profile.bio}</p>
+							<p class="bio">{profilePage.profile.bio}</p>
 						{/if}
-					</div>
-				{/if}
 
-				<ProfileStats
-					followersCount={profilePage.followersCount}
-					followingCount={profilePage.followingCount}
-					onOpenFollowers={() => openModal('followers')}
-					onOpenFollowing={() => openModal('following')}
-				/>
+						<ProfileInlineStats
+							postsCount={profilePage.postsCount}
+							followersCount={profilePage.followersCount}
+							followingCount={profilePage.followingCount}
+							onOpenFollowers={() => openModal('followers')}
+							onOpenFollowing={() => openModal('following')}
+						/>
+					{/if}
+				</div>
 			</section>
+
+			{#if stravaStore.connection}
+				<div class="strava-slot">
+					<ProfileStravaWidget {isOwnProfile} />
+				</div>
+			{/if}
+
+			<div class="tabs-wrap">
+				<ProfileTabs tabs={tabs} activeId="posts" />
+			</div>
 		{/if}
 
-		<div class="posts-divider" aria-hidden="true"></div>
-
-		{#if profilePage.postsLoading && profilePage.posts.length === 0}
-			<div aria-busy="true" aria-label="Loading posts">
-				{#each { length: SKELETON_COUNT } as _, i (i)}
-					<PostCardSkeleton />
-				{/each}
-			</div>
-		{:else if profilePage.postsError && profilePage.posts.length === 0}
-			<div class="state-box">
-				<p class="state-body">{profilePage.postsError}</p>
-				<button class="retry-btn" onclick={() => profilePage.loadPosts()}>Try again</button>
-			</div>
-		{:else if profilePage.posts.length === 0}
-			<div class="state-box">
-				<p class="state-title">No posts yet</p>
-				<p class="state-body">
-					{#if isOwnProfile}Share something with the world.{:else}Nothing here yet.{/if}
-				</p>
-			</div>
-		{:else}
-			<div class="post-list">
-				{#each profilePage.posts as post (post.id)}
-					<PostCard {post} onDeleted={(id) => profilePage.handlePostDeleted(id)} />
-				{/each}
-			</div>
-			{#if profilePage.postsHasNext}
-				<div
-					class="posts-sentinel"
-					use:infiniteScroll={{
-						onTrigger: () => profilePage.loadMorePosts(),
-						disabled: profilePage.postsLoadingMore
-					}}
-				></div>
+		<div
+			id="profile-tabpanel-posts"
+			role="tabpanel"
+			aria-labelledby="profile-tab-posts"
+			tabindex="0"
+			class="posts-panel"
+		>
+			{#if profilePage.postsLoading && profilePage.posts.length === 0}
+				<div aria-busy="true" aria-label="Loading posts">
+					{#each { length: SKELETON_COUNT } as _empty, i (i)}
+						<PostCardSkeleton />
+					{/each}
+				</div>
+			{:else if profilePage.postsError && profilePage.posts.length === 0}
+				<div class="state-box">
+					<p class="state-body">{profilePage.postsError}</p>
+					<button class="retry-btn" onclick={() => profilePage.loadPosts()}>Try again</button>
+				</div>
+			{:else if profilePage.posts.length === 0 && profilePage.profile}
+				<ProfileEmptyPosts {isOwnProfile} />
+			{:else}
+				<div class="post-list">
+					{#each profilePage.posts as post (post.id)}
+						<PostCard {post} onDeleted={(id) => profilePage.handlePostDeleted(id)} />
+					{/each}
+				</div>
+				{#if profilePage.postsHasNext}
+					<div
+						class="posts-sentinel"
+						use:infiniteScroll={{
+							onTrigger: () => profilePage.loadMorePosts(),
+							disabled: profilePage.postsLoadingMore,
+						}}
+					></div>
+				{/if}
+				{#if profilePage.postsLoadingMore}
+					<div class="loading-more">Loading more…</div>
+				{/if}
 			{/if}
-			{#if profilePage.postsLoadingMore}
-				<div class="loading-more">Loading more…</div>
-			{/if}
-		{/if}
+		</div>
 	</main>
 
 	<aside class="col-right" aria-hidden="true"></aside>
@@ -223,46 +266,60 @@
 	followersList={profilePage.followersList}
 	followingList={profilePage.followingList}
 	loading={profilePage.listsLoading}
-	onClose={() => { modalOpen = false; }}
+	onClose={() => {
+		modalOpen = false;
+	}}
 />
 
 <style>
 	.page-layout {
-		display: grid;
-		grid-template-columns: 16rem 42rem;
-		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
 	}
 
 	.col-left {
-		position: sticky;
+		position: fixed;
+		right: calc(50% + 21rem);
 		top: 0;
-		height: 100vh;
+		bottom: 0;
+		width: 16rem;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
+		z-index: 20;
 	}
 
 	.col-center {
+		height: 100vh;
+		max-width: 42rem;
+		margin: 0 auto;
 		padding: 0 2rem;
 		overflow-y: auto;
 		scrollbar-width: none;
 		-ms-overflow-style: none;
 	}
 
-	.col-center::-webkit-scrollbar { display: none; }
+	.col-center::-webkit-scrollbar {
+		display: none;
+	}
 
 	.col-right {
 		display: none;
 	}
 
 	.page-header {
-		padding: 1.25rem 0;
+		padding: 1.25rem 0 1rem;
 		position: sticky;
 		top: 0;
-		background-color: rgba(12, 12, 12, 0.85);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background: linear-gradient(
+			to bottom,
+			var(--color-bg) 0%,
+			rgba(12, 12, 12, 0.85) 55%,
+			rgba(12, 12, 12, 0) 100%
+		);
+		backdrop-filter: blur(12px) saturate(150%);
+		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
 		z-index: 10;
 		display: flex;
 		align-items: baseline;
@@ -270,8 +327,9 @@
 	}
 
 	.page-title {
-		font-size: 1rem;
-		font-weight: 600;
+		margin: 0;
+		font-size: 1.0625rem;
+		font-weight: 700;
 		color: var(--color-text-primary);
 		letter-spacing: -0.015em;
 	}
@@ -279,18 +337,19 @@
 	.post-count-label {
 		font-size: 0.8125rem;
 		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
 	}
 
-	.profile-section {
-		padding: 1.5rem 0;
+	.identity-card {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1.25rem;
+		padding: 1rem 0 1.25rem;
 		animation: fadeIn 0.2s ease-out;
 	}
 
-	.profile-top {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		margin-bottom: 1rem;
+	.identity-avatar {
+		flex-shrink: 0;
 	}
 
 	.avatar-display {
@@ -302,7 +361,6 @@
 		align-items: center;
 		justify-content: center;
 		overflow: hidden;
-		flex-shrink: 0;
 	}
 
 	.avatar-img {
@@ -318,7 +376,58 @@
 		user-select: none;
 	}
 
-	.profile-action { padding-top: 0.25rem; }
+	.identity-body {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.identity-top {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.identity-names {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.display-name {
+		margin: 0;
+		font-size: 1.125rem;
+		font-weight: 700;
+		color: var(--color-text-primary);
+		letter-spacing: -0.01em;
+		word-break: break-word;
+	}
+
+	.username {
+		margin: 0;
+		font-size: 0.9375rem;
+		color: var(--color-text-muted);
+	}
+
+	.identity-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-shrink: 0;
+	}
+
+	.bio {
+		margin: 0;
+		font-size: 0.9375rem;
+		color: var(--color-text-primary);
+		line-height: 1.55;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
 
 	.btn {
 		padding: 0.5rem 1.125rem;
@@ -330,7 +439,9 @@
 		transition: background-color 0.15s ease, transform 0.1s ease;
 	}
 
-	.btn:active:not(:disabled) { transform: scale(0.96); }
+	.btn:active:not(:disabled) {
+		transform: scale(0.96);
+	}
 
 	.btn-outline {
 		background: none;
@@ -338,40 +449,27 @@
 		border: 1px solid var(--color-border);
 	}
 
-	.btn-outline:hover { background-color: var(--color-surface-raised); }
-
-	.profile-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-		animation: fadeIn 0.15s ease-out;
+	.btn-outline:hover {
+		background-color: var(--color-surface-raised);
 	}
 
-	.profile-name {
-		font-size: 1.125rem;
-		font-weight: 700;
-		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
+	.strava-slot {
+		padding-bottom: 1rem;
 	}
 
-	.profile-username {
-		font-size: 0.9375rem;
-		color: var(--color-text-muted);
-	}
-
-	.profile-bio {
-		margin-top: 0.625rem;
-		font-size: 0.9375rem;
-		color: var(--color-text-primary);
-		line-height: 1.55;
-		white-space: pre-wrap;
-		word-break: break-word;
-	}
-
-	.posts-divider {
-		height: 1px;
-		background: var(--color-border);
+	.tabs-wrap {
 		margin: 0 -2rem;
+		padding: 0 2rem;
+		position: sticky;
+		top: 3.625rem;
+		background-color: rgba(12, 12, 12, 0.72);
+		backdrop-filter: blur(16px) saturate(180%);
+		-webkit-backdrop-filter: blur(16px) saturate(180%);
+		z-index: 9;
+	}
+
+	.posts-panel {
+		padding-top: 0.25rem;
 	}
 
 	.state-box {
@@ -389,7 +487,10 @@
 		color: var(--color-text-primary);
 	}
 
-	.state-body { font-size: 0.875rem; color: var(--color-text-muted); }
+	.state-body {
+		font-size: 0.875rem;
+		color: var(--color-text-muted);
+	}
 
 	.retry-btn {
 		margin-top: 0.75rem;
@@ -404,11 +505,21 @@
 		transition: background-color 0.15s ease, transform 0.1s ease;
 	}
 
-	.retry-btn:hover { background-color: var(--color-surface-raised); }
-	.retry-btn:active { transform: scale(0.97); }
+	.retry-btn:hover {
+		background-color: var(--color-surface-raised);
+	}
 
-	.post-list { animation: fadeIn 0.2s ease-out; }
-	.posts-sentinel { height: 1px; }
+	.retry-btn:active {
+		transform: scale(0.97);
+	}
+
+	.post-list {
+		animation: fadeIn 0.2s ease-out;
+	}
+
+	.posts-sentinel {
+		height: 1px;
+	}
 
 	.loading-more {
 		padding: 1.5rem;
@@ -417,15 +528,14 @@
 		color: var(--color-text-muted);
 	}
 
-	/* Skeleton */
 	.profile-skeleton {
 		display: flex;
 		align-items: flex-start;
-		gap: 1rem;
-		padding: 1.5rem 0;
+		gap: 1.25rem;
+		padding: 1rem 0 1.25rem;
 	}
 
-	.skeleton-avatar-lg {
+	.skeleton-avatar {
 		width: 5rem;
 		height: 5rem;
 		border-radius: 50%;
@@ -434,7 +544,10 @@
 		flex-shrink: 0;
 	}
 
-	.skeleton-info { flex: 1; padding-top: 0.5rem; }
+	.skeleton-info {
+		flex: 1;
+		padding-top: 0.5rem;
+	}
 
 	.skeleton-line {
 		border-radius: 4px;
@@ -444,23 +557,61 @@
 	}
 
 	@keyframes fadeIn {
-		from { opacity: 0; transform: translateY(0.25rem); }
-		to { opacity: 1; transform: translateY(0); }
+		from {
+			opacity: 0;
+			transform: translateY(0.25rem);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
 	}
 
 	@keyframes shimmer {
-		0%, 100% { opacity: 0.5; }
-		50% { opacity: 1; }
+		0%,
+		100% {
+			opacity: 0.5;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.identity-card,
+		.post-list {
+			animation: none;
+		}
+		.skeleton-avatar,
+		.skeleton-line {
+			animation: none;
+		}
 	}
 
 	@media (max-width: 900px) {
-		.page-layout { grid-template-columns: 4.5rem 1fr; }
+		.col-left {
+			width: 4.5rem;
+			padding: 0 0.5rem;
+		}
 	}
 
 	@media (max-width: 640px) {
-		.page-layout { grid-template-columns: 1fr; }
-		.col-left { display: none; }
-		.col-center { padding: 0 1rem; }
-		.posts-divider { margin: 0 -1rem; }
+		.col-left {
+			display: none;
+		}
+		.col-center {
+			padding: 0 1rem;
+		}
+		.tabs-wrap {
+			margin: 0 -1rem;
+			padding: 0 1rem;
+		}
+		.identity-card {
+			gap: 1rem;
+		}
+		.identity-top {
+			flex-direction: column;
+			align-items: flex-start;
+		}
 	}
 </style>

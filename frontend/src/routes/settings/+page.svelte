@@ -451,19 +451,25 @@
 	/* ── Layout ───────────────────────────────────────────────────────────── */
 
 	.page-layout {
-		display: grid;
-		grid-template-columns: 16rem 42rem;
-		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
 	}
 
 	.col-left {
+		position: fixed;
+		right: calc(50% + 21rem);
+		top: 0;
+		bottom: 0;
+		width: 16rem;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
+		z-index: 20;
 	}
 
 	.col-center {
+		height: 100vh;
+		max-width: 42rem;
+		margin: 0 auto;
 		overflow-y: auto;
 		padding: 0 2rem 6rem;
 		scrollbar-width: none;
@@ -476,11 +482,10 @@
 	}
 
 	@media (max-width: 900px) {
-		.page-layout { grid-template-columns: 4.5rem 1fr; }
+		.col-left { width: 4.5rem; padding: 0 0.5rem; }
 	}
 
 	@media (max-width: 640px) {
-		.page-layout { grid-template-columns: 1fr; }
 		.col-left { display: none; }
 		.col-center { padding: 0 1rem 4rem; }
 	}
@@ -488,12 +493,20 @@
 	/* ── Header ───────────────────────────────────────────────────────────── */
 
 	.page-header {
-		padding: 1.25rem 0;
+		padding: 1.25rem 0 1.75rem;
+		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		background: rgba(12, 12, 12, 0.85);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background: linear-gradient(
+			to bottom,
+			var(--color-bg) 0%,
+			rgba(12, 12, 12, 0.85) 45%,
+			rgba(12, 12, 12, 0) 100%
+		);
+		backdrop-filter: blur(12px) saturate(150%);
+		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		z-index: 10;
 	}
 
@@ -508,23 +521,42 @@
 	/* ── Sections ─────────────────────────────────────────────────────────── */
 
 	.section {
-		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
+		padding: 1.125rem 1.25rem;
+		margin-bottom: 0.75rem;
+		border-radius: 1rem;
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+		border: 1px solid var(--glass-border);
+		box-shadow: inset 0 1px 0 var(--glass-highlight);
 		display: flex;
 		flex-direction: column;
 		gap: 0.625rem;
+		transition: box-shadow 0.2s ease, transform 0.16s ease;
+	}
+
+	.section:hover {
+		box-shadow: inset 0 1px 0 var(--glass-highlight),
+			0 0 0 1px var(--glass-highlight);
 	}
 
 	.section-last {
-		border-bottom: none;
+		margin-bottom: 0;
+	}
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.section {
+			background: var(--color-surface);
+		}
 	}
 
 	.section-label {
-		font-size: 0.75rem;
-		font-weight: 500;
+		font-size: 0.6875rem;
+		font-weight: 600;
 		color: var(--color-text-muted);
 		margin: 0;
-		letter-spacing: 0.02em;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
 	}
 
 	/* ── Setting row ──────────────────────────────────────────────────────── */

@@ -208,10 +208,7 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 		scrollbar-width: none;
-		padding-top: max(
-			var(--tg-content-safe-area-inset-top, 0px),
-			calc(env(safe-area-inset-top, 20px) + 44px)
-		);
+		padding-top: var(--tg-top-clearance);
 		padding-bottom: var(--content-bottom-padding, 104px);
 		position: relative;
 	}

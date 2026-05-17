@@ -15,6 +15,8 @@ public interface PostService {
 
     Page<Post> getUserPost(UUID authorId, int page, int size);
 
+    long countByAuthor(UUID authorId);
+
     Page<Post> getLatestFeed(int page, int size);
 
     Post getById(UUID postId);

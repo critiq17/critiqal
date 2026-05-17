@@ -14,6 +14,7 @@ interface TelegramWebApp {
   isFullscreen: boolean;
   isExpanded: boolean;
   platform: string;
+  initData: string;
   viewportHeight: number;
   safeAreaInset: SafeAreaInset;
   contentSafeAreaInset: SafeAreaInset;
@@ -32,7 +33,9 @@ interface TelegramWebApp {
   openLink(url: string): void;
   openTelegramLink(url: string): void;
   disableVerticalSwipes?(): void;
+  isVerticalSwipesEnabled?: boolean;
   BackButton: {
+    readonly isVisible: boolean;
     show(): void;
     hide(): void;
     onClick(fn: () => void): void;
@@ -74,8 +77,17 @@ declare global {
 
 export function isTelegramMiniApp(): boolean {
   if (typeof window === 'undefined') return false;
-  if (window.Telegram?.WebApp) return true;
+  // Explicit launch param (web TMA / deep links) — always a mini app.
   if (window.location.hash.includes('tgWebApp')) return true;
+  const wa = window.Telegram?.WebApp;
+  if (!wa) return false;
+  // telegram-web-app.js now loads in EVERY browser and always creates a
+  // WebApp object — so its mere presence no longer means "in Telegram".
+  // A real client provides initData and a concrete platform; the script in
+  // a plain desktop/mobile browser reports platform 'unknown' + empty
+  // initData. Distinguishing these is what keeps the normal desktop site.
+  if (wa.initData && wa.initData.length > 0) return true;
+  if (wa.platform && wa.platform !== 'unknown') return true;
   return false;
 }
 
@@ -113,6 +125,16 @@ function applyViewportVars(tg: TelegramWebApp): void {
   }
 }
 
+// Full re-assert: keep the app expanded and the vertical-swipe (drag to
+// minimize/close) gesture disabled. Used on init and on every Telegram
+// viewport transition, which is when Telegram silently resets both.
+export function lockTelegramViewport(): void {
+  const tg = getTelegramWebApp();
+  if (!tg) return;
+  tg.expand();
+  tg.disableVerticalSwipes?.();
+}
+
 export function initTelegram(): void {
   const tg = getTelegramWebApp();
   if (!tg) return;
@@ -132,9 +154,20 @@ export function initTelegram(): void {
     'calc(var(--bottom-nav-height) + var(--safe-bottom) + 16px)'
   );
 
-  tg.onEvent('viewportChanged', () => applyViewportVars(tg));
+  // Re-assert the expanded / vertical-swipe lock on every Telegram viewport
+  // transition so scrolling or swiping inside the app can never minimize/close
+  // the mini-app — it can only be closed via the native header button.
+  const lockViewport = lockTelegramViewport;
+
+  tg.onEvent('viewportChanged', () => {
+    applyViewportVars(tg);
+    lockViewport();
+  });
   tg.onEvent('themeChanged', () => applyThemeVars(tg));
-  tg.onEvent('fullscreenChanged', () => applyViewportVars(tg));
+  tg.onEvent('fullscreenChanged', () => {
+    applyViewportVars(tg);
+    lockViewport();
+  });
   // safeAreaChanged / contentSafeAreaChanged can fire after fullscreenChanged
   // with the actual non-zero inset values — must listen to both.
   tg.onEvent('safeAreaChanged', () => applyViewportVars(tg));
@@ -142,7 +175,29 @@ export function initTelegram(): void {
   // Fullscreen not supported — fall back to expand() so content fills available height.
   tg.onEvent('fullscreenFailed', () => tg.expand());
 
-  tg.disableVerticalSwipes?.();
+  // Global swipe guard — the actual fix for "app still closes on some pages".
+  //
+  // Telegram resets isVerticalSwipesEnabled on tab switches, route changes and
+  // DOM-only overlays opening — none of which fire a Telegram event, so the
+  // listeners above never re-assert there. Instead of wiring every screen
+  // (patchwork, easy to forget), re-assert once at the start of every touch
+  // gesture, app-wide: one passive capture listener on the document. It runs
+  // synchronously on touchstart — before Telegram interprets the drag as a
+  // close — so the lock is guaranteed active for the gesture about to happen.
+  //
+  // Cost is negligible: fires once per gesture start (not per move), only
+  // calls the SDK when the gesture was actually re-enabled, and never touches
+  // the viewport (no expand()), so it can't cause scroll/layout jank. Pages
+  // still scroll and rubber-band natively — only the close gesture is killed.
+  document.addEventListener(
+    'touchstart',
+    () => {
+      if (tg.isVerticalSwipesEnabled !== false) tg.disableVerticalSwipes?.();
+    },
+    { passive: true, capture: true }
+  );
+
+  lockViewport();
 }
 
 export const cloudStorage = {

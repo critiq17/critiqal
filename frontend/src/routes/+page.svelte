@@ -182,19 +182,27 @@
 
 <style>
 	.page-layout {
-		display: grid;
-		grid-template-columns: 16rem 42rem;
-		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
 	}
 
 	.col-left {
+		position: fixed;
+		/* anchor the sidebar's right edge to the centered feed's left edge
+		   (feed is 42rem wide → half = 21rem from viewport center) */
+		right: calc(50% + 21rem);
+		top: 0;
+		bottom: 0;
+		width: 16rem;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
+		z-index: 20;
 	}
 
 	.col-center {
+		height: 100vh;
+		max-width: 42rem;
+		margin: 0 auto;
 		overflow-y: auto;
 		padding: 0 2rem 4rem;
 		scrollbar-width: none;
@@ -209,13 +217,20 @@
 	}
 
 	.feed-header {
-		padding: 1.25rem 0;
-		margin-bottom: 0;
+		padding: 1.25rem 0 1.75rem;
+		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		background-color: rgba(12, 12, 12, 0.85);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background: linear-gradient(
+			to bottom,
+			var(--color-bg) 0%,
+			rgba(12, 12, 12, 0.85) 45%,
+			rgba(12, 12, 12, 0) 100%
+		);
+		backdrop-filter: blur(12px) saturate(150%);
+		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		z-index: 10;
 	}
 
@@ -279,16 +294,13 @@
 	}
 
 	@media (max-width: 900px) {
-		.page-layout {
-			grid-template-columns: 4.5rem 1fr;
+		.col-left {
+			width: 4.5rem;
+			padding: 0 0.5rem;
 		}
 	}
 
 	@media (max-width: 640px) {
-		.page-layout {
-			grid-template-columns: 1fr;
-		}
-
 		.col-left {
 			display: none;
 		}

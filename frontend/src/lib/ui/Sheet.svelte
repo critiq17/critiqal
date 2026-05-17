@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { elasticDrag } from '$lib/actions/elasticDrag';
 
 	interface Props {
 		open: boolean;
@@ -12,42 +13,14 @@
 	let { open = $bindable(), onclose, title, maxHeight = '90vh', children }: Props = $props();
 
 	let sheetEl = $state<HTMLDivElement | undefined>(undefined);
-	let startY = 0;
-	let currentY = 0;
-	let isDragging = false;
-	let translateY = $state(0);
+	let backdropOpacity = $state(1);
 
 	$effect(() => {
 		if (open) {
-			translateY = 0;
+			backdropOpacity = 1;
 			tick().then(() => sheetEl?.focus());
 		}
 	});
-
-	function onpointerdown(e: PointerEvent) {
-		startY = e.clientY;
-		currentY = e.clientY;
-		isDragging = true;
-		sheetEl?.setPointerCapture(e.pointerId);
-	}
-
-	function onpointermove(e: PointerEvent) {
-		if (!isDragging) return;
-		currentY = e.clientY;
-		const delta = currentY - startY;
-		if (delta > 0) translateY = delta;
-	}
-
-	function onpointerup() {
-		if (!isDragging) return;
-		isDragging = false;
-		const delta = currentY - startY;
-		if (delta > 120) {
-			onclose();
-		} else {
-			translateY = 0;
-		}
-	}
 
 	function onkeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape') onclose();
@@ -60,12 +33,12 @@
 
 {#if open}
 	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div class="backdrop" onclick={onbackdropclick}></div>
+	<div class="backdrop" style="opacity: {backdropOpacity};" onclick={onbackdropclick}></div>
 	<div
 		bind:this={sheetEl}
-		class="sheet"
+		class="sheet glass"
 		class:open
-		style="transform: translateY({translateY}px); max-height: {maxHeight};"
+		style="max-height: {maxHeight};"
 		role="dialog"
 		aria-modal="true"
 		aria-label={title}
@@ -74,9 +47,15 @@
 	>
 		<div
 			class="drag-area"
-			onpointerdown={onpointerdown}
-			onpointermove={onpointermove}
-			onpointerup={onpointerup}
+			use:elasticDrag={{
+				target: () => sheetEl,
+				dismissDistance: 120,
+				dismissVelocity: 0.5,
+				onDismiss: onclose,
+				onProgress: (p) => (backdropOpacity = 1 - p),
+				stretch: 0.04,
+				stretchOrigin: 'bottom center'
+			}}
 		>
 			<div class="drag-handle"></div>
 			{#if title}
@@ -97,6 +76,7 @@
 		backdrop-filter: blur(4px);
 		z-index: 100;
 		animation: fadeIn var(--transition-base) ease;
+		will-change: opacity;
 	}
 
 	.sheet {
@@ -104,13 +84,12 @@
 		bottom: 0;
 		left: 0;
 		right: 0;
-		background: var(--color-surface);
+		/* glass class supplies background/blur/border/shadow */
 		border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 		z-index: 101;
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;
-		transition: transform var(--transition-fast);
 		outline: none;
 	}
 
