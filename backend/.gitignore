@@ -6,7 +6,9 @@ target/
 !**/src/test/**/target/
 
 # JWT keys — NEVER commit private keys
-*.pem
+
+privateKey.pem
+publicKey.pem
 *.key
 *.p12
 *.jks

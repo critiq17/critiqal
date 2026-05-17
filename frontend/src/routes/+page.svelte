@@ -1,57 +1,73 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { Post } from '$lib/types';
+	import type { PostPhoto } from '$lib/types';
 	import { postService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { feedCacheStore } from '$lib/stores/feed-cache.store.svelte';
+	import { infiniteScroll } from '$lib/actions/infiniteScroll';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
-	import PostCard from '$lib/components/PostCard.svelte';
+	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
+	import FeedComposeBox from '$lib/components/FeedComposeBox.svelte';
 
-	type FeedState = 'loading' | 'loaded' | 'error' | 'empty';
+	interface PendingPhoto {
+		file: File;
+		previewUrl: string;
+	}
 
-	let posts = $state<Post[]>([]);
-	let feedState = $state<FeedState>('loading');
-	let errorMessage = $state('');
+	const MAX_PHOTOS = 3;
+	const SKELETON_COUNT = 5;
 
 	let composeText = $state('');
 	let isPosting = $state(false);
-	let selectedPhoto = $state<File | null>(null);
-	let photoPreviewUrl = $state<string | null>(null);
-	let isUploadingPhoto = $state(false);
+	let pendingPhotos = $state<PendingPhoto[]>([]);
+	let isUploadingPhotos = $state(false);
 
-	const SKELETON_COUNT = 5;
+	const posts = $derived(feedCacheStore.posts);
+	const hasNext = $derived(feedCacheStore.hasNext);
+	const error = $derived(feedCacheStore.error);
+	// Show skeletons only on truly cold load. If we have cached posts, render
+	// them immediately and revalidate in the background.
+	const showSkeleton = $derived(!feedCacheStore.hasData && error === null);
 
 	onMount(() => {
-		loadFeed();
+		// Stale-while-revalidate: returns instantly if fresh, otherwise refetches.
+		feedCacheStore.load();
 	});
 
-	async function loadFeed(): Promise<void> {
-		feedState = 'loading';
-		errorMessage = '';
-		try {
-			const data = await postService.getFeed();
-			posts = data;
-			feedState = data.length === 0 ? 'empty' : 'loaded';
-		} catch (err: unknown) {
-			errorMessage = err instanceof Error ? err.message : 'Failed to load feed.';
-			feedState = 'error';
-		}
+	async function loadMore(): Promise<void> {
+		await feedCacheStore.loadMore();
+	}
+
+	function reloadFeed(): void {
+		feedCacheStore.load({ force: true });
 	}
 
 	function handlePhotoSelect(e: Event): void {
 		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) return;
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		selectedPhoto = file;
-		photoPreviewUrl = URL.createObjectURL(file);
+		const files = input.files;
+		if (!files || files.length === 0) return;
+
+		const remaining = MAX_PHOTOS - pendingPhotos.length;
+		const toAdd = Array.from(files).slice(0, remaining);
+		const newPending: PendingPhoto[] = toAdd.map((file) => ({
+			file,
+			previewUrl: URL.createObjectURL(file)
+		}));
+
+		pendingPhotos = [...pendingPhotos, ...newPending];
 		input.value = '';
 	}
 
-	function removePhoto(): void {
-		if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
-		selectedPhoto = null;
-		photoPreviewUrl = null;
+	function removePhoto(index: number): void {
+		const photo = pendingPhotos[index];
+		if (photo) URL.revokeObjectURL(photo.previewUrl);
+		pendingPhotos = pendingPhotos.filter((_, i) => i !== index);
+	}
+
+	function clearPendingPhotos(): void {
+		pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+		pendingPhotos = [];
 	}
 
 	async function submitPost(): Promise<void> {
@@ -60,27 +76,30 @@
 		isPosting = true;
 		try {
 			const newPost = await postService.create({ content });
+			const photosToUpload = [...pendingPhotos];
 
-			if (selectedPhoto) {
-				isUploadingPhoto = true;
+			if (photosToUpload.length > 0) {
+				isUploadingPhotos = true;
 				try {
-					const photoResult = await mediaService.uploadPostPhoto(newPost.id, selectedPhoto);
-					posts = [
-						{ ...newPost, photoUrl: photoResult.photoUrl, photoThumbnailUrl: photoResult.thumbnailUrl },
-						...posts
-					];
-				} catch {
-					posts = [newPost, ...posts];
+					const photos: PostPhoto[] = [];
+					for (const p of photosToUpload) {
+						try {
+							const photo = await mediaService.uploadPostPhoto(newPost.id, p.file);
+							photos.push(photo);
+						} catch {
+							// skip failed photo
+						}
+					}
+					feedCacheStore.prependPost({ ...newPost, photos });
 				} finally {
-					isUploadingPhoto = false;
+					isUploadingPhotos = false;
 				}
 			} else {
-				posts = [newPost, ...posts];
+				feedCacheStore.prependPost(newPost);
 			}
 
 			composeText = '';
-			removePhoto();
-			feedState = 'loaded';
+			clearPendingPhotos();
 		} catch {
 			// ignore
 		} finally {
@@ -88,15 +107,8 @@
 		}
 	}
 
-	function handleComposeKey(e: KeyboardEvent): void {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-			submitPost();
-		}
-	}
-
-	function handlePostDeleted(postId: number): void {
-		posts = posts.filter((p) => p.id !== postId);
-		if (posts.length === 0) feedState = 'empty';
+	function handlePostDeleted(postId: string): void {
+		feedCacheStore.removePost(postId);
 	}
 </script>
 
@@ -116,85 +128,32 @@
 		</header>
 
 		{#if authStore.isAuthenticated}
-			<div class="compose-box">
-				<div class="compose-avatar" aria-hidden="true">
-					{#if authStore.user?.avatarUrl}
-						<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="compose-avatar-img" />
-					{:else}
-						<span class="compose-avatar-initial">
-							{(authStore.user?.name ?? authStore.user?.username ?? '?').charAt(0).toUpperCase()}
-						</span>
-					{/if}
-				</div>
-				<div class="compose-right">
-					<textarea
-						class="compose-input"
-						bind:value={composeText}
-						onkeydown={handleComposeKey}
-						placeholder="What's on your mind?"
-						rows={3}
-						disabled={isPosting}
-						aria-label="Write a post"
-					></textarea>
-					{#if photoPreviewUrl}
-						<div class="photo-preview-wrap">
-							<img src={photoPreviewUrl} alt="Selected photo preview" class="photo-preview-img" />
-							<button
-								class="photo-remove-btn"
-								onclick={removePhoto}
-								aria-label="Remove photo"
-								type="button"
-							>×</button>
-						</div>
-					{/if}
-					<div class="compose-actions">
-						<div class="compose-actions-left">
-							<label class="compose-photo-label" aria-label="Attach photo" title="Attach photo">
-								<input
-									type="file"
-									accept="image/jpeg,image/png,image/webp"
-									class="compose-photo-input"
-									onchange={handlePhotoSelect}
-									disabled={isPosting || isUploadingPhoto}
-								/>
-								<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
-									<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-									<circle cx="12" cy="13" r="4" />
-								</svg>
-							</label>
-							<span class="compose-hint">Ctrl+Enter to post</span>
-						</div>
-						<button
-							class="compose-submit"
-							onclick={submitPost}
-							disabled={!composeText.trim() || isPosting || isUploadingPhoto}
-						>
-							{#if isUploadingPhoto}
-								Uploading…
-							{:else if isPosting}
-								Posting…
-							{:else}
-								Post
-							{/if}
-						</button>
-					</div>
-				</div>
-			</div>
+			<FeedComposeBox
+				text={composeText}
+				{pendingPhotos}
+				{isPosting}
+				{isUploadingPhotos}
+				maxPhotos={MAX_PHOTOS}
+				onTextChange={(v) => { composeText = v; }}
+				onPhotoSelect={handlePhotoSelect}
+				onRemovePhoto={removePhoto}
+				onSubmit={submitPost}
+			/>
 		{/if}
 
-		{#if feedState === 'loading'}
+		{#if showSkeleton}
 			<div aria-busy="true" aria-label="Loading feed">
 				{#each { length: SKELETON_COUNT } as _, i (i)}
 					<PostCardSkeleton />
 				{/each}
 			</div>
-		{:else if feedState === 'error'}
+		{:else if error && posts.length === 0}
 			<div class="state-box" role="alert">
 				<p class="state-title">Something went wrong</p>
-				<p class="state-body">{errorMessage}</p>
-				<button class="retry-btn" onclick={loadFeed}>Try again</button>
+				<p class="state-body">{error}</p>
+				<button class="retry-btn" onclick={reloadFeed}>Try again</button>
 			</div>
-		{:else if feedState === 'empty'}
+		{:else if posts.length === 0}
 			<div class="state-box">
 				<p class="state-title">Nothing here yet</p>
 				<p class="state-body">Be the first to post something.</p>
@@ -205,226 +164,92 @@
 					<PostCard {post} onDeleted={handlePostDeleted} />
 				{/each}
 			</div>
+
+			{#if hasNext}
+				<div
+					class="feed-sentinel"
+					use:infiniteScroll={{ onTrigger: loadMore, disabled: feedCacheStore.isLoadingMore }}
+				></div>
+			{/if}
+			{#if feedCacheStore.isLoadingMore}
+				<div class="loading-more">Loading more…</div>
+			{/if}
 		{/if}
 	</main>
 
-	<aside class="col-right" aria-label="Additional info">
-		<div class="info-panel">
-			<p class="info-label">Critiqal</p>
-			<p class="info-body">A minimalist social network for people who care about quality.</p>
-		</div>
-	</aside>
+	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
 <style>
 	.page-layout {
-		display: grid;
-		grid-template-columns: 16rem minmax(0, 42rem) 14rem;
-		justify-content: center;
-		min-height: 100vh;
+		height: 100vh;
+		overflow: hidden;
 	}
 
 	.col-left {
-		position: sticky;
+		position: fixed;
+		/* anchor the sidebar's right edge to the centered feed's left edge
+		   (feed is 42rem wide → half = 21rem from viewport center) */
+		right: calc(50% + 21rem);
 		top: 0;
-		height: 100vh;
+		bottom: 0;
+		width: 16rem;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
+		z-index: 20;
 	}
 
 	.col-center {
-		padding: 0 2rem;
-		min-height: 100vh;
+		height: 100vh;
+		max-width: 42rem;
+		margin: 0 auto;
+		overflow-y: auto;
+		padding: 0 2rem 4rem;
+		scrollbar-width: none;
+	}
+
+	.col-center::-webkit-scrollbar {
+		display: none;
 	}
 
 	.col-right {
-		padding: 1.5rem 1rem 1.5rem 1.5rem;
+		display: none;
 	}
 
 	.feed-header {
-		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
-		margin-bottom: 0;
+		padding: 1.25rem 0 1.75rem;
+		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		background-color: var(--color-bg);
+		background: linear-gradient(
+			to bottom,
+			var(--color-bg) 0%,
+			rgba(12, 12, 12, 0.85) 45%,
+			rgba(12, 12, 12, 0) 100%
+		);
+		backdrop-filter: blur(12px) saturate(150%);
+		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		z-index: 10;
 	}
 
 	.feed-title {
-		font-size: 1.0625rem;
-		font-weight: 700;
-		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
-	}
-
-	/* Compose box */
-	.compose-box {
-		display: flex;
-		gap: 0.75rem;
-		padding: 1.25rem 0;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.compose-avatar {
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		background: var(--color-surface-raised);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-shrink: 0;
-		overflow: hidden;
-	}
-
-	.compose-avatar-img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-
-	.compose-avatar-initial {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-text-muted);
-		user-select: none;
-	}
-
-	.compose-right {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 0.625rem;
-	}
-
-	.compose-input {
-		width: 100%;
-		background: none;
-		border: none;
-		outline: none;
 		font-size: 1rem;
-		color: var(--color-text-primary);
-		font-family: inherit;
-		resize: none;
-		line-height: 1.5;
-		padding: 0;
-	}
-
-	.compose-input::placeholder {
-		color: var(--color-text-muted);
-		opacity: 0.5;
-	}
-
-	.compose-input:disabled {
-		opacity: 0.6;
-	}
-
-	.compose-actions {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-
-	.compose-hint {
-		font-size: 0.75rem;
-		color: var(--color-text-muted);
-		opacity: 0.6;
-	}
-
-	.compose-actions-left {
-		display: flex;
-		align-items: center;
-		gap: 0.625rem;
-	}
-
-	.compose-photo-label {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		cursor: pointer;
-		color: var(--color-text-muted);
-		padding: 0.25rem;
-		border-radius: 0.375rem;
-		transition: color 0.15s ease, background-color 0.15s ease;
-	}
-
-	.compose-photo-label:hover {
-		color: var(--color-text-primary);
-		background-color: var(--color-surface-raised);
-	}
-
-	.compose-photo-input {
-		display: none;
-	}
-
-	.photo-preview-wrap {
-		position: relative;
-		border-radius: 0.75rem;
-		overflow: hidden;
-		max-height: 200px;
-		margin-bottom: 0.5rem;
-	}
-
-	.photo-preview-img {
-		display: block;
-		width: 100%;
-		max-height: 200px;
-		object-fit: cover;
-		border-radius: 0.75rem;
-	}
-
-	.photo-remove-btn {
-		position: absolute;
-		top: 0.5rem;
-		right: 0.5rem;
-		background: rgba(0, 0, 0, 0.6);
-		color: #fff;
-		border: none;
-		border-radius: 50%;
-		width: 1.5rem;
-		height: 1.5rem;
-		font-size: 1rem;
-		line-height: 1;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		transition: background-color 0.15s ease;
-	}
-
-	.photo-remove-btn:hover {
-		background: rgba(0, 0, 0, 0.8);
-	}
-
-	.compose-submit {
-		background: var(--color-text-primary);
-		color: var(--color-bg);
-		border: none;
-		border-radius: 9999px;
-		padding: 0.4375rem 1.125rem;
-		font-size: 0.875rem;
 		font-weight: 600;
-		font-family: inherit;
-		cursor: pointer;
-		transition: opacity 0.15s ease, transform 0.1s ease;
+		color: var(--color-text-primary);
+		letter-spacing: -0.015em;
 	}
 
-	.compose-submit:disabled {
-		opacity: 0.35;
-		cursor: not-allowed;
+	.feed-sentinel {
+		height: 1px;
 	}
 
-	.compose-submit:not(:disabled):hover {
-		opacity: 0.85;
-	}
-
-	.compose-submit:not(:disabled):active {
-		transform: scale(0.96);
-	}
-
-	.post-list {
-		animation: fadeIn 0.2s ease-out;
+	.loading-more {
+		padding: 1.5rem;
+		text-align: center;
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
 	}
 
 	.state-box {
@@ -457,9 +282,7 @@
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
-		transition:
-			background-color 0.15s ease,
-			transform 0.1s ease;
+		transition: background-color 0.15s ease, transform 0.1s ease;
 	}
 
 	.retry-btn:hover {
@@ -470,60 +293,20 @@
 		transform: scale(0.97);
 	}
 
-	.info-panel {
-		padding: 1rem;
-		border-radius: 0.75rem;
-		background: var(--color-surface-raised);
-		display: flex;
-		flex-direction: column;
-		gap: 0.375rem;
-		margin-top: 1.5rem;
-	}
-
-	.info-label {
-		font-size: 0.875rem;
-		font-weight: 600;
-		color: var(--color-text-primary);
-	}
-
-	.info-body {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-		line-height: 1.5;
-	}
-
-	@keyframes fadeIn {
-		from {
-			opacity: 0;
-			transform: translateY(0.375rem);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	@media (max-width: 1024px) {
-		.page-layout {
-			grid-template-columns: 4.5rem 1fr;
-		}
-
-		.col-right {
-			display: none;
+	@media (max-width: 900px) {
+		.col-left {
+			width: 4.5rem;
+			padding: 0 0.5rem;
 		}
 	}
 
 	@media (max-width: 640px) {
-		.page-layout {
-			grid-template-columns: 1fr;
-		}
-
 		.col-left {
 			display: none;
 		}
 
 		.col-center {
-			padding: 0 1rem;
+			padding: 0 1rem 4rem;
 		}
 	}
 </style>

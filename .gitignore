@@ -21,6 +21,7 @@ bin/
 # Claude
 CLAUDE.md
 
+docs/deploy.md
 
 # NetBeans
 nb-configuration.xml

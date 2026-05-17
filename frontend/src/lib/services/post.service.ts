@@ -1,64 +1,72 @@
 import { apiClient } from '$lib/api/client';
 import { API } from '$lib/api/endpoints';
 import type {
-	Post,
-	CreatePostRequest,
-	Comment,
-	AddCommentRequest,
-	ReactionsMap,
-	ReactionType
+  Post,
+  CreatePostRequest,
+  Comment,
+  AddCommentRequest,
+  LikeResponse,
+  PageResponse,
 } from '$lib/types';
 
 export const postService = {
-	getFeed(): Promise<Post[]> {
-		return apiClient.get<Post[]>(API.posts.feed);
-	},
+  getFeed(page = 0, size = 20): Promise<PageResponse<Post>> {
+    return apiClient.get<PageResponse<Post>>(`${API.posts.feed}?page=${page}&size=${size}`);
+  },
 
-	search(query: string): Promise<Post[]> {
-		return apiClient.get<Post[]>(`${API.posts.search}?q=${encodeURIComponent(query)}`);
-	},
+  getFollowingFeed(page = 0, size = 20): Promise<PageResponse<Post>> {
+    return apiClient.get<PageResponse<Post>>(
+      `${API.users.followingFeed}?page=${page}&size=${size}`
+    );
+  },
 
-	getById(id: number): Promise<Post> {
-		return apiClient.get<Post>(API.posts.byId(id));
-	},
+  search(query: string, page = 0, size = 20): Promise<PageResponse<Post>> {
+    return apiClient.get<PageResponse<Post>>(
+      `${API.posts.search}?q=${encodeURIComponent(query)}&page=${page}&size=${size}`
+    );
+  },
 
-	create(req: CreatePostRequest): Promise<Post> {
-		return apiClient.post<Post>(API.posts.feed, req, true);
-	},
+  getById(id: string): Promise<Post> {
+    return apiClient.get<Post>(API.posts.byId(id));
+  },
 
-	delete(id: number): Promise<void> {
-		return apiClient.delete(API.posts.byId(id), true);
-	},
+  create(req: CreatePostRequest): Promise<Post> {
+    return apiClient.post<Post>(API.posts.feed, req);
+  },
 
-	// --- Comments ---
+  delete(id: string): Promise<void> {
+    return apiClient.delete(API.posts.byId(id));
+  },
 
-	getComments(postId: number): Promise<Comment[]> {
-		return apiClient.get<Comment[]>(API.posts.comments(postId));
-	},
+  // --- Comments ---
 
-	addComment(postId: number, req: AddCommentRequest): Promise<Comment> {
-		return apiClient.post<Comment>(API.posts.comments(postId), req, true);
-	},
+  getComments(postId: string): Promise<Comment[]> {
+    return apiClient.get<Comment[]>(API.posts.comments(postId));
+  },
 
-	deleteComment(postId: number, commentId: number): Promise<void> {
-		return apiClient.delete(API.posts.comment(postId, commentId), true);
-	},
+  addComment(postId: string, req: AddCommentRequest): Promise<Comment> {
+    return apiClient.post<Comment>(API.posts.comments(postId), req);
+  },
 
-	// --- Reactions ---
+  deleteComment(postId: string, commentId: string): Promise<void> {
+    return apiClient.delete(API.posts.comment(postId, commentId));
+  },
 
-	getReactions(postId: number): Promise<ReactionsMap> {
-		return apiClient.get<ReactionsMap>(API.posts.reactions(postId));
-	},
+  getReplies(postId: string, commentId: string): Promise<Comment[]> {
+    return apiClient.get<Comment[]>(API.posts.replies(postId, commentId));
+  },
 
-	getMyReaction(postId: number): Promise<ReactionType | undefined> {
-		return apiClient.get<ReactionType | undefined>(`${API.posts.reactions(postId)}/mine`, true);
-	},
+  addReply(postId: string, commentId: string, req: AddCommentRequest): Promise<Comment> {
+    return apiClient.post<Comment>(API.posts.replies(postId, commentId), req);
+  },
 
-	react(postId: number, type: ReactionType): Promise<void> {
-		return apiClient.post<void>(API.posts.reactions(postId), { type }, true);
-	},
+  // --- Likes ---
 
-	removeReaction(postId: number): Promise<void> {
-		return apiClient.delete(API.posts.reactions(postId), true);
-	}
+  toggleLike(postId: string): Promise<LikeResponse> {
+    return apiClient.post<LikeResponse>(API.posts.likes(postId), {});
+  },
+
+  toggleCommentLike(postId: string, commentId: string): Promise<LikeResponse> {
+    return apiClient.post<LikeResponse>(API.posts.commentLikes(postId, commentId), {});
+  },
 };
