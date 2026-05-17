@@ -33,6 +33,7 @@ class TelegramBotWebhookTest {
         var webhook = new TelegramBotWebhook();
         webhook.enabled = true;
         webhook.botToken = Optional.of("token");
+        webhook.appUrl = Optional.empty();
         webhook.supportUrl = Optional.of("https://t.me/support");
         webhook.tgLink = Optional.of("https://t.me/critiqa1_bot?startapp=start");
         webhook.webhookSecret = Optional.of("expected-secret");
@@ -56,6 +57,7 @@ class TelegramBotWebhookTest {
         var webhook = new TelegramBotWebhook();
         webhook.enabled = true;
         webhook.botToken = Optional.of("token");
+        webhook.appUrl = Optional.empty();
         webhook.supportUrl = Optional.of("https://t.me/support");
         webhook.tgLink = Optional.of("https://t.me/critiqa1_bot?startapp=start");
         webhook.webhookSecret = Optional.empty();
