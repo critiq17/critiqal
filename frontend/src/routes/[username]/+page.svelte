@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { onMount, untrack } from 'svelte';
+	import { onMount, untrack, tick } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { UseProfilePage } from '$lib/features/profile/useProfilePage.svelte';
@@ -19,8 +20,8 @@
 	import ProfileEmptyPosts from '$lib/components/profile/ProfileEmptyPosts.svelte';
 	import FollowersModal from '$lib/components/profile/FollowersModal.svelte';
 
-	const username = $page.params.username as string;
-	const profilePage = new UseProfilePage(username);
+	let username = $state($page.params.username as string);
+	let profilePage = $state(new UseProfilePage($page.params.username as string));
 
 	const isOwnProfile = $derived(authStore.user?.username === username);
 	const SKELETON_COUNT = 3;
@@ -46,6 +47,21 @@
 	onMount(() => {
 		profilePage.loadProfile();
 		if (isOwnProfile) stravaStore.load();
+	});
+
+	// The [username] route component is reused across profile→profile
+	// navigations, so onMount fires only once. afterNavigate fires on every
+	// navigation; when the username param actually changed, swap in a fresh
+	// feature hook and load it so the new profile never gets stuck on the
+	// previous one's (or an infinite) skeleton.
+	afterNavigate(async () => {
+		const next = $page.params.username as string;
+		if (next === username) return;
+		username = next;
+		profilePage = new UseProfilePage(next);
+		await tick();
+		profilePage.loadProfile();
+		if (authStore.user?.username === next) stravaStore.load();
 	});
 
 	$effect(() => {
@@ -257,22 +273,25 @@
 
 <style>
 	.page-layout {
-		display: grid;
-		grid-template-columns: 16rem 42rem;
-		justify-content: center;
 		height: 100vh;
 		overflow: hidden;
 	}
 
 	.col-left {
-		position: sticky;
+		position: fixed;
+		right: calc(50% + 21rem);
 		top: 0;
-		height: 100vh;
+		bottom: 0;
+		width: 16rem;
 		overflow-y: auto;
 		padding: 0 1.5rem 0 1rem;
+		z-index: 20;
 	}
 
 	.col-center {
+		height: 100vh;
+		max-width: 42rem;
+		margin: 0 auto;
 		padding: 0 2rem;
 		overflow-y: auto;
 		scrollbar-width: none;
@@ -291,9 +310,16 @@
 		padding: 1.25rem 0 1rem;
 		position: sticky;
 		top: 0;
-		background-color: rgba(12, 12, 12, 0.85);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background: linear-gradient(
+			to bottom,
+			var(--color-bg) 0%,
+			rgba(12, 12, 12, 0.85) 55%,
+			rgba(12, 12, 12, 0) 100%
+		);
+		backdrop-filter: blur(12px) saturate(150%);
+		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+		mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
 		z-index: 10;
 		display: flex;
 		align-items: baseline;
@@ -436,9 +462,9 @@
 		padding: 0 2rem;
 		position: sticky;
 		top: 3.625rem;
-		background-color: rgba(12, 12, 12, 0.85);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background-color: rgba(12, 12, 12, 0.72);
+		backdrop-filter: blur(16px) saturate(180%);
+		-webkit-backdrop-filter: blur(16px) saturate(180%);
 		z-index: 9;
 	}
 
@@ -563,15 +589,13 @@
 	}
 
 	@media (max-width: 900px) {
-		.page-layout {
-			grid-template-columns: 4.5rem 1fr;
+		.col-left {
+			width: 4.5rem;
+			padding: 0 0.5rem;
 		}
 	}
 
 	@media (max-width: 640px) {
-		.page-layout {
-			grid-template-columns: 1fr;
-		}
 		.col-left {
 			display: none;
 		}
