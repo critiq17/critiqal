@@ -5,6 +5,8 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
+import org.critiqal.domain.like.service.PostLikeServiceImpl;
+import org.critiqal.domain.post.Post;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.api.post.response.PostDTO;
@@ -17,6 +19,8 @@ import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/users")
@@ -28,15 +32,18 @@ public class UserResource {
     private final FollowService followService;
     private final PostService postService;
     private final CurrentUser currentUser;
+    private final PostLikeServiceImpl postLikeService;
 
     public UserResource(UserService userService,
                         FollowService followService,
                         PostService postService,
-                        CurrentUser currentUser) {
+                        CurrentUser currentUser,
+                        PostLikeServiceImpl postLikeService) {
         this.userService = userService;
         this.followService = followService;
         this.postService = postService;
         this.currentUser = currentUser;
+        this.postLikeService = postLikeService;
     }
 
     @GET
@@ -98,8 +105,8 @@ public class UserResource {
     @Authenticated
     public Page<PostDTO> getFollowingFeed(@BeanParam PageRequest pageRequest) {
         UUID userId = currentUser.id();
-        return postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size())
-                .map(PostDTO::from);
+        var page = postService.getFollowingFeed(userId, pageRequest.page(), pageRequest.size());
+        return page.map(post -> PostDTO.from(post, 0L, false));
     }
 
     @GET
@@ -137,7 +144,29 @@ public class UserResource {
             @PathParam("username") String username,
             @BeanParam PageRequest pageRequest) {
         var user = userService.getByUsername(Username.of(username));
-        return postService.getUserPost(user.id, pageRequest.page(), pageRequest.size())
-                .map(PostDTO::from);
+        var page = postService.getUserPost(user.id, pageRequest.page(), pageRequest.size());
+        return enrichWithLikes(page);
     }
-}
+
+    private Page<PostDTO> enrichWithLikes(Page<Post> page) {
+        if (page.content().isEmpty()) {
+            return page.map(post -> PostDTO.from(post, 0L, false));
+        }
+
+        var ids = page.content().stream().map(Post::getId).toList();
+
+        Map<UUID, Long> counts = postLikeService.countByPostIds(ids);
+        UUID userId = currentUser.idOrNull();
+        Set<UUID> liked = userId != null
+                ? postLikeService.likedPostIds(userId, ids)
+                : Set.of();
+
+        return page.map(post -> PostDTO.from(
+                post,
+                counts.getOrDefault(post.id, 0L),
+                liked.contains(post.id)
+        ));
+    }
+    }
+
+

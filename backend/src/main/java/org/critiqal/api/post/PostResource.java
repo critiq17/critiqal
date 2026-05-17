@@ -7,11 +7,15 @@ import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.request.CreatePostRequest;
 import org.critiqal.api.post.response.PostDTO;
+import org.critiqal.domain.like.service.PostLikeServiceImpl;
 import org.critiqal.domain.media.service.MediaService;
+import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/posts")
@@ -22,19 +26,22 @@ public class PostResource {
     private final PostService postService;
     private final MediaService mediaService;
     private final CurrentUser currentUser;
+    private final PostLikeServiceImpl postLikeService;
 
     public PostResource(PostService postService,
                         MediaService mediaService,
-                        CurrentUser currentUser) {
+                        CurrentUser currentUser,
+                        PostLikeServiceImpl postLikeService) {
         this.postService = postService;
         this.mediaService = mediaService;
         this.currentUser = currentUser;
+        this.postLikeService = postLikeService;
     }
 
     @GET
     public Page<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {
-        return postService.getLatestFeed(pageRequest.page(), pageRequest.size())
-                .map(PostDTO::from);
+        var page = postService.getLatestFeed(pageRequest.page(), pageRequest.size());
+        return enrichWithLikes(page);
     }
 
     @GET
@@ -42,8 +49,8 @@ public class PostResource {
     public Page<PostDTO> search(
             @QueryParam("q") String query,
             @BeanParam PageRequest pageRequest) {
-        return postService.search(query, pageRequest.page(), pageRequest.size())
-                .map(PostDTO::from);
+        var page = postService.search(query, pageRequest.page(), pageRequest.size());
+        return enrichWithLikes(page);
     }
 
     @GET
@@ -51,7 +58,10 @@ public class PostResource {
     public PostDTO getPost(@PathParam("id") UUID id) {
         UUID userId = currentUser.idOrNull();
         postService.view(id, userId);
-        return PostDTO.from(postService.getById(id));
+        var post = postService.getById(id);
+        long likeCount = postLikeService.count(id);
+        boolean likedByMe = userId != null && postLikeService.isLiked(id, userId);
+        return PostDTO.from(post, likeCount, likedByMe);
     }
 
     @POST
@@ -60,7 +70,7 @@ public class PostResource {
         UUID authorId = currentUser.id();
         var post = postService.createPost(authorId, req.content());
         return Response.status(Response.Status.CREATED)
-                .entity(PostDTO.from(post))
+                .entity(PostDTO.from(post, 0L, false))
                 .build();
     }
 
@@ -71,5 +81,25 @@ public class PostResource {
         postService.deletePost(id, currentUser.id());
         mediaService.deleteAllPostPhotos(id);
         return Response.noContent().build();
+    }
+
+    private Page<PostDTO> enrichWithLikes(Page<Post> page) {
+        if (page.content().isEmpty()) {
+            return page.map(post -> PostDTO.from(post, 0L, false));
+        }
+
+        var ids = page.content().stream().map(Post::getId).toList();
+
+        Map<UUID, Long> counts = postLikeService.countByPostIds(ids);
+        UUID userId = currentUser.idOrNull();
+        Set<UUID> liked = userId != null
+                ? postLikeService.likedPostIds(userId, ids)
+                : Set.of();
+
+        return page.map(post -> PostDTO.from(
+                post,
+                counts.getOrDefault(post.id, 0L),
+                liked.contains(post.id)
+        ));
     }
 }

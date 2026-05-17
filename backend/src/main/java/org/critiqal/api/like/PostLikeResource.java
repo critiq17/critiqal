@@ -8,7 +8,6 @@ import org.critiqal.api.CurrentUser;
 import org.critiqal.api.like.response.LikeResponse;
 import org.critiqal.domain.like.service.PostLikeServiceImpl;
 
-import java.awt.*;
 import java.util.UUID;
 
 @Path("/api/posts/{postId}/likes")

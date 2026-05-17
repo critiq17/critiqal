@@ -4,9 +4,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.like.LikeResult;
 import org.critiqal.domain.like.repository.PostLikeRepository;
-import org.critiqal.domain.like.repository.PostLikeRepositoryImpl;
 import org.critiqal.domain.post.service.PostService;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -44,5 +46,13 @@ public class PostLikeServiceImpl implements LikeService {
     @Override
     public boolean isLiked(UUID postId, UUID userId) {
         return repo.exists(postId, userId);
+    }
+
+    public Map<UUID, Long> countByPostIds(List<UUID> postIds) {
+        return repo.countByPostIds(postIds);
+    }
+
+    public Set<UUID> likedPostIds(UUID userId, List<UUID> postIds) {
+        return repo.likedPostIds(userId, postIds);
     }
 }

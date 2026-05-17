@@ -11,14 +11,18 @@ public record CommentDTO(
         UUID postId,
         UserDTO author,
         String content,
+        long likeCount,
+        boolean likedByMe,
         Instant createdAt
 ) {
-    public static CommentDTO from(Comment comment) {
+    public static CommentDTO from(Comment comment, long likeCount, boolean likedByMe) {
         return new CommentDTO(
                 comment.id,
                 comment.post.id,
                 UserDTO.from(comment.author),   
                 comment.content,
+                likeCount,
+                likedByMe,
                 comment.createdAt
         );
     }

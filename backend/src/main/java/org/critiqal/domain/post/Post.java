@@ -4,7 +4,6 @@ import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.*;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.post_photo.PostPhoto;
-import org.critiqal.domain.reaction.Reaction;
 import org.critiqal.domain.shared.uuid.UuidGeneration;
 import org.critiqal.domain.user.User;
 
@@ -41,9 +40,6 @@ public class Post extends PanacheEntityBase {
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
     public List<Comment> comments;
-
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    public List<Reaction> reactions;
 
     public static List<Post> findByAuthor(User author) {
         return list("author = ?1 ORDER BY createdAt DESC", author);

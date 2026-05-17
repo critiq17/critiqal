@@ -7,6 +7,9 @@ import org.critiqal.domain.like.LikeResult;
 import org.critiqal.domain.like.repository.CommentLikeRepository;
 import org.critiqal.domain.shared.exception.NotFoundException;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -45,5 +48,13 @@ public class CommentLikeServiceImpl implements LikeService {
     @Override
     public boolean isLiked(UUID commentId, UUID userId) {
         return repo.exists(commentId, userId);
+    }
+
+    public Map<UUID, Long> countByCommentIds(List<UUID> commentIds) {
+        return repo.countByCommentIds(commentIds);
+    }
+
+    public Set<UUID> likedCommentIds(UUID userId, List<UUID> commentIds) {
+        return repo.likedCommentIds(userId, commentIds);
     }
 }
