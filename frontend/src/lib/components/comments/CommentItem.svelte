@@ -3,6 +3,7 @@
 	import { getInitials } from '$lib/utils/getInitials';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import CommentLikeButton from './CommentLikeButton.svelte';
 	import type { UseComments } from '$lib/features/posts/useComments.svelte';
 	import type { Comment } from '$lib/types';
 
@@ -64,6 +65,7 @@
 		<p class="comment-content">{comment.content}</p>
 
 		<div class="comment-actions">
+			<span class="like-slot"><CommentLikeButton {comment} /></span>
 			{#if authStore.isAuthenticated && !rs.composerOpen}
 				<button
 					class="reply-trigger"
@@ -131,6 +133,7 @@
 								<time class="reply-time" datetime={reply.createdAt}>
 									{formatRelativeTime(reply.createdAt)}
 								</time>
+								<span class="like-slot reply-like"><CommentLikeButton comment={reply} size={13} /></span>
 								{#if authStore.user?.id === reply.author.id}
 									<button
 										class="comment-delete-btn"
@@ -283,6 +286,22 @@
 		align-items: center;
 		gap: 0.5rem;
 		margin-top: 0.25rem;
+	}
+
+	/* Strip the button's own padding so the heart sits flush with the
+	   compact comment action row / reply header. */
+	.like-slot :global(.like-btn) {
+		padding: 0;
+		font-size: 0.75rem;
+		gap: 4px;
+	}
+
+	.like-slot :global(.like-btn:hover) {
+		background: none;
+	}
+
+	.reply-like :global(.like-btn) {
+		font-size: 0.6875rem;
 	}
 
 	.reply-trigger,

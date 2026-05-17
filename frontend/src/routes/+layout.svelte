@@ -43,10 +43,6 @@
 	});
 </script>
 
-<svelte:head>
-	<link rel="preload" as="image" href="/assets/reactions/GIGACHAD.png" />
-	<link rel="preload" as="image" href="/assets/reactions/THEROCK.png" />
-</svelte:head>
 
 {#if isMobile}
 	<MobileLayout />

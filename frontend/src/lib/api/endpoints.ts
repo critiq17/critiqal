@@ -29,7 +29,9 @@ export const API = {
     comment: (postId: string, commentId: string) => `/api/posts/${postId}/comments/${commentId}`,
     replies: (postId: string, commentId: string) =>
       `/api/posts/${postId}/comments/${commentId}/replies`,
-    reactions: (postId: string) => `/api/posts/${postId}/reactions`,
+    likes: (postId: string) => `/api/posts/${postId}/likes`,
+    commentLikes: (postId: string, commentId: string) =>
+      `/api/posts/${postId}/comments/${commentId}/likes`,
   },
   users: {
     profile: (username: string) => `/api/users/${encodeURIComponent(username)}`,

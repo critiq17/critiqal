@@ -19,7 +19,7 @@ export type {
 export { isTwoFactorChallenge } from './auth';
 export type { Post, PostPhoto, PostStatus, CreatePostRequest } from './post';
 export type { Comment, AddCommentRequest } from './comment';
-export type { ReactionType, ReactionsMap, ReactionRequest } from './reaction';
+export type { LikeResponse } from './like';
 export type { PageResponse } from './api';
 export { ApiError } from './api';
 export type { StravaConnection, StravaActivity } from './strava';
