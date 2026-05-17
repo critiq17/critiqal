@@ -10,10 +10,21 @@
 	onNavigate((navigation) => {
 		if (reducedMotion.value || !document.startViewTransition) return;
 		return new Promise((resolve) => {
-			document.startViewTransition(async () => {
+			const transition = document.startViewTransition(async () => {
 				resolve();
-				await navigation.complete;
+				try {
+					await navigation.complete;
+				} catch {
+					// Navigation was aborted or redirected. Swallow it so the
+					// transition callback resolves cleanly instead of leaving a
+					// frozen ::view-transition snapshot over the page.
+				}
 			});
+			// An overlapping/skipped transition rejects .finished; ignore it so
+			// the overlay always tears down and never blocks interaction.
+			transition.finished.catch(() => {});
+			// Hard safety net: never let a stuck transition wedge navigation.
+			setTimeout(resolve, 400);
 		});
 	});
 
