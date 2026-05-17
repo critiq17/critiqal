@@ -2,6 +2,7 @@ package org.critiqal.domain.like.service;
 
 import org.critiqal.domain.like.repository.PostLikeRepository;
 import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -63,6 +66,18 @@ class PostLikeServiceImplTest {
         assertEquals(2L, result.count());
         verify(repo).remove(postId, userId);
         verify(repo, never()).save(postId, userId);
+    }
+
+    @Test
+    @DisplayName("toggle throws when the post does not exist")
+    void toggle_missingPost_throws() {
+        var postId = uuid(10);
+        var userId = uuid(11);
+        doThrow(new NotFoundException("Post not found")).when(postService).getById(postId);
+
+        assertThrows(NotFoundException.class, () -> service.toggle(postId, userId));
+        verify(repo, never()).save(postId, userId);
+        verify(repo, never()).remove(postId, userId);
     }
 
     @Test
