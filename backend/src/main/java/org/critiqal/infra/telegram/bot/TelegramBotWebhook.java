@@ -93,13 +93,14 @@ public class TelegramBotWebhook {
             log.warn("Telegram webhook is enabled but neither telegram.bot.tg-link nor telegram.bot.app-url is configured");
             return Optional.empty();
         }
+        if (appUrl.isEmpty() && tgLink.isPresent()) {
+            log.warn("Telegram welcome button is using telegram.bot.tg-link fallback; configure telegram.bot.app-url to open the native Mini App container");
+        }
         return Optional.of(new WelcomeConfig(botToken.get(), appUrl, supportUrl.get(), tgLink));
     }
 
     private void sendWelcome(long chatId, WelcomeConfig config) throws Exception {
-        var openAppButton = config.tgLink()
-                .map(link -> Map.<String, Object>of("text", "Open App", "url", link))
-                .orElseGet(() -> Map.of("text", "Open App", "web_app", Map.of("url", config.appUrl().orElseThrow())));
+        var openAppButton = buildOpenAppButton(config);
 
         var keyboard = Map.of("inline_keyboard", List.of(
                 List.of(
@@ -129,7 +130,19 @@ public class TelegramBotWebhook {
                 });
     }
 
-    private record WelcomeConfig(
+    static Map<String, Object> buildOpenAppButton(WelcomeConfig config) {
+        if (config.appUrl().isPresent()) {
+            // Prefer Telegram's native web_app launch path whenever possible.
+            // A plain URL button opens a browser-like sheet and skips Mini App
+            // capabilities like reliable fullscreen and swipe lock.
+            return Map.of("text", "Open App", "web_app", Map.of("url", config.appUrl().orElseThrow()));
+        }
+        return config.tgLink()
+                .map(link -> Map.<String, Object>of("text", "Open App", "url", link))
+                .orElseThrow(() -> new IllegalStateException("Missing Telegram app launch config"));
+    }
+
+    record WelcomeConfig(
             String botToken,
             Optional<String> appUrl,
             String supportUrl,
