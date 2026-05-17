@@ -156,9 +156,9 @@ jobs:
             done
 
             cd /opt/critiqal/prod/frontend
-            npm ci --omit=dev --prefer-offline --no-audit --fund=false --silent
-            PORT=3000 pm2 reload critiqal-prod --update-env 2>/dev/null || \
-              PORT=3000 pm2 start index.js --name critiqal-prod
+            npm ci --omit=dev --ignore-scripts --prefer-offline --no-audit --fund=false --silent
+            pm2 delete critiqal-prod 2>/dev/null || true
+            PORT=3000 pm2 start build/index.js --name critiqal-prod --update-env
             pm2 save
 
             docker image prune -f >/dev/null 2>&1 || true
