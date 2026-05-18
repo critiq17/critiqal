@@ -3,6 +3,7 @@ package org.critiqal.infra.telegram.bot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
@@ -50,6 +51,7 @@ public class TelegramBotWebhook {
     @ConfigProperty(name = "telegram.bot.app-url") Optional<String> appUrl;
     @ConfigProperty(name = "telegram.bot.support-url") Optional<String> supportUrl;
     @ConfigProperty(name = "telegram.bot.tg-link") Optional<String> tgLink;
+    @ConfigProperty(name = "telegram.webhook-secret") Optional<String> webhookSecret;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newBuilder()
@@ -57,10 +59,16 @@ public class TelegramBotWebhook {
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response onUpdate(String body) {
+    public Response onUpdate(
+            String body,
+            @HeaderParam("X-Telegram-Bot-Api-Secret-Token") String secretHeader) {
         var config = resolveConfig();
         if (config.isEmpty()) {
             return Response.ok().build();
+        }
+        if (!isSecretValid(config.get().webhookSecret(), secretHeader)) {
+            log.warn("Telegram webhook rejected: invalid secret token");
+            return Response.status(Response.Status.FORBIDDEN).build();
         }
         try {
             JsonNode update = objectMapper.readTree(body);
@@ -96,7 +104,14 @@ public class TelegramBotWebhook {
         if (appUrl.isEmpty() && tgLink.isPresent()) {
             log.warn("Telegram welcome button is using telegram.bot.tg-link fallback; configure telegram.bot.app-url to open the native Mini App container");
         }
-        return Optional.of(new WelcomeConfig(botToken.get(), appUrl, supportUrl.get(), tgLink));
+        return Optional.of(new WelcomeConfig(botToken.get(), appUrl, supportUrl.get(), tgLink, webhookSecret));
+    }
+
+    private boolean isSecretValid(Optional<String> configuredSecret, String secretHeader) {
+        if (configuredSecret.isEmpty() || configuredSecret.get().isBlank()) {
+            return true;
+        }
+        return configuredSecret.get().equals(secretHeader);
     }
 
     private void sendWelcome(long chatId, WelcomeConfig config) throws Exception {
@@ -146,7 +161,8 @@ public class TelegramBotWebhook {
             String botToken,
             Optional<String> appUrl,
             String supportUrl,
-            Optional<String> tgLink
+            Optional<String> tgLink,
+            Optional<String> webhookSecret
     ) {
     }
 }
