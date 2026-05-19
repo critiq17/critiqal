@@ -1,47 +1,57 @@
 # Critiqal — Features
 
-## Phase 1 — Core Social
+This document tracks what is shipped and what is planned. "Shipped" means it is live in production; "planned" means it is designed but not yet released.
 
-- User registration and login (email + password, cookie session)
-- User profiles (avatar, bio, links)
-- Follow / unfollow users
-- Post text updates
+## Shipped
+
+### Accounts and social core
+
+- Email and password registration and login, Redis-backed cookie sessions
+- Profiles with avatar, bio, and links
+- Follow and unfollow
+- Posts with text and photos
 - Comments with single-level replies
-- Feed: chronological posts from followed users
-- Notifications: new follower, post reaction
+- Chronological feed of posts from followed users
+- Notifications for new followers and reactions
 
-## Phase 2 — Integrations
+### Strava integration
 
-### GitHub
+- OAuth2 connect and disconnect
+- Automatic posts when an activity is completed (run, ride, swim, workout)
+- Weekly activity summary on the profile
+
+### Delivery
+
+- Telegram Mini App: full-screen native-feeling shell, theme and viewport bridging, haptics, back-button handling
+- Shared codebase for the desktop web experience
+- Isolated production and development environments, each with its own Telegram bot
+
+## Planned
+
+### GitHub integration
 
 - OAuth2 connect
-- Auto-post on: new commit, merged PR, new repo
-- Display contribution stats on profile
+- Automatic posts on new commit, merged pull request, and new repository
+- Contribution statistics on the profile
 
-### Strava
+### Token rewards (`$CRIT`)
 
-- OAuth2 connect
-- Auto-post on: activity completed (run, ride, swim, workout)
-- Display weekly activity summary on profile
+`$CRIT` is the network's own token, earned automatically for real activity. Earning rules are configurable:
 
-## Phase 3 — Token Rewards ($CRIT)
+| Activity                  | Reward          |
+|---------------------------|-----------------|
+| Post per day              | 1 $CRIT         |
+| GitHub commit synced      | 2 $CRIT         |
+| Strava activity synced    | 3 $CRIT         |
+| Seven-day activity streak | 10 $CRIT bonus  |
+| New follower milestone    | 5 $CRIT         |
 
-Token earning rules (configurable):
-
-| Activity                  | Reward       |
-|---------------------------|--------------|
-| Post per day              | 1 $CRIT      |
-| GitHub commit synced      | 2 $CRIT      |
-| Strava activity synced    | 3 $CRIT      |
-| 7-day activity streak     | 10 $CRIT bonus |
-| New follower milestone    | 5 $CRIT      |
-
-Token spending:
+Spending:
 
 - Custom profile badge
 - Extended bio length
 - Priority in follower suggestions
-- Future: marketplace perks
+- Marketplace perks, later
 
 Anti-abuse:
 
@@ -49,25 +59,28 @@ Anti-abuse:
 - Rate limiting on sync endpoints
 - Cooldown between same-source events
 
-## Phase 4 — On-Chain
+### On-chain layer
 
-- Wallet connect (EVM-compatible)
-- $CRIT token contract (ERC-20 or similar)
-- Claim in-app balance to on-chain wallet
-- Token history and transaction log
+- EVM-compatible wallet connect
+- A `$CRIT` token contract
+- Claiming the in-app balance to an on-chain wallet
+- Fast, low-cost transactions so balances move without friction
+- Full token and transaction history
 
-## Phase 5 — Polish
+### Direct messages
 
-- Real-time feed updates via SSE
-- Dark / light theme
-- Mobile-responsive layout
-- Push notifications (web push)
-- Public API for third-party integrations
+Private one-to-one messaging between users. Targeted for summer, possibly sooner.
 
-## Out of Scope (v1)
+### Polish
+
+- Real-time feed updates
+- Dark and light themes
+- Web push notifications
+- A public API for third-party integrations
+
+## Out of scope for v1
 
 - Algorithmic feed ranking
 - Advertising
-- Content reporting / heavy moderation
-- Direct messages
-- Groups or communities
+- Content reporting and heavy moderation
+- Groups and communities

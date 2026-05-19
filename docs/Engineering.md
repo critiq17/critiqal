@@ -1,4 +1,21 @@
-# Critiqal - Engineering
+<p align="center">
+  <img src="assets/logo.svg" width="48" height="48" alt="Critiqal" />
+</p>
+
+# Critiqal — Engineering
+
+## Environments
+
+Critiqal runs in two fully isolated environments. Each has its own database, its own Telegram bot, and its own data; development is a mirror used to validate changes before release.
+
+| Environment | URL | Telegram bot | Frontend / API ports |
+|-------------|-----|--------------|----------------------|
+| Production  | critiqal.xyz | @critiqa1_bot | 3000 / 8082 |
+| Development | dev.critiqal.xyz | @critiqal_dev_bot | 3001 / 8083 |
+
+Public traffic reaches the host through a Cloudflare Tunnel into Nginx, which routes `/api/*` to the Quarkus backend and everything else to the SvelteKit frontend. The deployment runbook is `docs/deploy.md`.
+
+The product is delivered as a Telegram Mini App; there is no native iOS or Android client. The same SvelteKit codebase serves both the Mini App shell and the desktop web experience, switching at runtime in `+layout.svelte`.
 
 ## Repository Structure
 
@@ -51,9 +68,8 @@ Generated directories that should usually not be edited by hand:
 
 ## Current Architecture
 
-- The repository currently contains one backend service and one frontend app.
-- There is no separate `core-service`, `event-service`, `infra/` root module, or Redis-backed session service in this codebase.
-- Runtime dependencies in the current code are PostgreSQL, Cloudflare R2 for media storage, and the Strava API.
+- The repository contains one backend service and one frontend app. There is no separate `core-service`, `event-service`, or `infra/` root module.
+- Runtime dependencies are PostgreSQL for primary data, Redis for sessions, Cloudflare R2 for media storage, and the Strava API.
 - Authentication uses HttpOnly cookie sessions backed by Redis. The frontend never touches the session token; the browser sends the cookie automatically on every request.
 
 ## Backend Architecture
@@ -321,8 +337,11 @@ Reusable low-level primitives such as:
 - `Toast`
 - `Avatar`
 - `Skeleton`
+- `Spinner`
+- `StarMark` — the static brand mark (coral star), used in headers and as the favicon source
+- `StarDraw` — the brand mark drawing itself, used as the quiet loading and posting indicator
 
-Put code here only if it is generic enough to be reused across multiple features.
+Put code here only if it is generic enough to be reused across multiple features. The brand mark is a single coral star; `StarMark` renders it static and `StarDraw` animates its outline drawing on, filling, and gently redrawing. The favicon at `frontend/static/assets/critiqal-favicon.png` uses the same mark.
 
 #### `lib/query/`
 
