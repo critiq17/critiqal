@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount, untrack } from 'svelte';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import StarMark from '$lib/ui/StarMark.svelte';
 
 	function handleLogout(): void {
 		authStore.logout();
@@ -48,6 +49,7 @@
 
 <aside class="sidebar" aria-label="Navigation sidebar">
 	<div class="sidebar-logo">
+		<StarMark size={20} title="Critiqal" />
 		<span class="logo-text">critiqal</span>
 	</div>
 
@@ -168,6 +170,9 @@
 	}
 
 	.sidebar-logo {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		padding: 0 0.75rem;
 		margin-bottom: 2.25rem;
 	}
@@ -416,16 +421,11 @@
 	@media (max-width: 900px) {
 		.sidebar-logo {
 			padding: 0;
-			text-align: center;
+			justify-content: center;
 		}
 
 		.logo-text {
-			font-size: 0;
-		}
-
-		.logo-text::after {
-			content: 'c';
-			font-size: 1.25rem;
+			display: none;
 		}
 
 		.nav-link span:not(.nav-icon),
