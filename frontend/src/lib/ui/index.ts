@@ -8,6 +8,8 @@ export { default as Modal } from './Modal.svelte';
 export { default as Sheet } from './Sheet.svelte';
 export { default as Skeleton } from './Skeleton.svelte';
 export { default as Spinner } from './Spinner.svelte';
+export { default as StarMark } from './StarMark.svelte';
+export { default as StarDraw } from './StarDraw.svelte';
 export { default as Tabs } from './Tabs.svelte';
 export { default as Toast } from './Toast.svelte';
 export { reducedMotion } from './reducedMotion.svelte.ts';

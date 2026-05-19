@@ -10,6 +10,7 @@
 	import ComposerPhotoPicker from '$lib/components/composer/ComposerPhotoPicker.svelte';
 	import ComposerPhotoPreview from '$lib/components/composer/ComposerPhotoPreview.svelte';
 	import { registerSheet } from '$lib/actions/registerSheet';
+	import StarDraw from '$lib/ui/StarDraw.svelte';
 
 	interface Props {
 		open: boolean;
@@ -113,9 +114,7 @@
 			type="button"
 		>
 			{#if composer.loading}
-				<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16" aria-hidden="true">
-					<path d="M12 3a9 9 0 1 0 9 9" stroke-linecap="round" />
-				</svg>
+				<StarDraw size={20} duration={1100} title="Posting" />
 			{:else}
 				Post
 			{/if}
@@ -300,16 +299,6 @@
 
 	.post-btn:disabled {
 		cursor: default;
-	}
-
-	.spin {
-		animation: spin 0.8s linear infinite;
-	}
-
-	@keyframes spin {
-		to {
-			transform: rotate(360deg);
-		}
 	}
 
 	.error-msg {

@@ -5,6 +5,7 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
+	import StarDraw from '$lib/ui/StarDraw.svelte';
 
 	// Pull-to-refresh
 	let isPulling = $state(false);
@@ -144,10 +145,8 @@
 	ontouchend={onPullTouchEnd}
 >
 	{#if mobileFeedStore.status === 'loading' && mobileFeedStore.posts.length === 0}
-		<div class="feed-state">
-			<div class="skeleton-card"></div>
-			<div class="skeleton-card"></div>
-			<div class="skeleton-card"></div>
+		<div class="feed-loader" aria-busy="true" aria-label="Loading feed">
+			<StarDraw size={52} duration={1900} title="Loading feed" />
 		</div>
 	{:else if mobileFeedStore.error && mobileFeedStore.posts.length === 0}
 		<div class="feed-state error">
@@ -170,7 +169,9 @@
 		{/if}
 
 		{#if mobileFeedStore.isLoadingMore}
-			<div class="loading-more">Loading…</div>
+			<div class="loading-more" aria-busy="true" aria-label="Loading more posts">
+				<StarDraw size={24} duration={1500} title="Loading more posts" />
+			</div>
 		{/if}
 	{/if}
 </div>
@@ -270,16 +271,13 @@
 		font-size: 14px;
 	}
 
-	.skeleton-card {
-		height: 120px;
-		border-radius: 12px;
-		background: var(--color-surface-raised, #242424);
-		animation: pulse 1.4s ease-in-out infinite;
-	}
-
-	@keyframes pulse {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.4; }
+	/* Quiet brand loader — centered, calm, no skeleton noise */
+	.feed-loader {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 22vh 16px;
+		opacity: 0.9;
 	}
 
 	/* Infinite scroll */
@@ -288,10 +286,11 @@
 	}
 
 	.loading-more {
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 16px;
-		text-align: center;
-		font-size: 13px;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.5));
+		opacity: 0.7;
 	}
 
 </style>
