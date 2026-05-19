@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PostPhoto } from '$lib/types';
-	import PhotoLightbox from '$lib/components/photo/PhotoLightbox.svelte';
 	import {
 		DEFAULT_RATIO,
 		clampFeedRatio,
@@ -23,8 +22,6 @@
 
 	const DOUBLE_TAP_MS = 320;
 	let lastTapAt = 0;
-	// Suppress the single-tap lightbox open that rides along on a double-tap.
-	let suppressClickUntil = 0;
 	// Bumped on every double-tap so the bloom animation re-mounts and restarts.
 	let bloomKey = $state(0);
 
@@ -32,7 +29,6 @@
 		const now = performance.now();
 		if (now - lastTapAt < DOUBLE_TAP_MS) {
 			bloomKey += 1;
-			suppressClickUntil = now + 400;
 			onDoubleTapLike?.();
 			lastTapAt = 0;
 		} else {
@@ -49,8 +45,15 @@
 	let ratioMeasured = $state(false);
 
 	let scrollIndex = $state(0);
-	let lightboxOpen = $state(false);
-	let lightboxStartIndex = $state(0);
+	let stripEl = $state<HTMLDivElement | null>(null);
+
+	// Desktop-only arrow nav: one slide per click. Touch devices keep
+	// swiping; no wheel handler (vertical wheel must stay page scroll).
+	function go(dir: -1 | 1): void {
+		const el = stripEl;
+		if (!el) return;
+		el.scrollBy({ left: dir * el.clientWidth, behavior: 'smooth' });
+	}
 
 	function onFirstImgLoad(e: Event): void {
 		if (ratioMeasured) return;
@@ -61,19 +64,6 @@
 	function onStripScroll(e: Event): void {
 		const el = e.currentTarget as HTMLDivElement;
 		scrollIndex = Math.round(el.scrollLeft / el.clientWidth);
-	}
-
-	function openAt(index: number): void {
-		if (performance.now() < suppressClickUntil) return;
-		lightboxStartIndex = index;
-		lightboxOpen = true;
-	}
-
-	function onPhotoKey(e: KeyboardEvent, index: number): void {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			openAt(index);
-		}
 	}
 </script>
 
@@ -86,19 +76,12 @@
 			class="photo-strip"
 			role="region"
 			aria-label="Post photos for post {postId}"
+			bind:this={stripEl}
 			onscroll={onStripScroll}
 			onpointerdown={onStripPointerDown}
 		>
 			{#each sorted as photo, i (photo.id)}
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div
-					class="photo-slide"
-					role="button"
-					tabindex="0"
-					aria-label="Open photo {i + 1} of {total}"
-					onclick={() => openAt(i)}
-					onkeydown={(e) => onPhotoKey(e, i)}
-				>
+				<div class="photo-slide">
 					<img
 						src={photo.url}
 						alt=""
@@ -113,6 +96,45 @@
 		</div>
 
 		{#if total > 1}
+			{#if scrollIndex > 0}
+				<button
+					class="nav-arrow nav-arrow--prev"
+					type="button"
+					aria-label="Previous photo"
+					onclick={() => go(-1)}
+				>
+					<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+						<path
+							d="M15 18l-6-6 6-6"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+				</button>
+			{/if}
+			{#if scrollIndex < total - 1}
+				<button
+					class="nav-arrow nav-arrow--next"
+					type="button"
+					aria-label="Next photo"
+					onclick={() => go(1)}
+				>
+					<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+						<path
+							d="M9 18l6-6-6-6"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2.2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+				</button>
+			{/if}
+
 			<div class="dots" role="presentation">
 				{#each sorted as photo, i (photo.id)}
 					<div class="dot" class:dot--active={scrollIndex === i} data-photo-id={photo.id}></div>
@@ -134,15 +156,6 @@
 			{/if}
 		{/key}
 	</div>
-
-	{#if lightboxOpen}
-		<PhotoLightbox
-			photos={sorted}
-			startIndex={lightboxStartIndex}
-			onClose={() => (lightboxOpen = false)}
-			{onDoubleTapLike}
-		/>
-	{/if}
 {/if}
 
 <style>
@@ -183,13 +196,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		cursor: zoom-in;
 		background: #000;
-		outline: none;
-	}
-
-	.photo-slide:focus-visible {
-		box-shadow: inset 0 0 0 2px var(--color-text-primary);
 	}
 
 	.photo-img {
@@ -200,6 +207,58 @@
 		object-fit: contain;
 		user-select: none;
 		-webkit-user-drag: none;
+	}
+
+	/* Arrow nav is a pointer affordance — hidden on touch (swipe instead),
+	   shown only on hover-capable fine pointers (desktop). Fades in with
+	   gallery hover so it stays out of the way. */
+	.nav-arrow {
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+		z-index: 2;
+		display: none;
+		align-items: center;
+		justify-content: center;
+		width: 34px;
+		height: 34px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		color: #fff;
+		background: rgba(0, 0, 0, 0.42);
+		backdrop-filter: blur(12px) saturate(140%);
+		-webkit-backdrop-filter: blur(12px) saturate(140%);
+		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
+		cursor: pointer;
+		opacity: 0;
+		transition: opacity 180ms ease, background 150ms ease;
+	}
+
+	.nav-arrow--prev {
+		left: 10px;
+	}
+
+	.nav-arrow--next {
+		right: 10px;
+	}
+
+	.nav-arrow svg {
+		display: block;
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.nav-arrow {
+			display: inline-flex;
+		}
+
+		.gallery:hover .nav-arrow {
+			opacity: 1;
+		}
+
+		.nav-arrow:hover {
+			background: rgba(0, 0, 0, 0.6);
+		}
 	}
 
 	.dots {

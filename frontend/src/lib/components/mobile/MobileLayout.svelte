@@ -15,6 +15,7 @@
 	import MobileProfile from './MobileProfile.svelte';
 	import OverlayHost from './OverlayHost.svelte';
 	import MobileCommentsSheet from './MobileCommentsSheet.svelte';
+	import MobilePostFocus from '$lib/components/post/MobilePostFocus.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 
@@ -116,6 +117,8 @@
 <OverlayHost />
 
 <MobileCommentsSheet />
+
+<MobilePostFocus />
 
 {#if MobilePostComposer && composeStore.open}
 	<MobilePostComposer
