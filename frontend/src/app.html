@@ -19,9 +19,15 @@
 				tg.ready();
 				tg.expand();
 
+				// Drive the app theme off Telegram's colorScheme before first paint to
+				// avoid a dark→light flash. The CSS overrides live under [data-theme="light"].
+				if (tg.colorScheme === 'light') {
+					document.documentElement.setAttribute('data-theme', 'light');
+				}
+
 				// setHeaderColor must use the same color as the app background (--tg-bg).
 				// Using tg.backgroundColor ensures the header blends seamlessly with app content.
-				tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+				tg.setHeaderColor(tg.backgroundColor || (tg.colorScheme === 'light' ? '#ffffff' : '#0f0f0f'));
 
 				// Disable swipe-down-to-minimize/close. With the SDK loaded this
 				// now actually reaches the client. Re-asserted on every gesture
@@ -79,7 +85,12 @@
 				tg.onEvent('safeAreaChanged', applyViewport);
 				tg.onEvent('contentSafeAreaChanged', applyViewport);
 				tg.onEvent('themeChanged', function() {
-					tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+					if (tg.colorScheme === 'light') {
+						document.documentElement.setAttribute('data-theme', 'light');
+					} else {
+						document.documentElement.removeAttribute('data-theme');
+					}
+					tg.setHeaderColor(tg.backgroundColor || (tg.colorScheme === 'light' ? '#ffffff' : '#0f0f0f'));
 				});
 				applyViewport();
 			}
