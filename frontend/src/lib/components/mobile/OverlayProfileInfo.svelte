@@ -114,7 +114,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-medium);
 		color: var(--tg-text, #f0f0f0);
 		font-size: 28px;
 		font-weight: 600;
@@ -159,7 +159,7 @@
 	}
 
 	.follow-btn.following {
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-medium);
 		color: var(--tg-text, #f0f0f0);
 	}
 
@@ -170,7 +170,7 @@
 		justify-content: center;
 		gap: 32px;
 		padding: 8px 20px 16px;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		border-bottom: 1px solid var(--surface-tint-soft);
 	}
 
 	.stat-item {
@@ -197,7 +197,7 @@
 	}
 
 	.stat-item--btn:not(:disabled):active {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 	}
 
 	.stat-value {

@@ -271,7 +271,7 @@
 		font-size: 14px;
 		font-weight: 600;
 		font-family: inherit;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--text-secondary-2);
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
 		transition:
@@ -286,15 +286,15 @@
 	}
 
 	.post-btn {
-		color: rgba(255, 255, 255, 0.32);
+		color: var(--text-faint);
 	}
 
 	.post-btn.ready {
-		color: #fff;
+		color: var(--color-text-primary);
 		box-shadow:
 			var(--glass-shadow, 0 8px 32px rgba(0, 0, 0, 0.4)),
-			inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.14)),
-			0 0 0 1px rgba(255, 255, 255, 0.14);
+			inset 0 1px 0 var(--glass-highlight, var(--surface-tint-strong)),
+			0 0 0 1px var(--surface-tint-strong);
 	}
 
 	.post-btn:disabled {
@@ -352,7 +352,7 @@
 	.avatar-initial {
 		font-size: 14px;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.55);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -371,7 +371,7 @@
 
 	.author-handle {
 		font-size: 13px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.4));
+		color: var(--tg-hint, var(--text-quaternary));
 	}
 
 	/* ── Bottom bar (preview strip + glass toolbar) ─────────────────────── */
@@ -380,7 +380,7 @@
 		background: var(--glass-bg, rgba(20, 20, 20, 0.78));
 		backdrop-filter: blur(var(--glass-blur, 24px)) saturate(var(--glass-saturate, 180%));
 		-webkit-backdrop-filter: blur(var(--glass-blur, 24px)) saturate(var(--glass-saturate, 180%));
-		border-top: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+		border-top: 1px solid var(--glass-border, var(--surface-tint-medium));
 		padding-bottom: calc(var(--safe-bottom, 0px) + 8px);
 		will-change: transform;
 	}
@@ -400,7 +400,7 @@
 
 	.photo-hint {
 		font-size: 12px;
-		color: var(--tg-hint, rgba(255, 255, 255, 0.35));
+		color: var(--tg-hint, var(--text-faint));
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -411,7 +411,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 	}
 
 	.counter.warn {
@@ -436,7 +436,7 @@
 
 	.ring-track {
 		fill: none;
-		stroke: rgba(255, 255, 255, 0.1);
+		stroke: var(--surface-tint-medium);
 		stroke-width: 2.5;
 	}
 

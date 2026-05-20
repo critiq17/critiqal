@@ -74,7 +74,7 @@
 		width: 42px;
 		height: 42px;
 		padding: 0;
-		color: rgba(255, 255, 255, 0.75);
+		color: var(--text-secondary-2);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -87,9 +87,9 @@
 	}
 
 	.footer-icon-btn:active {
-		color: #fff;
+		color: var(--color-text-primary);
 		transform: scale(0.9);
-		background-color: rgba(255, 255, 255, 0.06);
+		background-color: var(--surface-tint-soft);
 	}
 
 	.footer-icon-btn:disabled {

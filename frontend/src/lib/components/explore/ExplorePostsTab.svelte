@@ -79,7 +79,7 @@
 
 	.post-skeleton {
 		padding: 14px 16px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+		border-bottom: 1px solid var(--color-border, var(--surface-tint-soft));
 		animation: fadeSlideUp 0.22s ease both;
 	}
 
@@ -118,7 +118,7 @@
 		padding: 16px;
 		text-align: center;
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 	}
 
 	@keyframes fadeSlideUp {

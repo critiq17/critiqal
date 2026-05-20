@@ -95,7 +95,7 @@
 		background-color: var(--glass-bg-soft, rgba(20, 20, 20, 0.5));
 		backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
 		-webkit-backdrop-filter: blur(calc(var(--glass-blur, 24px) + 8px)) saturate(var(--glass-saturate, 180%));
-		border-bottom: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+		border-bottom: 1px solid var(--glass-border, var(--surface-tint-medium));
 		/* GPU-cheap + a tiny localized padding reflow — smooth, no jank */
 		transition:
 			padding-top 0.34s cubic-bezier(0.4, 0, 0.2, 1),
@@ -160,7 +160,7 @@
 
 	.search-pill:focus-within {
 		box-shadow: var(--glass-shadow, 0 8px 32px rgba(0, 0, 0, 0.4)),
-			inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.1)),
+			inset 0 1px 0 var(--glass-highlight, var(--surface-tint-medium)),
 			0 0 0 1px color-mix(in srgb, var(--tg-accent, #e05252) 30%, transparent);
 	}
 
@@ -168,7 +168,7 @@
 		width: 16px;
 		height: 16px;
 		margin: 0 8px 0 4px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 		pointer-events: none;
 		flex-shrink: 0;
 	}
@@ -187,14 +187,14 @@
 		-webkit-appearance: none;
 	}
 
-	.search-input::placeholder { color: rgba(255, 255, 255, 0.4); }
+	.search-input::placeholder { color: var(--text-quaternary); }
 	.search-input::-webkit-search-cancel-button { display: none; }
 
 	.search-clear {
 		background: none;
 		border: none;
 		cursor: pointer;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 		padding: 4px;
 		margin-left: 4px;
 		display: flex;
@@ -208,13 +208,13 @@
 
 	.search-clear:hover {
 		color: var(--color-text-primary, #f0f0f0);
-		background-color: rgba(255, 255, 255, 0.1);
+		background-color: var(--surface-tint-medium);
 	}
 
 	.tab-bar {
 		display: flex;
 		position: relative;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		border-bottom: 1px solid var(--color-border, var(--surface-tint-medium));
 	}
 
 	.tab-btn {
@@ -227,7 +227,7 @@
 		font-size: 14px;
 		font-weight: 500;
 		font-family: inherit;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		transition: color 0.2s ease;
 		position: relative;
 		z-index: 1;

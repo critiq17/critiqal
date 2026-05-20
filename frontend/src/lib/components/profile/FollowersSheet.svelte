@@ -66,7 +66,7 @@
 		padding: 32px 16px;
 		text-align: center;
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 	}
 
 	.user-row {
@@ -104,7 +104,7 @@
 	.user-avatar-initial {
 		font-size: 15px;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -126,7 +126,7 @@
 
 	.user-handle {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -143,7 +143,7 @@
 		width: 40px;
 		height: 40px;
 		border-radius: 50%;
-		background: var(--color-skeleton, rgba(255, 255, 255, 0.08));
+		background: var(--color-skeleton, var(--surface-tint-medium));
 		animation: shimmer 1.6s ease-in-out infinite;
 		flex-shrink: 0;
 	}
@@ -158,7 +158,7 @@
 	.skeleton-line {
 		height: 12px;
 		border-radius: 4px;
-		background: var(--color-skeleton, rgba(255, 255, 255, 0.08));
+		background: var(--color-skeleton, var(--surface-tint-medium));
 		animation: shimmer 1.6s ease-in-out infinite;
 	}
 

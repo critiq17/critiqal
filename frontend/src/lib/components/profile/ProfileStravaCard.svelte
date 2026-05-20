@@ -96,7 +96,7 @@
 		background: none;
 		width: 100%;
 		text-align: left;
-		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		border-top: 1px solid var(--color-border, var(--surface-tint-medium));
 	}
 
 	.settings-row-info {
@@ -105,7 +105,7 @@
 
 	.settings-row-label {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 	}
 
 	.settings-row-strava-connect {
@@ -161,7 +161,7 @@
 
 	.strava-connected-label {
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.38);
+		color: var(--text-quaternary);
 	}
 
 	.strava-disconnect-btn {
@@ -219,7 +219,7 @@
 		padding: 6px 18px;
 		border-radius: 8px;
 		background: none;
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.15));
+		border: 1px solid var(--color-border, var(--surface-tint-strong));
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 14px;
 		cursor: pointer;
@@ -234,7 +234,7 @@
 	.strava-soon-note {
 		padding: 0 16px 12px;
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.38);
+		color: var(--text-quaternary);
 		line-height: 1.4;
 	}
 
@@ -248,8 +248,8 @@
 		display: inline-block;
 		width: 16px;
 		height: 16px;
-		border: 2px solid rgba(255, 255, 255, 0.15);
-		border-top-color: rgba(255, 255, 255, 0.55);
+		border: 2px solid var(--surface-tint-strong);
+		border-top-color: var(--text-tertiary);
 		border-radius: 50%;
 		animation: spin 0.8s linear infinite;
 		flex-shrink: 0;

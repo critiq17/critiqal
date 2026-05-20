@@ -284,11 +284,11 @@
 		margin-bottom: 8px;
 		background: linear-gradient(
 			180deg,
-			rgba(255, 255, 255, 0.022),
-			rgba(255, 255, 255, 0.009)
+			var(--surface-tint-faint),
+			var(--surface-tint-faint)
 		);
 		box-shadow:
-			inset 0 1px 0 rgba(255, 255, 255, 0.028),
+			inset 0 1px 0 var(--surface-tint-faint),
 			0 1px 2px rgba(0, 0, 0, 0.22);
 		transition:
 			transform 380ms var(--spring),
@@ -300,8 +300,8 @@
 	.post.mobile:active {
 		background: linear-gradient(
 			180deg,
-			rgba(255, 255, 255, 0.038),
-			rgba(255, 255, 255, 0.018)
+			var(--surface-tint-subtle),
+			var(--surface-tint-faint)
 		);
 	}
 
@@ -322,7 +322,7 @@
 		margin-bottom: 0;
 		border-radius: 22px;
 		padding: 16px 16px 12px;
-		background: #1c1c1e;
+		background: var(--color-surface-raised);
 		box-shadow:
 			inset 0 1px 0 var(--glass-highlight),
 			0 24px 64px rgba(0, 0, 0, 0.6);

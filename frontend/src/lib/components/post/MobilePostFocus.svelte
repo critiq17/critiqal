@@ -159,7 +159,7 @@
 		width: 36px;
 		height: 4px;
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.22);
+		background: var(--text-ghost);
 		margin: 0 auto 8px;
 	}
 

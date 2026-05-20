@@ -46,8 +46,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(255, 255, 255, 0.04);
-		color: rgba(255, 255, 255, 0.3);
+		background: var(--surface-tint-subtle);
+		color: var(--text-faint);
 		margin-bottom: 4px;
 	}
 
@@ -60,7 +60,7 @@
 
 	.empty-subtitle {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 		margin: 0;
 		margin-top: -4px;
 		max-width: 240px;
