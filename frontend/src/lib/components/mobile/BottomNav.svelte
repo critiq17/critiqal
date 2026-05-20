@@ -137,8 +137,9 @@
     min-width: 200px;
     border-radius: 32px;
     /* A touch more transparent than the default glass-soft so the dock reads
-       like the Telegram example. Blur still comes from .glass-soft. */
-    background: rgba(20, 20, 20, 0.4);
+       like the Telegram example. Blur still comes from .glass-soft. Uses the
+       theme-aware glass token so it inverts cleanly in light theme. */
+    background: var(--glass-bg-soft);
     padding: 9px 16px;
     touch-action: none;
     display: flex;
@@ -154,10 +155,10 @@
     top: 0;
     left: 0;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--surface-tint-medium);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.14),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.07);
+      inset 0 1px 0 var(--surface-tint-strong),
+      inset 0 0 0 0.5px var(--surface-tint-soft);
     opacity: 0;
     pointer-events: none;
     z-index: 0;
@@ -198,11 +199,11 @@
   }
 
   .tab-btn.active svg {
-    stroke: #f5f5f5;
+    stroke: var(--color-text-primary);
   }
 
   .tab-btn:not(.active) svg {
-    stroke: rgba(255, 255, 255, 0.42);
+    stroke: var(--text-quaternary);
   }
 
   .tab-btn:active svg {
@@ -230,7 +231,7 @@
     flex-shrink: 0;
     /* Slightly brighter than inactive tabs to give it subtle prominence
        without being the jarring accent-colour button it was before */
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--text-secondary-2);
     transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
                 color 0.15s ease;
     -webkit-tap-highlight-color: transparent;
@@ -238,6 +239,6 @@
 
   .compose-btn:active {
     transform: scale(0.88);
-    color: #fff;
+    color: var(--color-text-primary);
   }
 </style>

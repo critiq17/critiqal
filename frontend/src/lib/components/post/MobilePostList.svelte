@@ -78,7 +78,7 @@
 	.state-text {
 		margin: 0;
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--text-faint);
 		text-align: center;
 	}
 
@@ -89,9 +89,9 @@
 	.retry-btn {
 		padding: 8px 20px;
 		border-radius: 10px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--surface-tint-medium);
 		background: none;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--text-secondary-2);
 		font-size: 14px;
 		font-weight: 500;
 		font-family: inherit;
@@ -111,7 +111,7 @@
 
 	.skeleton-post {
 		height: var(--h, 88px);
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--surface-tint-subtle);
 		animation: pulse 1.4s ease-in-out infinite;
 	}
 

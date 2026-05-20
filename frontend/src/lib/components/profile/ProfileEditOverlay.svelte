@@ -184,7 +184,7 @@
 		width: 36px;
 		height: 4px;
 		border-radius: 2px;
-		background: rgba(255, 255, 255, 0.18);
+		background: var(--text-ghost);
 		flex-shrink: 0;
 	}
 
@@ -218,7 +218,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.cancel-btn { color: rgba(240, 240, 240, 0.5); text-align: left; }
+	.cancel-btn { color: var(--text-tertiary); text-align: left; }
 	.cancel-btn:active { opacity: 0.6; }
 
 	.save-btn {
@@ -252,7 +252,7 @@
 	.field-label {
 		font-size: 12px;
 		font-weight: 500;
-		color: rgba(240, 240, 240, 0.4);
+		color: var(--text-quaternary);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 	}
@@ -261,8 +261,8 @@
 	.field-textarea {
 		width: 100%;
 		box-sizing: border-box;
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-subtle);
+		border: 1px solid var(--surface-tint-medium);
 		border-radius: 12px;
 		padding: 12px 14px;
 		font-size: 16px;
@@ -275,11 +275,11 @@
 	}
 
 	.field-input::placeholder,
-	.field-textarea::placeholder { color: rgba(255, 255, 255, 0.2); }
+	.field-textarea::placeholder { color: var(--text-ghost); }
 
 	.field-input:focus,
 	.field-textarea:focus {
-		border-color: rgba(255, 255, 255, 0.2);
+		border-color: var(--text-ghost);
 	}
 
 	.field-input:disabled,
@@ -287,7 +287,7 @@
 
 	.char-count {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.25);
+		color: var(--text-faint);
 		text-align: right;
 	}
 

@@ -30,14 +30,14 @@
 		padding: 6px 4px 10px;
 		padding-top: calc(10px + var(--tg-top-clearance));
 		/* glass-strong supplies background/blur/border/shadow */
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		border-bottom: 1px solid var(--surface-tint-soft);
 	}
 
 	.back-btn {
 		background: none;
 		border: none;
 		cursor: pointer;
-		color: var(--tg-text, rgba(240, 240, 240, 0.85));
+		color: var(--tg-text, var(--text-strong));
 		min-width: 44px;
 		min-height: 44px;
 		display: flex;
@@ -50,7 +50,7 @@
 
 	.back-btn:active {
 		opacity: 0.55;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 	}
 
 	.header-title {

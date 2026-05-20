@@ -229,7 +229,7 @@
 		transform: translateX(-50%);
 		z-index: 10;
 		pointer-events: none;
-		color: var(--color-text-secondary, rgba(240, 240, 240, 0.6));
+		color: var(--color-text-secondary, var(--text-tertiary));
 		transition: opacity 0.15s ease;
 	}
 

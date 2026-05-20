@@ -73,7 +73,7 @@
 		gap: 12px;
 		padding: 12px 16px;
 		min-height: 48px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+		border-bottom: 1px solid var(--color-border, var(--surface-tint-soft));
 		animation: fadeSlideUp 0.25s ease both;
 	}
 
@@ -94,7 +94,7 @@
 	.avatar-initial {
 		font-size: 13px;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -115,7 +115,7 @@
 		text-overflow: ellipsis;
 	}
 
-	.handle { font-size: 12px; color: rgba(255, 255, 255, 0.4); }
+	.handle { font-size: 12px; color: var(--text-quaternary); }
 
 	.follow-btn {
 		background: var(--tg-accent, #e05252);
@@ -135,11 +135,11 @@
 	.follow-btn:hover { opacity: 0.85; }
 
 	.follow-btn.following {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.7);
+		background: var(--surface-tint-medium);
+		color: var(--text-secondary-2);
 	}
 
-	.follow-btn.following:hover { background: rgba(255, 255, 255, 0.12); opacity: 1; }
+	.follow-btn.following:hover { background: var(--surface-tint-strong); opacity: 1; }
 
 	.skeleton-list { display: flex; flex-direction: column; padding-top: 4px; }
 
@@ -148,7 +148,7 @@
 		align-items: center;
 		gap: 12px;
 		padding: 12px 16px;
-		border-bottom: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+		border-bottom: 1px solid var(--color-border, var(--surface-tint-soft));
 		animation: fadeSlideUp 0.22s ease both;
 	}
 

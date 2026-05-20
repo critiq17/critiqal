@@ -149,7 +149,7 @@
 	}
 
 	.skel {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		border-radius: 8px;
 		animation: pulse 1.4s ease-in-out infinite;
 	}
@@ -174,7 +174,7 @@
 		margin-top: 12px;
 		padding: 8px 24px;
 		border-radius: 20px;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-medium);
 		border: none;
 		color: var(--tg-text, #f0f0f0);
 		cursor: pointer;

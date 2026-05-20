@@ -11,17 +11,39 @@
 		     Without it the swipe lock and native buttons silently do nothing. -->
 		<script src="https://telegram.org/js/telegram-web-app.js?62"></script>
 		<script>
+			// telegram-web-app.js creates a WebApp stub even on the regular desktop
+			// site, with colorScheme defaulting to 'light' — so we MUST gate every
+			// Telegram-specific side effect (theme, header color, fullscreen, swipe
+			// lock) on a real mini-app context. A real client provides initData
+			// AND/OR a concrete platform; the stub has empty initData and platform
+			// 'unknown'. This mirrors isTelegramMiniApp() in $lib/telegram.ts.
+			function isRealTMA() {
+				var wa = window.Telegram && window.Telegram.WebApp;
+				if (!wa) return false;
+				if (window.location.hash.indexOf('tgWebApp') !== -1) return true;
+				if (wa.initData && wa.initData.length > 0) return true;
+				if (wa.platform && wa.platform !== 'unknown') return true;
+				return false;
+			}
+
 			// Initialize Telegram Mini App before first paint to prevent flash of unstyled content.
-			if (window.Telegram?.WebApp) {
+			if (isRealTMA()) {
 				var tg = window.Telegram.WebApp;
 
 				// ready() must be called first — enables subsequent method calls to take effect.
 				tg.ready();
 				tg.expand();
 
+				// Drive the app theme off Telegram's colorScheme before first paint to
+				// avoid a dark→light flash. The CSS overrides live under [data-theme="light"].
+				// Desktop never enters this block, so the dark default is preserved.
+				if (tg.colorScheme === 'light') {
+					document.documentElement.setAttribute('data-theme', 'light');
+				}
+
 				// setHeaderColor must use the same color as the app background (--tg-bg).
 				// Using tg.backgroundColor ensures the header blends seamlessly with app content.
-				tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+				tg.setHeaderColor(tg.backgroundColor || (tg.colorScheme === 'light' ? '#ffffff' : '#0f0f0f'));
 
 				// Disable swipe-down-to-minimize/close. With the SDK loaded this
 				// now actually reaches the client. Re-asserted on every gesture
@@ -79,7 +101,12 @@
 				tg.onEvent('safeAreaChanged', applyViewport);
 				tg.onEvent('contentSafeAreaChanged', applyViewport);
 				tg.onEvent('themeChanged', function() {
-					tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+					if (tg.colorScheme === 'light') {
+						document.documentElement.setAttribute('data-theme', 'light');
+					} else {
+						document.documentElement.removeAttribute('data-theme');
+					}
+					tg.setHeaderColor(tg.backgroundColor || (tg.colorScheme === 'light' ? '#ffffff' : '#0f0f0f'));
 				});
 				applyViewport();
 			}

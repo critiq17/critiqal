@@ -115,16 +115,16 @@
 
 	.empty-text {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.3);
+		color: var(--text-faint);
 		margin: 0;
 	}
 
 	.retry-btn {
 		padding: 8px 20px;
 		border-radius: 10px;
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--surface-tint-medium);
 		background: none;
-		color: rgba(255, 255, 255, 0.7);
+		color: var(--text-secondary-2);
 		font-size: 14px;
 		cursor: pointer;
 		font-family: inherit;
@@ -144,7 +144,7 @@
 		padding: 12px 16px;
 		background: none;
 		border: none;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+		border-bottom: 1px solid var(--surface-tint-subtle);
 		text-align: left;
 		font-family: inherit;
 		cursor: pointer;
@@ -152,13 +152,13 @@
 		transition: background-color 0.12s;
 	}
 
-	.user-row:active { background: rgba(255, 255, 255, 0.04); }
+	.user-row:active { background: var(--surface-tint-subtle); }
 
 	.user-avatar {
 		width: 42px;
 		height: 42px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.07);
+		background: var(--surface-tint-soft);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -171,7 +171,7 @@
 	.avatar-initial {
 		font-size: 15px;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -194,11 +194,11 @@
 
 	.user-handle {
 		font-size: 12px;
-		color: rgba(255, 255, 255, 0.38);
+		color: var(--text-quaternary);
 	}
 
 	.row-chevron {
-		color: rgba(255, 255, 255, 0.18);
+		color: var(--text-ghost);
 		flex-shrink: 0;
 	}
 
@@ -207,14 +207,14 @@
 		align-items: center;
 		gap: 12px;
 		padding: 12px 16px;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+		border-bottom: 1px solid var(--surface-tint-subtle);
 	}
 
 	.skeleton-avatar {
 		width: 42px;
 		height: 42px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.07);
+		background: var(--surface-tint-soft);
 		flex-shrink: 0;
 		animation: pulse 1.4s ease-in-out infinite;
 	}
@@ -229,7 +229,7 @@
 	.skeleton-line {
 		height: 12px;
 		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.07);
+		background: var(--surface-tint-soft);
 		animation: pulse 1.4s ease-in-out infinite;
 	}
 

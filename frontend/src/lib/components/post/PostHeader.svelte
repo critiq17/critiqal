@@ -80,7 +80,7 @@
 		align-items: center;
 		justify-content: center;
 		box-shadow:
-			0 0 0 0.5px rgba(255, 255, 255, 0.1),
+			0 0 0 0.5px var(--surface-tint-medium),
 			inset 0 0 0 0.5px rgba(0, 0, 0, 0.3);
 	}
 
@@ -164,7 +164,7 @@
 	}
 
 	.p-more:hover {
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-tint-subtle);
 		color: var(--color-text-primary);
 	}
 
