@@ -478,7 +478,7 @@
 		background: none;
 		width: 100%;
 		text-align: left;
-		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		border-top: 1px solid var(--color-border, var(--surface-tint-medium));
 	}
 
 	.settings-row:first-child { border-top: none; }
@@ -488,7 +488,7 @@
 		font-weight: 400;
 	}
 
-	.settings-row-link:active { background: rgba(255, 255, 255, 0.05); }
+	.settings-row-link:active { background: var(--surface-tint-subtle); }
 
 	.settings-row-danger {
 		color: #e05252;
@@ -501,18 +501,18 @@
 
 	.settings-row-label {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 	}
 
 	.settings-row-value {
 		font-size: 14px;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--text-faint);
 	}
 
 	/* ── Accordion sections ──────────────────────────────────────────────── */
 
 	.settings-section {
-		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.08));
+		border-top: 1px solid var(--color-border, var(--surface-tint-medium));
 	}
 
 	.settings-section .settings-row {
@@ -524,7 +524,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 10px;
-		border-top: 1px solid var(--color-border, rgba(255, 255, 255, 0.06));
+		border-top: 1px solid var(--color-border, var(--surface-tint-soft));
 	}
 
 	/* ── Chevron ──────────────────────────────────────────────────────────── */
@@ -564,8 +564,8 @@
 	}
 
 	.mobile-badge-off {
-		background: rgba(240, 240, 240, 0.06);
-		color: rgba(255, 255, 255, 0.4);
+		background: var(--surface-tint-soft);
+		color: var(--text-quaternary);
 	}
 
 	/* ── Spinner ──────────────────────────────────────────────────────────── */
@@ -574,8 +574,8 @@
 		display: inline-block;
 		width: 12px;
 		height: 12px;
-		border: 2px solid rgba(255, 255, 255, 0.15);
-		border-top-color: rgba(255, 255, 255, 0.5);
+		border: 2px solid var(--surface-tint-strong);
+		border-top-color: var(--text-tertiary);
 		border-radius: 50%;
 		animation: spin 0.7s linear infinite;
 	}
@@ -598,7 +598,7 @@
 	.mobile-input {
 		width: 100%;
 		background: var(--color-surface-raised, #1a1a1a);
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+		border: 1px solid var(--color-border, var(--surface-tint-medium));
 		border-radius: 8px;
 		padding: 10px 12px;
 		font-size: 15px;
@@ -609,7 +609,7 @@
 	}
 
 	.mobile-input:focus {
-		border-color: rgba(240, 240, 240, 0.3);
+		border-color: var(--text-faint);
 	}
 
 	.mobile-input:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -640,7 +640,7 @@
 	.mobile-ghost-btn {
 		padding: 10px 16px;
 		border-radius: 8px;
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+		border: 1px solid var(--color-border, var(--surface-tint-strong));
 		background: none;
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 14px;
@@ -664,7 +664,7 @@
 
 	.mobile-hint {
 		font-size: 13px;
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		margin: 0;
 		line-height: 1.4;
 	}
@@ -708,7 +708,7 @@
 	}
 
 	.tfa-manual summary {
-		color: rgba(255, 255, 255, 0.5);
+		color: var(--text-tertiary);
 		cursor: pointer;
 	}
 
@@ -719,7 +719,7 @@
 		font-size: 12px;
 		color: var(--color-text-primary, #f0f0f0);
 		background: var(--color-surface-raised, #1a1a1a);
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+		border: 1px solid var(--color-border, var(--surface-tint-medium));
 		border-radius: 6px;
 		padding: 8px 10px;
 		word-break: break-all;
@@ -740,7 +740,7 @@
 		font-size: 12px;
 		color: var(--color-text-primary, #f0f0f0);
 		background: var(--color-surface-raised, #1a1a1a);
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.1));
+		border: 1px solid var(--color-border, var(--surface-tint-medium));
 		border-radius: 6px;
 		padding: 6px 8px;
 		letter-spacing: 0.04em;

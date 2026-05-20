@@ -346,7 +346,7 @@
 		border: 1px solid var(--glass-border);
 		box-shadow: inset 0 1px 0 var(--glass-highlight);
 		cursor: pointer;
-		color: rgba(240, 240, 240, 0.7);
+		color: var(--text-secondary-2);
 		width: 2.2rem;
 		height: 2.2rem;
 		display: inline-flex;
@@ -365,7 +365,7 @@
 	.settings-btn:active {
 		transform: scale(0.88);
 		transition-duration: 0.07s;
-		color: #fff;
+		color: var(--color-text-primary);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
@@ -386,7 +386,7 @@
 		height: 5.25rem;
 		padding: 0;
 		border: none;
-		background: rgba(255, 255, 255, 0.07);
+		background: var(--surface-tint-soft);
 		border-radius: 50%;
 		cursor: pointer;
 		position: relative;
@@ -414,7 +414,7 @@
 		height: 100%;
 		font-size: 1.75rem;
 		font-weight: 600;
-		color: rgba(240, 240, 240, 0.55);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -467,7 +467,7 @@
 	.username {
 		margin: 0;
 		font-size: 0.875rem;
-		color: rgba(240, 240, 240, 0.42);
+		color: var(--text-quaternary);
 	}
 
 	.identity-actions {
@@ -480,7 +480,7 @@
 	.bio {
 		margin: 0;
 		font-size: 0.9375rem;
-		color: rgba(240, 240, 240, 0.78);
+		color: var(--text-strong);
 		line-height: 1.5;
 		white-space: pre-wrap;
 		word-break: break-word;
@@ -506,11 +506,11 @@
 	.btn-outline {
 		background: none;
 		color: var(--tg-theme-text-color, #f0f0f0);
-		border: 1px solid rgba(255, 255, 255, 0.16);
+		border: 1px solid var(--surface-tint-strong);
 	}
 
 	.btn-outline:active:not(:disabled) {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		transform: scale(0.97);
 	}
 
@@ -543,7 +543,7 @@
 		width: 5.25rem;
 		height: 5.25rem;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		animation: shimmer 1.6s ease-in-out infinite;
 		flex-shrink: 0;
 	}
@@ -560,7 +560,7 @@
 	.skeleton-line {
 		height: 0.875rem;
 		border-radius: 0.25rem;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		animation: shimmer 1.6s ease-in-out infinite;
 	}
 
@@ -585,7 +585,7 @@
 	.retry-btn {
 		padding: 0.5rem 1.25rem;
 		border-radius: 0.625rem;
-		border: 1px solid rgba(255, 255, 255, 0.15);
+		border: 1px solid var(--surface-tint-strong);
 		background: none;
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 0.875rem;
@@ -623,7 +623,7 @@
 
 	.strava-toast--denied {
 		background: rgba(60, 60, 60, 0.95);
-		color: rgba(255, 255, 255, 0.8);
+		color: var(--text-strong);
 	}
 
 	@keyframes fadeIn {

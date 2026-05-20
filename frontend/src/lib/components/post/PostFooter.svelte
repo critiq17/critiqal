@@ -149,7 +149,7 @@
 	}
 
 	.act:hover {
-		background: rgba(255, 255, 255, 0.045);
+		background: var(--surface-tint-subtle);
 		color: var(--color-text-primary);
 	}
 

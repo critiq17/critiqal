@@ -38,7 +38,7 @@
 		justify-content: center;
 		padding: 60px 24px;
 		gap: 16px;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 		text-align: center;
 	}
 
@@ -49,13 +49,13 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--surface-tint-subtle);
 	}
 
-	.icon-wrap svg { width: 22px; height: 22px; color: rgba(255, 255, 255, 0.3); }
+	.icon-wrap svg { width: 22px; height: 22px; color: var(--text-faint); }
 
 	.icon-wrap.dashed {
-		border: 1.5px dashed rgba(255, 255, 255, 0.2);
+		border: 1.5px dashed var(--text-ghost);
 		background: none;
 	}
 
@@ -66,13 +66,13 @@
 		margin: 0;
 	}
 
-	.subtitle { font-size: 13px; color: rgba(255, 255, 255, 0.4); margin: 0; margin-top: -8px; }
+	.subtitle { font-size: 13px; color: var(--text-quaternary); margin: 0; margin-top: -8px; }
 
 	.retry-btn {
 		margin-top: 4px;
 		padding: 8px 20px;
 		border-radius: 8px;
-		border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
+		border: 1px solid var(--color-border, var(--surface-tint-strong));
 		background: none;
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 14px;

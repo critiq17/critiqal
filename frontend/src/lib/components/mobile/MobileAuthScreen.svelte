@@ -274,7 +274,7 @@
 <style>
 	.auth-page {
 		height: 100%;
-		background: #090909;
+		background: var(--color-bg);
 		overflow-y: auto;
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
@@ -295,8 +295,8 @@
 	.auth-card {
 		width: 100%;
 		max-width: 21.8rem;
-		background: #121212;
-		border: 1px solid rgba(255, 255, 255, 0.07);
+		background: var(--color-surface);
+		border: 1px solid var(--surface-tint-soft);
 		border-radius: 1rem;
 		padding: 2.4rem 1.55rem 1.7rem;
 		display: flex;
@@ -317,13 +317,13 @@
 		font-weight: 700;
 		line-height: 1;
 		letter-spacing: -0.04em;
-		color: #f4f4f4;
+		color: var(--color-text-primary);
 	}
 
 	.subtitle {
 		margin: 0;
 		font-size: 0.95rem;
-		color: rgba(255, 255, 255, 0.24);
+		color: var(--text-tertiary);
 		text-align: center;
 	}
 
@@ -334,7 +334,7 @@
 		padding: 0.75rem 0.9rem;
 		font-size: 0.875rem;
 		line-height: 1.4;
-		color: #f27272;
+		color: var(--color-accent);
 	}
 
 	.form {
@@ -352,18 +352,18 @@
 	.field-label {
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.34);
+		color: var(--text-secondary-2);
 	}
 
 	.field-input {
 		width: 100%;
 		height: 3.2rem;
-		background: #1b1b1b;
-		border: 1px solid rgba(255, 255, 255, 0.05);
+		background: var(--color-surface);
+		border: 1px solid var(--surface-tint-subtle);
 		border-radius: 0.72rem;
 		padding: 0 0.9rem;
 		font-size: 1rem;
-		color: #f2f2f2;
+		color: var(--color-text-primary);
 		font-family: inherit;
 		transition:
 			border-color 0.16s ease,
@@ -374,13 +374,13 @@
 	}
 
 	.field-input::placeholder {
-		color: rgba(255, 255, 255, 0.16);
+		color: var(--text-quaternary);
 	}
 
 	.field-input:focus {
-		border-color: rgba(255, 255, 255, 0.12);
-		box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.035);
-		background: #1d1d1d;
+		border-color: #c92a2a;
+		box-shadow: 0 0 0 3px rgba(201, 42, 42, 0.18);
+		background: var(--color-surface-raised);
 	}
 
 	.field-input:disabled {
@@ -397,7 +397,7 @@
 	.field-hint {
 		margin: 0;
 		font-size: 0.78rem;
-		color: rgba(255, 255, 255, 0.36);
+		color: var(--text-faint);
 	}
 
 	.submit-btn {
@@ -405,15 +405,17 @@
 		height: 3.2rem;
 		border-radius: 0.72rem;
 		border: none;
-		background: #f0f0f0;
-		color: #222;
+		background: #c92a2a;
+		color: #ffffff;
 		font-size: 1rem;
 		font-weight: 700;
 		font-family: inherit;
 		cursor: pointer;
+		box-shadow: 0 6px 18px rgba(201, 42, 42, 0.38);
 		transition:
 			transform 0.12s ease,
-			opacity 0.15s ease;
+			opacity 0.15s ease,
+			box-shadow 0.15s ease;
 		margin-top: 0.15rem;
 	}
 
@@ -430,9 +432,9 @@
 		width: 100%;
 		height: 3rem;
 		border-radius: 0.72rem;
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		border: 1px solid var(--surface-tint-strong);
 		background: transparent;
-		color: rgba(255, 255, 255, 0.82);
+		color: var(--color-text-primary);
 		font-size: 0.94rem;
 		font-weight: 600;
 		font-family: inherit;
@@ -453,7 +455,7 @@
 		text-align: center;
 		font-size: 0.98rem;
 		line-height: 1.45;
-		color: rgba(255, 255, 255, 0.26);
+		color: var(--text-tertiary);
 	}
 
 	.switch-btn {
@@ -463,7 +465,7 @@
 		margin-left: 0.25rem;
 		font: inherit;
 		font-weight: 700;
-		color: rgba(255, 255, 255, 0.82);
+		color: #c92a2a;
 		-webkit-tap-highlight-color: transparent;
 	}
 

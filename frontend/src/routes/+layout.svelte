@@ -81,6 +81,31 @@
 		--color-accent: #e05252;
 		--color-skeleton: #1e1e1e;
 
+		/* Theme-aware semantic tokens. These resolve per-theme via
+		   [data-theme="light"] overrides below — every mobile component should
+		   prefer these over hardcoded rgba(255,255,255,X) so the UI tracks the
+		   Telegram colorScheme without per-file work. */
+		--surface-tint-strong: rgba(255, 255, 255, 0.18);
+		--surface-tint-medium: rgba(255, 255, 255, 0.10);
+		--surface-tint-soft: rgba(255, 255, 255, 0.06);
+		--surface-tint-subtle: rgba(255, 255, 255, 0.04);
+		--surface-tint-faint: rgba(255, 255, 255, 0.025);
+
+		--divider-strong: rgba(255, 255, 255, 0.10);
+		--divider-soft: rgba(255, 255, 255, 0.06);
+		--divider-faint: rgba(255, 255, 255, 0.04);
+
+		--text-strong: rgba(255, 255, 255, 0.82);
+		--text-secondary-2: rgba(255, 255, 255, 0.7);
+		--text-tertiary: rgba(255, 255, 255, 0.5);
+		--text-quaternary: rgba(255, 255, 255, 0.4);
+		--text-faint: rgba(255, 255, 255, 0.3);
+		--text-ghost: rgba(255, 255, 255, 0.18);
+
+		--scrim-soft: rgba(0, 0, 0, 0.4);
+		--scrim-medium: rgba(0, 0, 0, 0.55);
+		--scrim-strong: rgba(0, 0, 0, 0.7);
+
 		--radius-sm: 8px;
 		--radius-md: 12px;
 		--radius-lg: 16px;
@@ -120,6 +145,55 @@
 		font-size: 16px;
 		line-height: 1.5;
 		color-scheme: dark;
+	}
+
+	/* Light theme — applied only inside the Telegram Mini App when the user's
+	   Telegram colorScheme is 'light'. The data-theme attribute is toggled in
+	   telegram.ts; the desktop site is unaffected because it never sets it. */
+	:global([data-theme='light']) {
+		--color-bg: #ffffff;
+		--color-surface: #f4f4f5;
+		--color-surface-raised: #ffffff;
+		--color-border: #e5e7eb;
+		--color-text-primary: #0f1115;
+		--color-text-secondary: #5a6273;
+		--color-text-muted: #8a90a0;
+		--color-accent: #d23a3a;
+		--color-skeleton: #ececef;
+
+		--surface-tint-strong: rgba(0, 0, 0, 0.12);
+		--surface-tint-medium: rgba(0, 0, 0, 0.07);
+		--surface-tint-soft: rgba(0, 0, 0, 0.045);
+		--surface-tint-subtle: rgba(0, 0, 0, 0.03);
+		--surface-tint-faint: rgba(0, 0, 0, 0.02);
+
+		--divider-strong: rgba(0, 0, 0, 0.10);
+		--divider-soft: rgba(0, 0, 0, 0.06);
+		--divider-faint: rgba(0, 0, 0, 0.04);
+
+		--text-strong: rgba(15, 17, 21, 0.92);
+		--text-secondary-2: rgba(15, 17, 21, 0.72);
+		--text-tertiary: rgba(15, 17, 21, 0.56);
+		--text-quaternary: rgba(15, 17, 21, 0.44);
+		--text-faint: rgba(15, 17, 21, 0.32);
+		--text-ghost: rgba(15, 17, 21, 0.18);
+
+		--scrim-soft: rgba(0, 0, 0, 0.28);
+		--scrim-medium: rgba(0, 0, 0, 0.38);
+		--scrim-strong: rgba(0, 0, 0, 0.5);
+
+		--shadow-sm: 0 1px 3px rgba(15, 17, 21, 0.08);
+		--shadow-md: 0 4px 16px rgba(15, 17, 21, 0.10);
+		--shadow-lg: 0 8px 32px rgba(15, 17, 21, 0.14);
+
+		--glass-bg: rgba(255, 255, 255, 0.82);
+		--glass-bg-strong: rgba(255, 255, 255, 0.92);
+		--glass-bg-soft: rgba(255, 255, 255, 0.6);
+		--glass-border: rgba(15, 17, 21, 0.08);
+		--glass-highlight: rgba(255, 255, 255, 0.7);
+		--glass-shadow: 0 8px 32px rgba(15, 17, 21, 0.10);
+
+		color-scheme: light;
 	}
 
 	:global(body) {

@@ -104,9 +104,19 @@ function applyThemeVars(tg: TelegramWebApp): void {
   root.style.setProperty('--tg-accent', tg.themeParams.button_color);
   root.style.setProperty('--tg-btn-text', tg.themeParams.button_text_color);
 
+  // Drive the app's semantic theme tokens off Telegram's colorScheme. The
+  // [data-theme="light"] rules in +layout.svelte override --color-*, --glass-*,
+  // --surface-tint-*, --text-* etc. for the entire mini-app subtree. Removing
+  // the attribute restores the dark defaults.
+  if (tg.colorScheme === 'light') {
+    root.setAttribute('data-theme', 'light');
+  } else {
+    root.removeAttribute('data-theme');
+  }
+
   // Keep header color in sync with app background on theme changes.
   // Using backgroundColor (not themeParams.bg_color) ensures it matches --tg-bg exactly.
-  tg.setHeaderColor(tg.backgroundColor || '#0f0f0f');
+  tg.setHeaderColor(tg.backgroundColor || (tg.colorScheme === 'light' ? '#ffffff' : '#0f0f0f'));
 }
 
 function applyViewportVars(tg: TelegramWebApp): void {

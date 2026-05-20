@@ -620,7 +620,7 @@
 	.group-label {
 		font-size: 0.6875rem;
 		font-weight: 500;
-		color: rgba(255, 255, 255, 0.35);
+		color: var(--text-faint);
 		text-transform: uppercase;
 		letter-spacing: 0.07em;
 		padding: 20px 20px 6px;
@@ -630,7 +630,7 @@
 
 	.group {
 		margin: 0 12px;
-		background: rgba(255, 255, 255, 0.04);
+		background: var(--surface-tint-subtle);
 		border-radius: 14px;
 		overflow: hidden;
 		margin-bottom: 8px;
@@ -638,7 +638,7 @@
 
 	.row-divider {
 		height: 1px;
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		margin: 0 16px;
 	}
 
@@ -672,7 +672,7 @@
 
 	.row-tappable:active,
 	.row-link:active {
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-tint-subtle);
 		transform: scale(0.987);
 		transition-duration: 0.14s, 0.08s;
 	}
@@ -709,12 +709,12 @@
 		width: 28px;
 		height: 28px;
 		border-radius: 7px;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-medium);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		flex-shrink: 0;
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--text-tertiary);
 	}
 
 	.strava-icon {
@@ -731,7 +731,7 @@
 		width: 36px;
 		height: 36px;
 		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.08);
+		background: var(--surface-tint-medium);
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -744,7 +744,7 @@
 	.avatar-initial {
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -767,7 +767,7 @@
 
 	.row-sub {
 		font-size: 0.75rem;
-		color: rgba(255, 255, 255, 0.45);
+		color: var(--text-quaternary);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -781,7 +781,7 @@
 	}
 
 	.row-chevron {
-		color: rgba(255, 255, 255, 0.25);
+		color: var(--text-faint);
 		flex-shrink: 0;
 		transition: transform 0.2s ease;
 	}
@@ -810,8 +810,8 @@
 	}
 
 	.status-pill.muted {
-		background: rgba(255, 255, 255, 0.06);
-		color: rgba(255, 255, 255, 0.35);
+		background: var(--surface-tint-soft);
+		color: var(--text-faint);
 	}
 
 	/* ── Expanded content ─────────────────────────────────────────────────── */
@@ -846,8 +846,8 @@
 
 	.m-input {
 		width: 100%;
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		background: var(--surface-tint-soft);
+		border: 1px solid var(--surface-tint-medium);
 		border-radius: 10px;
 		padding: 11px 14px;
 		font-size: 0.9375rem;
@@ -858,8 +858,8 @@
 		-webkit-tap-highlight-color: transparent;
 	}
 
-	.m-input::placeholder { color: rgba(255, 255, 255, 0.25); }
-	.m-input:focus { border-color: rgba(255, 255, 255, 0.2); }
+	.m-input::placeholder { color: var(--text-faint); }
+	.m-input:focus { border-color: var(--text-ghost); }
 	.m-input:disabled { opacity: 0.4; }
 
 	/* ── Buttons ──────────────────────────────────────────────────────────── */
@@ -886,9 +886,9 @@
 	}
 
 	.m-btn.ghost {
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--surface-tint-soft);
 		color: var(--tg-text, #f0f0f0);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid var(--surface-tint-medium);
 	}
 
 	.m-btn.danger {
@@ -903,7 +903,7 @@
 		font-size: 0.875rem;
 		font-weight: 500;
 		font-family: inherit;
-		color: rgba(255, 255, 255, 0.6);
+		color: var(--text-tertiary);
 		cursor: pointer;
 		-webkit-tap-highlight-color: transparent;
 		transition: opacity 0.15s;
@@ -925,7 +925,7 @@
 	.feedback.ok { color: #10b981; }
 	.feedback.err { color: #e05252; }
 	.feedback.amber { color: #f59e0b; }
-	.feedback.muted { color: rgba(255, 255, 255, 0.45); }
+	.feedback.muted { color: var(--text-quaternary); }
 
 	/* ── 2FA ──────────────────────────────────────────────────────────────── */
 
@@ -940,7 +940,7 @@
 
 	.manual-entry {
 		font-size: 0.8125rem;
-		color: rgba(255, 255, 255, 0.4);
+		color: var(--text-quaternary);
 	}
 
 	.manual-entry summary { cursor: pointer; }
@@ -951,7 +951,7 @@
 		font-family: 'Courier New', monospace;
 		font-size: 0.75rem;
 		color: var(--tg-text, #f0f0f0);
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-tint-subtle);
 		border-radius: 8px;
 		padding: 8px 10px;
 		word-break: break-all;
@@ -971,19 +971,19 @@
 		font-family: 'Courier New', monospace;
 		font-size: 0.75rem;
 		color: var(--tg-text, #f0f0f0);
-		background: rgba(255, 255, 255, 0.05);
+		background: var(--surface-tint-subtle);
 		border-radius: 8px;
 		padding: 6px 10px;
 		letter-spacing: 0.04em;
 	}
 
 	.dot-sep {
-		color: rgba(255, 255, 255, 0.25);
+		color: var(--text-faint);
 	}
 
 	/* ── Misc ─────────────────────────────────────────────────────────────── */
 
-	.dim { color: rgba(255, 255, 255, 0.35) !important; }
+	.dim { color: var(--text-faint) !important; }
 	.danger-text { color: #e05252; }
 	.small { font-size: 0.8125rem; }
 
@@ -991,8 +991,8 @@
 		display: inline-block;
 		width: 12px;
 		height: 12px;
-		border: 2px solid rgba(255, 255, 255, 0.1);
-		border-top-color: rgba(255, 255, 255, 0.4);
+		border: 2px solid var(--surface-tint-medium);
+		border-top-color: var(--text-quaternary);
 		border-radius: 50%;
 		animation: spin 0.7s linear infinite;
 		flex-shrink: 0;
