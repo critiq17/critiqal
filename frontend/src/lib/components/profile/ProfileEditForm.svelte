@@ -113,7 +113,7 @@
 	.edit-input:focus,
 	.edit-textarea:focus {
 		border-color: var(--color-text-muted);
-		box-shadow: 0 0 0 3px rgba(240, 240, 240, 0.06);
+		box-shadow: 0 0 0 3px var(--surface-tint-soft);
 	}
 
 	.edit-input:disabled,

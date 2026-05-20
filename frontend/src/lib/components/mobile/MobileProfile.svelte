@@ -346,7 +346,7 @@
 		border: 1px solid var(--glass-border);
 		box-shadow: inset 0 1px 0 var(--glass-highlight);
 		cursor: pointer;
-		color: rgba(240, 240, 240, 0.7);
+		color: var(--text-secondary-2);
 		width: 2.2rem;
 		height: 2.2rem;
 		display: inline-flex;
@@ -414,7 +414,7 @@
 		height: 100%;
 		font-size: 1.75rem;
 		font-weight: 600;
-		color: rgba(240, 240, 240, 0.55);
+		color: var(--text-tertiary);
 		user-select: none;
 	}
 
@@ -467,7 +467,7 @@
 	.username {
 		margin: 0;
 		font-size: 0.875rem;
-		color: rgba(240, 240, 240, 0.42);
+		color: var(--text-quaternary);
 	}
 
 	.identity-actions {
@@ -480,7 +480,7 @@
 	.bio {
 		margin: 0;
 		font-size: 0.9375rem;
-		color: rgba(240, 240, 240, 0.78);
+		color: var(--text-strong);
 		line-height: 1.5;
 		white-space: pre-wrap;
 		word-break: break-word;

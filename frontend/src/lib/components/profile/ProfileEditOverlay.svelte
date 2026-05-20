@@ -218,7 +218,7 @@
 		transition: opacity 0.15s;
 	}
 
-	.cancel-btn { color: rgba(240, 240, 240, 0.5); text-align: left; }
+	.cancel-btn { color: var(--text-tertiary); text-align: left; }
 	.cancel-btn:active { opacity: 0.6; }
 
 	.save-btn {
@@ -252,7 +252,7 @@
 	.field-label {
 		font-size: 12px;
 		font-weight: 500;
-		color: rgba(240, 240, 240, 0.4);
+		color: var(--text-quaternary);
 		text-transform: uppercase;
 		letter-spacing: 0.06em;
 	}

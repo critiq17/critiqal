@@ -564,7 +564,7 @@
 	}
 
 	.mobile-badge-off {
-		background: rgba(240, 240, 240, 0.06);
+		background: var(--surface-tint-soft);
 		color: var(--text-quaternary);
 	}
 
@@ -609,7 +609,7 @@
 	}
 
 	.mobile-input:focus {
-		border-color: rgba(240, 240, 240, 0.3);
+		border-color: var(--text-faint);
 	}
 
 	.mobile-input:disabled { opacity: 0.5; cursor: not-allowed; }

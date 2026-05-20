@@ -37,7 +37,7 @@
 		background: none;
 		border: none;
 		cursor: pointer;
-		color: var(--tg-text, rgba(240, 240, 240, 0.85));
+		color: var(--tg-text, var(--text-strong));
 		min-width: 44px;
 		min-height: 44px;
 		display: flex;

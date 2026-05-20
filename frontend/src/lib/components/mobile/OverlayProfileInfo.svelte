@@ -135,7 +135,7 @@
 
 	.user-username {
 		font-size: 14px;
-		color: var(--tg-hint, rgba(240, 240, 240, 0.5));
+		color: var(--tg-hint, var(--text-tertiary));
 	}
 
 	.bio {
@@ -208,7 +208,7 @@
 
 	.stat-label {
 		font-size: 11px;
-		color: var(--tg-hint, rgba(240, 240, 240, 0.5));
+		color: var(--tg-hint, var(--text-tertiary));
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
 	}
