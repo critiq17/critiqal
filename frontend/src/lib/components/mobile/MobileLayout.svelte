@@ -7,15 +7,13 @@
 	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
 	import { sheetStore } from '$lib/stores/sheet.store.svelte';
 	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
+	import { mobileComments } from '$lib/stores/mobile-comments.store';
+	import { mobilePostFocus } from '$lib/stores/mobile-post-focus.store.svelte';
 	import type { Post } from '$lib/types';
 	import BottomNav from './BottomNav.svelte';
 	import MobileAuthScreen from './MobileAuthScreen.svelte';
 	import MobileFeed from './MobileFeed.svelte';
-	import MobileExplore from './MobileExplore.svelte';
-	import MobileProfile from './MobileProfile.svelte';
 	import OverlayHost from './OverlayHost.svelte';
-	import MobileCommentsSheet from './MobileCommentsSheet.svelte';
-	import MobilePostFocus from '$lib/components/post/MobilePostFocus.svelte';
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 
@@ -29,15 +27,41 @@
 		}
 	});
 
-	// Composer — owned at layout level so it works from any tab
+	// Lazy-loaded heavy components — fetched on first need to keep the initial
+	// TMA bundle lean (feed-first cold start).
+	let MobileExplore = $state<typeof import('./MobileExplore.svelte').default | null>(null);
+	let MobileProfile = $state<typeof import('./MobileProfile.svelte').default | null>(null);
+	let MobileCommentsSheet = $state<typeof import('./MobileCommentsSheet.svelte').default | null>(null);
+	let MobilePostFocus = $state<typeof import('$lib/components/post/MobilePostFocus.svelte').default | null>(null);
 	let MobilePostComposer = $state<typeof import('./MobilePostComposer.svelte').default | null>(null);
 
 	$effect(() => {
-		const open = composeStore.open;
-		if (open && !MobilePostComposer) {
-			import('./MobilePostComposer.svelte').then((m) => {
-				MobilePostComposer = m.default;
-			});
+		if (mountedTabs.has('explore') && !MobileExplore) {
+			import('./MobileExplore.svelte').then((m) => { MobileExplore = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (mountedTabs.has('profile') && !MobileProfile) {
+			import('./MobileProfile.svelte').then((m) => { MobileProfile = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if ($mobileComments.open && !MobileCommentsSheet) {
+			import('./MobileCommentsSheet.svelte').then((m) => { MobileCommentsSheet = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (mobilePostFocus.isOpen && !MobilePostFocus) {
+			import('$lib/components/post/MobilePostFocus.svelte').then((m) => { MobilePostFocus = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (composeStore.open && !MobilePostComposer) {
+			import('./MobilePostComposer.svelte').then((m) => { MobilePostComposer = m.default; });
 		}
 	});
 
@@ -98,12 +122,12 @@
 				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
-				{#if mountedTabs.has('explore')}
+				{#if mountedTabs.has('explore') && MobileExplore}
 					<MobileExplore isActive={tabStore.active === 'explore'} />
 				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
-				{#if mountedTabs.has('profile')}
+				{#if mountedTabs.has('profile') && MobileProfile}
 					<MobileProfile />
 				{/if}
 			</div>
@@ -116,9 +140,13 @@
 
 <OverlayHost />
 
-<MobileCommentsSheet />
+{#if MobileCommentsSheet}
+	<MobileCommentsSheet />
+{/if}
 
-<MobilePostFocus />
+{#if MobilePostFocus}
+	<MobilePostFocus />
+{/if}
 
 {#if MobilePostComposer && composeStore.open}
 	<MobilePostComposer
