@@ -1,27 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { PostPhoto } from '$lib/types';
-	import { postService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { feedCacheStore } from '$lib/stores/feed-cache.store.svelte';
+	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
 	import { infiniteScroll } from '$lib/actions/infiniteScroll';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 	import FeedComposeBox from '$lib/components/FeedComposeBox.svelte';
 
-	interface PendingPhoto {
-		file: File;
-		previewUrl: string;
-	}
-
-	const MAX_PHOTOS = 3;
 	const SKELETON_COUNT = 5;
 
-	let composeText = $state('');
-	let isPosting = $state(false);
-	let pendingPhotos = $state<PendingPhoto[]>([]);
-	let isUploadingPhotos = $state(false);
+	const composer = new UseComposer();
 
 	const posts = $derived(feedCacheStore.posts);
 	const hasNext = $derived(feedCacheStore.hasNext);
@@ -43,68 +33,14 @@
 		feedCacheStore.load({ force: true });
 	}
 
-	function handlePhotoSelect(e: Event): void {
-		const input = e.target as HTMLInputElement;
-		const files = input.files;
-		if (!files || files.length === 0) return;
-
-		const remaining = MAX_PHOTOS - pendingPhotos.length;
-		const toAdd = Array.from(files).slice(0, remaining);
-		const newPending: PendingPhoto[] = toAdd.map((file) => ({
-			file,
-			previewUrl: URL.createObjectURL(file)
-		}));
-
-		pendingPhotos = [...pendingPhotos, ...newPending];
-		input.value = '';
-	}
-
-	function removePhoto(index: number): void {
-		const photo = pendingPhotos[index];
-		if (photo) URL.revokeObjectURL(photo.previewUrl);
-		pendingPhotos = pendingPhotos.filter((_, i) => i !== index);
-	}
-
-	function clearPendingPhotos(): void {
-		pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-		pendingPhotos = [];
-	}
-
 	async function submitPost(): Promise<void> {
-		const content = composeText.trim();
-		if (!content || isPosting) return;
-		isPosting = true;
-		try {
-			const newPost = await postService.create({ content });
-			const photosToUpload = [...pendingPhotos];
-
-			// Optimistic: insert the post immediately so the user sees it before
-			// photo uploads finish. Photos are patched in via updatePost when ready.
-			feedCacheStore.prependPost(newPost);
-			composeText = '';
-			clearPendingPhotos();
-			isPosting = false;
-
-			if (photosToUpload.length > 0) {
-				isUploadingPhotos = true;
-				try {
-					const photos: PostPhoto[] = [];
-					for (const p of photosToUpload) {
-						try {
-							const photo = await mediaService.uploadPostPhoto(newPost.id, p.file);
-							photos.push(photo);
-						} catch {
-							// skip failed photo
-						}
-					}
-					if (photos.length > 0) feedCacheStore.updatePost(newPost.id, { photos });
-				} finally {
-					isUploadingPhotos = false;
-				}
+		// Two-phase: insert bare post on creation, patch photos in on upload.
+		await composer.submit({
+			onCreated: (post) => feedCacheStore.prependPost(post),
+			onPhotosReady: (postId, photos) => {
+				if (photos.length > 0) feedCacheStore.updatePost(postId, { photos });
 			}
-		} catch {
-			isPosting = false;
-		}
+		});
 	}
 
 	function handlePostDeleted(postId: string): void {
@@ -128,17 +64,7 @@
 		</header>
 
 		{#if authStore.isAuthenticated}
-			<FeedComposeBox
-				text={composeText}
-				{pendingPhotos}
-				{isPosting}
-				{isUploadingPhotos}
-				maxPhotos={MAX_PHOTOS}
-				onTextChange={(v) => { composeText = v; }}
-				onPhotoSelect={handlePhotoSelect}
-				onRemovePhoto={removePhoto}
-				onSubmit={submitPost}
-			/>
+			<FeedComposeBox {composer} onSubmit={submitPost} />
 		{/if}
 
 		{#if showSkeleton}
