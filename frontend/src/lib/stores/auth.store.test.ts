@@ -28,11 +28,8 @@ const mockApiClientPost = vi.fn(
 vi.mock('$lib/api/client', () => ({
   apiClient: {
     get: (path: string) => mockApiClientGet(path),
-    post: (
-      path: string,
-      body: unknown,
-      options?: { skipUnauthorizedHandler?: boolean }
-    ) => mockApiClientPost(path, body, options),
+    post: (path: string, body: unknown, options?: { skipUnauthorizedHandler?: boolean }) =>
+      mockApiClientPost(path, body, options),
   },
 }));
 
@@ -46,6 +43,10 @@ const mockUser: User = {
   name: 'Test User',
   bio: null,
   avatarUrl: null,
+  email: null,
+  emailVerified: false,
+  pendingEmail: null,
+  twoFactorEnabled: false,
   createdAt: '2024-01-01T00:00:00Z',
 };
 
@@ -184,9 +185,13 @@ describe('logout()', () => {
 
     await authStore.logout();
 
-    expect(mockApiClientPost).toHaveBeenLastCalledWith('/api/auth/logout', {}, {
-      skipUnauthorizedHandler: true,
-    });
+    expect(mockApiClientPost).toHaveBeenLastCalledWith(
+      '/api/auth/logout',
+      {},
+      {
+        skipUnauthorizedHandler: true,
+      }
+    );
     expect(authStore.user).toBeNull();
     expect(authStore.isAuthenticated).toBe(false);
     expect(localStorage.getItem(AUTH_USER_KEY)).toBeNull();
