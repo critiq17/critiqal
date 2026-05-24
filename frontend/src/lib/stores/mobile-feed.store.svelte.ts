@@ -1,148 +1,182 @@
 import { postService } from '$lib/services';
 import type { Post } from '$lib/types';
+import { readCache, writeCache } from '$lib/utils/persistentCache';
 
 export type FeedStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 const FEED_CACHE_TTL_MS = 30_000;
 const STALE_LOADING_MS = 10_000;
+const CACHE_KEY = 'feed:mobile';
+const PERSIST_LIMIT = 20;
+
+interface PersistedFeed {
+  posts: Post[];
+  hasNext: boolean;
+}
 
 function toFeedError(error: unknown): string {
-	const message = error instanceof Error ? error.message : String(error);
-	return message.length > 120 ? 'Feed load failed (check console)' : message;
+  const message = error instanceof Error ? error.message : String(error);
+  return message.length > 120 ? 'Feed load failed (check console)' : message;
 }
 
 function createMobileFeedStore() {
-	let posts = $state<Post[]>([]);
-	let page = $state(0);
-	let hasNext = $state(false);
-	let status = $state<FeedStatus>('idle');
-	let isLoadingMore = $state(false);
-	let error = $state<string | null>(null);
-	let loadedAt: number | null = null;
-	let requestStartedAt: number | null = null;
-	let activeRequestId = 0;
-	let activeRequest: Promise<Post[]> | null = null;
+  // Hydrate from localStorage so a cold reopen of the TMA paints last seen
+  // posts immediately; revalidate runs in the background.
+  const hydrated = readCache<PersistedFeed>(CACHE_KEY);
 
-	function isLoadingStale(): boolean {
-		if (status !== 'loading') return false;
-		if (requestStartedAt === null) return true;
-		return Date.now() - requestStartedAt >= STALE_LOADING_MS;
-	}
+  let posts = $state<Post[]>(hydrated?.data.posts ?? []);
+  let page = $state(0);
+  let hasNext = $state(hydrated?.data.hasNext ?? false);
+  let status = $state<FeedStatus>(hydrated ? 'loaded' : 'idle');
+  let isLoadingMore = $state(false);
+  let error = $state<string | null>(null);
+  let loadedAt: number | null = hydrated?.loadedAt ?? null;
+  let requestStartedAt: number | null = null;
+  let activeRequestId = 0;
+  let activeRequest: Promise<Post[]> | null = null;
 
-	function needsRefresh(): boolean {
-		if (posts.length === 0) return true;
-		if (loadedAt === null) return true;
-		return Date.now() - loadedAt >= FEED_CACHE_TTL_MS;
-	}
+  function persist(): void {
+    writeCache<PersistedFeed>(CACHE_KEY, {
+      posts: posts.slice(0, PERSIST_LIMIT),
+      hasNext,
+    });
+  }
 
-	function reset(): void {
-		activeRequestId += 1;
-		activeRequest = null;
-		posts = [];
-		page = 0;
-		hasNext = false;
-		status = 'idle';
-		isLoadingMore = false;
-		error = null;
-		loadedAt = null;
-		requestStartedAt = null;
-	}
+  function isLoadingStale(): boolean {
+    if (status !== 'loading') return false;
+    if (requestStartedAt === null) return true;
+    return Date.now() - requestStartedAt >= STALE_LOADING_MS;
+  }
 
-	function prependPost(post: Post): void {
-		posts = [post, ...posts];
-		loadedAt = Date.now();
-		status = 'loaded';
-		error = null;
-	}
+  function needsRefresh(): boolean {
+    if (posts.length === 0) return true;
+    if (loadedAt === null) return true;
+    return Date.now() - loadedAt >= FEED_CACHE_TTL_MS;
+  }
 
-	function load(options: { force?: boolean } = {}): Promise<Post[]> {
-		const { force = false } = options;
-		const staleLoading = isLoadingStale();
+  function reset(): void {
+    activeRequestId += 1;
+    activeRequest = null;
+    posts = [];
+    page = 0;
+    hasNext = false;
+    status = 'idle';
+    isLoadingMore = false;
+    error = null;
+    loadedAt = null;
+    requestStartedAt = null;
+    persist();
+  }
 
-		if (!force && activeRequest && !staleLoading) {
-			return activeRequest;
-		}
+  function prependPost(post: Post): void {
+    posts = [post, ...posts];
+    loadedAt = Date.now();
+    status = 'loaded';
+    error = null;
+    persist();
+  }
 
-		const requestId = ++activeRequestId;
-		status = 'loading';
-		error = null;
-		requestStartedAt = Date.now();
-		page = 0;
+  function load(options: { force?: boolean } = {}): Promise<Post[]> {
+    const { force = false } = options;
+    const staleLoading = isLoadingStale();
 
-		const request = postService
-			.getFeed(0)
-			.then((pageResponse) => {
-				if (requestId === activeRequestId) {
-					posts = pageResponse.content;
-					hasNext = pageResponse.hasNext;
-					loadedAt = Date.now();
-					page = 0;
-					status = 'loaded';
-					error = null;
-					requestStartedAt = null;
-				}
-				return pageResponse.content;
-			})
-			.catch((err: unknown) => {
-				if (requestId === activeRequestId) {
-					const message = toFeedError(err);
-					status = 'error';
-					error = message;
-					requestStartedAt = null;
-				}
-				throw err;
-			})
-			.finally(() => {
-				if (requestId === activeRequestId) {
-					activeRequest = null;
-				}
-			});
+    if (!force && activeRequest && !staleLoading) {
+      return activeRequest;
+    }
 
-		activeRequest = request;
-		return request;
-	}
+    const requestId = ++activeRequestId;
+    status = 'loading';
+    error = null;
+    requestStartedAt = Date.now();
+    page = 0;
 
-	async function loadMore(): Promise<void> {
-		if (!hasNext || isLoadingMore || status === 'loading') return;
+    const request = postService
+      .getFeed(0)
+      .then((pageResponse) => {
+        if (requestId === activeRequestId) {
+          posts = pageResponse.content;
+          hasNext = pageResponse.hasNext;
+          loadedAt = Date.now();
+          page = 0;
+          status = 'loaded';
+          error = null;
+          requestStartedAt = null;
+          persist();
+        }
+        return pageResponse.content;
+      })
+      .catch((err: unknown) => {
+        if (requestId === activeRequestId) {
+          const message = toFeedError(err);
+          status = 'error';
+          error = message;
+          requestStartedAt = null;
+        }
+        throw err;
+      })
+      .finally(() => {
+        if (requestId === activeRequestId) {
+          activeRequest = null;
+        }
+      });
 
-		isLoadingMore = true;
-		try {
-			const nextPage = page + 1;
-			const pageResponse = await postService.getFeed(nextPage);
-			posts = [...posts, ...pageResponse.content];
-			page = nextPage;
-			hasNext = pageResponse.hasNext;
-		} catch {
-			// Non-fatal — leave posts intact, just stop loading indicator
-		} finally {
-			isLoadingMore = false;
-		}
-	}
+    activeRequest = request;
+    return request;
+  }
 
-	function ensureLoaded(options: { force?: boolean } = {}): Promise<Post[]> {
-		const { force = false } = options;
+  async function loadMore(): Promise<void> {
+    if (!hasNext || isLoadingMore || status === 'loading') return;
 
-		if (force) return load({ force: true });
-		if (isLoadingStale()) return load({ force: true });
-		if (status === 'loading' && activeRequest) return activeRequest;
-		if (needsRefresh()) return load();
+    isLoadingMore = true;
+    try {
+      const nextPage = page + 1;
+      const pageResponse = await postService.getFeed(nextPage);
+      posts = [...posts, ...pageResponse.content];
+      page = nextPage;
+      hasNext = pageResponse.hasNext;
+    } catch {
+      // Non-fatal — leave posts intact, just stop loading indicator
+    } finally {
+      isLoadingMore = false;
+    }
+  }
 
-		return Promise.resolve(posts);
-	}
+  function ensureLoaded(options: { force?: boolean } = {}): Promise<Post[]> {
+    const { force = false } = options;
 
-	return {
-		get posts() { return posts; },
-		get page() { return page; },
-		get hasNext() { return hasNext; },
-		get status() { return status; },
-		get isLoadingMore() { return isLoadingMore; },
-		get error() { return error; },
-		load,
-		loadMore,
-		ensureLoaded,
-		prependPost,
-		reset
-	};
+    if (force) return load({ force: true });
+    if (isLoadingStale()) return load({ force: true });
+    if (status === 'loading' && activeRequest) return activeRequest;
+    if (needsRefresh()) return load();
+
+    return Promise.resolve(posts);
+  }
+
+  return {
+    get posts() {
+      return posts;
+    },
+    get page() {
+      return page;
+    },
+    get hasNext() {
+      return hasNext;
+    },
+    get status() {
+      return status;
+    },
+    get isLoadingMore() {
+      return isLoadingMore;
+    },
+    get error() {
+      return error;
+    },
+    load,
+    loadMore,
+    ensureLoaded,
+    prependPost,
+    reset,
+  };
 }
 
 export const mobileFeedStore = createMobileFeedStore();

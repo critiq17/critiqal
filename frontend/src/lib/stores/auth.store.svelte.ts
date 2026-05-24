@@ -1,6 +1,7 @@
 import type { User } from '$lib/types';
 import { isTelegramMiniApp, cloudStorage } from '$lib/telegram';
 import { apiClient } from '$lib/api/client';
+import { clearAllCache } from '$lib/utils/persistentCache';
 
 const AUTH_USER_KEY = 'auth_user';
 const LEGACY_TOKEN_KEY = 'auth_token';
@@ -191,6 +192,7 @@ function createAuthStore() {
 
     clearLegacyLocalAuth();
     setCachedUser(null);
+    clearAllCache();
     state = { user: null, isLoading: false };
   }
 
