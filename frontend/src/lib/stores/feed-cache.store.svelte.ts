@@ -106,6 +106,16 @@ function createFeedCacheStore() {
     if (options.broadcast !== false) emit({ type: 'post:deleted', postId });
   }
 
+  function updatePost(postId: string, patch: Partial<Post>): void {
+    let changed = false;
+    posts = posts.map((p) => {
+      if (p.id !== postId) return p;
+      changed = true;
+      return { ...p, ...patch };
+    });
+    if (changed) persist();
+  }
+
   function invalidate(): void {
     loadedAt = null;
   }
@@ -145,6 +155,7 @@ function createFeedCacheStore() {
     loadMore,
     prependPost,
     removePost,
+    updatePost,
     invalidate,
   };
 }

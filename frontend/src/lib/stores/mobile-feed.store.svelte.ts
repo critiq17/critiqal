@@ -87,6 +87,16 @@ function createMobileFeedStore() {
     if (options.broadcast !== false) emit({ type: 'post:deleted', postId });
   }
 
+  function updatePost(postId: string, patch: Partial<Post>): void {
+    let changed = false;
+    posts = posts.map((p) => {
+      if (p.id !== postId) return p;
+      changed = true;
+      return { ...p, ...patch };
+    });
+    if (changed) persist();
+  }
+
   // Apply remote events from other tabs without rebroadcasting.
   subscribe((evt) => {
     if (evt.type === 'post:created') prependPost(evt.post, { broadcast: false });
@@ -202,6 +212,7 @@ function createMobileFeedStore() {
     ensureLoaded,
     prependPost,
     removePost,
+    updatePost,
     reset,
   };
 }

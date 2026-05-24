@@ -78,6 +78,13 @@
 			const newPost = await postService.create({ content });
 			const photosToUpload = [...pendingPhotos];
 
+			// Optimistic: insert the post immediately so the user sees it before
+			// photo uploads finish. Photos are patched in via updatePost when ready.
+			feedCacheStore.prependPost(newPost);
+			composeText = '';
+			clearPendingPhotos();
+			isPosting = false;
+
 			if (photosToUpload.length > 0) {
 				isUploadingPhotos = true;
 				try {
@@ -90,19 +97,12 @@
 							// skip failed photo
 						}
 					}
-					feedCacheStore.prependPost({ ...newPost, photos });
+					if (photos.length > 0) feedCacheStore.updatePost(newPost.id, { photos });
 				} finally {
 					isUploadingPhotos = false;
 				}
-			} else {
-				feedCacheStore.prependPost(newPost);
 			}
-
-			composeText = '';
-			clearPendingPhotos();
 		} catch {
-			// ignore
-		} finally {
 			isPosting = false;
 		}
 	}

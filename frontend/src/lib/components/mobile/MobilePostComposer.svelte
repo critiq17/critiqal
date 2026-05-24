@@ -4,6 +4,7 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { showBackButton } from '$lib/tma/buttons';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { mobileFeedStore } from '$lib/stores/mobile-feed.store.svelte';
 	import { getInitials } from '$lib/utils/getInitials';
 	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
 	import ComposerTextarea from '$lib/components/composer/ComposerTextarea.svelte';
@@ -49,10 +50,22 @@
 
 	async function submitPost(): Promise<void> {
 		if (!composer.canPost) return;
-		const post = await composer.submit();
-		if (post) {
-			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
-			onPosted(post);
+		// Fire onPosted on the bare post immediately so the feed inserts it
+		// without waiting for photo uploads. The store later patches photos in
+		// via the onPhotosReady callback.
+		let posted = false;
+		await composer.submit({
+			onCreated: (post) => {
+				posted = true;
+				getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
+				onPosted(post);
+			},
+			onPhotosReady: (postId, photos) => {
+				if (photos.length > 0) mobileFeedStore.updatePost(postId, { photos });
+			}
+		});
+		if (!posted) {
+			// error path: errorMessage is set by composer.submit()
 		}
 	}
 
