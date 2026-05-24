@@ -20,6 +20,18 @@
 	// Refresh indicator
 	let isRefreshing = $state(false);
 
+	// Brand title in the transparent TG header strip frosts in on scroll.
+	let headerScrolled = $state(false);
+	let headerTicking = false;
+	function onContainerScroll(): void {
+		if (headerTicking) return;
+		headerTicking = true;
+		requestAnimationFrame(() => {
+			headerScrolled = (containerEl?.scrollTop ?? 0) > 16;
+			headerTicking = false;
+		});
+	}
+
 	function openComments(postId: string): void {
 		openMobileComments(postId);
 	}
@@ -131,7 +143,7 @@
 {/if}
 
 <!-- Brand title sits inside the transparent TG header — centered between Close and action buttons -->
-<div class="feed-header-title" aria-hidden="true">
+<div class="feed-header-title" class:scrolled={headerScrolled} aria-hidden="true">
 	<span class="feed-header-brand">critiqal</span>
 </div>
 
@@ -140,6 +152,7 @@
 	role="region"
 	aria-label="Feed"
 	bind:this={containerEl}
+	onscroll={onContainerScroll}
 	ontouchstart={onPullTouchStart}
 	ontouchmove={onPullTouchMove}
 	ontouchend={onPullTouchEnd}
@@ -193,6 +206,16 @@
 		justify-content: center;
 		pointer-events: none;
 		z-index: 5;
+		background: transparent;
+		border-bottom: 1px solid transparent;
+		transition: background 0.22s ease, border-color 0.22s ease;
+	}
+
+	.feed-header-title.scrolled {
+		background: var(--glass-bg);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		border-bottom-color: var(--glass-border);
 	}
 
 	.feed-header-brand {

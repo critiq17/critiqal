@@ -221,17 +221,21 @@
 		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		background: linear-gradient(
-			to bottom,
-			var(--color-bg) 0%,
-			rgba(12, 12, 12, 0.85) 45%,
-			rgba(12, 12, 12, 0) 100%
-		);
-		backdrop-filter: blur(12px) saturate(150%);
-		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		/* Theme-aware glass via the shared tokens (.glass would add a border;
+		   we want the seamless mask-faded edge, so we inline the surface but
+		   reuse the same tokens for both themes). */
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		z-index: 10;
+	}
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.feed-header {
+			background: var(--color-bg);
+		}
 	}
 
 	.feed-title {
