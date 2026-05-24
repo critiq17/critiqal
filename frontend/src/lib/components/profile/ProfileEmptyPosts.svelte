@@ -1,4 +1,6 @@
 <script lang="ts">
+	import StarMark from '$lib/ui/StarMark.svelte';
+
 	interface Props {
 		isOwnProfile: boolean;
 	}
@@ -14,18 +16,9 @@
 </script>
 
 <div class="empty" role="status" aria-live="polite">
-	<svg class="icon" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-		<circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1.5" opacity="0.45" />
-		<path
-			d="M22 36c0 3 4 6 10 6s10-3 10-6"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-			opacity="0.6"
-		/>
-		<circle cx="25" cy="28" r="1.5" fill="currentColor" opacity="0.7" />
-		<circle cx="39" cy="28" r="1.5" fill="currentColor" opacity="0.7" />
-	</svg>
+	<div class="brand-mark" aria-hidden="true">
+		<StarMark size={48} />
+	</div>
 	<p class="title">{title}</p>
 	<p class="subtitle">{subtitle}</p>
 </div>
@@ -43,10 +36,8 @@
 		animation: fadeIn 0.25s ease-out;
 	}
 
-	.icon {
-		width: 2.75rem;
-		height: 2.75rem;
-		color: var(--color-text-muted);
+	.brand-mark {
+		opacity: 0.5;
 		margin-bottom: 0.5rem;
 	}
 
