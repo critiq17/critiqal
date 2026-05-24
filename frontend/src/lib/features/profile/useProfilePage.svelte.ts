@@ -51,6 +51,11 @@ export class UseProfilePage {
 
   constructor(private username: string) {
     this.hydrateFromCache();
+
+    // Silent revalidate when tab returns to foreground after a quiet stretch.
+    profileCache.onStaleOnReturn((u) => {
+      if (u === this.username) this.loadProfile();
+    });
   }
 
   private hydrateFromCache(): void {
