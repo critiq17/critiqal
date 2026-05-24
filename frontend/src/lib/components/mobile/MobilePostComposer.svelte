@@ -12,6 +12,7 @@
 	import ComposerPhotoPreview from '$lib/components/composer/ComposerPhotoPreview.svelte';
 	import { registerSheet } from '$lib/actions/registerSheet';
 	import StarDraw from '$lib/ui/StarDraw.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		open: boolean;
@@ -107,17 +108,17 @@
 	});
 </script>
 
-<div class="composer" class:open use:registerSheet role="dialog" aria-modal="true" aria-label="New post">
+<div class="composer" class:open use:registerSheet role="dialog" aria-modal="true" aria-label={t('post.composeTitle')}>
 	<header class="composer-header">
-		<button class="hbtn glass" onclick={onClose} disabled={composer.loading} type="button" aria-label="Close">
+		<button class="hbtn glass" onclick={onClose} disabled={composer.loading} type="button" aria-label={t('common.close')}>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" aria-hidden="true">
 				<line x1="18" y1="6" x2="6" y2="18" />
 				<line x1="6" y1="6" x2="18" y2="18" />
 			</svg>
-			<span>Close</span>
+			<span>{t('common.close')}</span>
 		</button>
 
-		<span class="hdr-title">New post</span>
+		<span class="hdr-title">{t('post.composeTitle')}</span>
 
 		<button
 			class="hbtn post-btn glass"
@@ -127,9 +128,9 @@
 			type="button"
 		>
 			{#if composer.loading}
-				<StarDraw size={20} duration={1100} title="Posting" />
+				<StarDraw size={20} duration={1100} title={t('post.composePosting')} />
 			{:else}
-				Post
+				{t('post.composePost')}
 			{/if}
 		</button>
 	</header>
@@ -210,7 +211,7 @@
 </div>
 
 {#if viewingPhotoUrl}
-	<div class="photo-viewer" role="dialog" aria-label="Photo preview">
+	<div class="photo-viewer" role="dialog">
 		<button
 			class="viewer-backdrop"
 			onclick={() => { viewingPhotoUrl = null; }}
@@ -221,7 +222,7 @@
 		<button
 			class="viewer-close glass"
 			onclick={() => { viewingPhotoUrl = null; }}
-			aria-label="Close"
+			aria-label={t('common.close')}
 			type="button"
 		>
 			<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">

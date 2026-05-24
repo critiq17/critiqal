@@ -5,6 +5,7 @@
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import ExplorePostsTab from '$lib/components/explore/ExplorePostsTab.svelte';
 	import ExplorePeopleTab from '$lib/components/explore/ExplorePeopleTab.svelte';
+	import { t } from '$lib/i18n';
 
 	const DEBOUNCE_MS = 300;
 
@@ -15,7 +16,7 @@
 	let loadedQuery: string | null = null;
 	let loadedTab: 'posts' | 'people' | null = null;
 
-	const headerTitle = $derived(query.trim() === '' ? 'Explore' : 'Results');
+	const headerTitle = $derived(query.trim() === '' ? t('feed.explore') : t('feed.results'));
 
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -47,7 +48,7 @@
 </script>
 
 <svelte:head>
-	<title>Critiqal — Explore</title>
+	<title>Critiqal — {t('feed.explore')}</title>
 	<meta name="description" content="Search posts and people on Critiqal" />
 </svelte:head>
 
@@ -56,7 +57,7 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label="Explore">
+	<main class="col-center" aria-label={t('feed.explore')}>
 		<header class="explore-header">
 			<h1 class="explore-title">{headerTitle}</h1>
 
@@ -69,13 +70,13 @@
 					class="search-input"
 					type="search"
 					bind:value={query}
-					placeholder="Search posts or people…"
-					aria-label="Search"
+					placeholder={t('feed.searchPlaceholder')}
+					aria-label={t('common.search')}
 					autocomplete="off"
 					spellcheck="false"
 				/>
 				{#if query}
-					<button class="search-clear" onclick={() => { query = ''; }} aria-label="Clear search">
+					<button class="search-clear" onclick={() => { query = ''; }} aria-label={t('common.close')}>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
 							<line x1="18" y1="6" x2="6" y2="18" />
 							<line x1="6" y1="6" x2="18" y2="18" />
@@ -84,7 +85,7 @@
 				{/if}
 			</div>
 
-			<div class="tab-bar" role="tablist" aria-label="Content type">
+			<div class="tab-bar" role="tablist">
 				<button
 					class="tab-btn"
 					class:tab-active={activeTab === 'posts'}
@@ -92,7 +93,7 @@
 					aria-selected={activeTab === 'posts'}
 					onclick={() => { activeTab = 'posts'; }}
 				>
-					Posts
+					{t('feed.tabPosts')}
 				</button>
 				<button
 					class="tab-btn"
@@ -101,7 +102,7 @@
 					aria-selected={activeTab === 'people'}
 					onclick={() => { activeTab = 'people'; }}
 				>
-					People
+					{t('feed.tabPeople')}
 				</button>
 				<span
 					class="tab-indicator"
@@ -111,7 +112,7 @@
 			</div>
 		</header>
 
-		<div class="content-area" role="tabpanel" aria-label={activeTab === 'posts' ? 'Posts results' : 'People results'}>
+		<div class="content-area" role="tabpanel" aria-label={activeTab === 'posts' ? t('feed.tabPosts') : t('feed.tabPeople')}>
 			{#if activeTab === 'posts'}
 				<ExplorePostsTab
 					{search}

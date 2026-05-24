@@ -6,6 +6,7 @@
 	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
 	import StarDraw from '$lib/ui/StarDraw.svelte';
+	import { t } from '$lib/i18n';
 
 	// Pull-to-refresh
 	let isPulling = $state(false);
@@ -150,7 +151,7 @@
 <div
 	class="feed-container"
 	role="region"
-	aria-label="Feed"
+	aria-label={t('nav.feed')}
 	bind:this={containerEl}
 	onscroll={onContainerScroll}
 	ontouchstart={onPullTouchStart}
@@ -158,13 +159,13 @@
 	ontouchend={onPullTouchEnd}
 >
 	{#if mobileFeedStore.status === 'loading' && mobileFeedStore.posts.length === 0}
-		<div class="feed-loader" aria-busy="true" aria-label="Loading feed">
-			<StarDraw size={52} duration={1900} title="Loading feed" />
+		<div class="feed-loader" aria-busy="true" aria-label={t('common.loading')}>
+			<StarDraw size={52} duration={1900} title={t('common.loading')} />
 		</div>
 	{:else if mobileFeedStore.error && mobileFeedStore.posts.length === 0}
 		<div class="feed-state error">
 			<p>{mobileFeedStore.error}</p>
-			<button class="retry-btn" onclick={() => fetchFeed({ force: true })}>Retry</button>
+			<button class="retry-btn" onclick={() => fetchFeed({ force: true })}>{t('common.retry')}</button>
 		</div>
 	{:else}
 		{#each mobileFeedStore.posts as post (post.id)}
@@ -183,8 +184,8 @@
 		{/if}
 
 		{#if mobileFeedStore.isLoadingMore}
-			<div class="loading-more" aria-busy="true" aria-label="Loading more posts">
-				<StarDraw size={24} duration={1500} title="Loading more posts" />
+			<div class="loading-more" aria-busy="true" aria-label={t('common.loading')}>
+				<StarDraw size={24} duration={1500} title={t('common.loading')} />
 			</div>
 		{/if}
 	{/if}

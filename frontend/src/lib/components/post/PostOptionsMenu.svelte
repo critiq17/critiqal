@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { t } from '$lib/i18n';
+
 	interface Props {
 		isOwnPost: boolean;
 		deleting: boolean;
@@ -14,10 +16,10 @@
 <div class="menu" role="menu">
 	{#if isOwnPost}
 		<button class="menu-item danger" role="menuitem" onclick={ondelete} disabled={deleting}>
-			{deleting ? 'Deleting…' : 'Delete post'}
+			{deleting ? '…' : t('post.delete')}
 		</button>
 	{/if}
-	<button class="menu-item" role="menuitem" onclick={onclose}>Cancel</button>
+	<button class="menu-item" role="menuitem" onclick={onclose}>{t('common.cancel')}</button>
 </div>
 
 <style>

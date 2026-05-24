@@ -6,6 +6,7 @@
 	import { recoveryService } from '$lib/services/recovery.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { ApiError, isTwoFactorChallenge } from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	type AuthMode = 'credentials' | 'totp' | 'recovery';
 	type Step = 'auth' | 'onboarding';
@@ -26,14 +27,13 @@
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
 			if (err.isUnauthorized) {
-				if (mode === 'totp') return 'Invalid authentication code.';
-				if (mode === 'recovery') return 'Invalid recovery code.';
-				return 'Invalid username or password.';
+				if (mode === 'totp' || mode === 'recovery') return t('auth.errors.invalid2FA');
+				return t('auth.errors.invalidCredentials');
 			}
-			return err.message || 'Something went wrong.';
+			return err.message || t('common.somethingWentWrong');
 		}
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong.';
+		return t('common.somethingWentWrong');
 	}
 
 	function resetChallenge(): void {
@@ -102,22 +102,22 @@
 </script>
 
 <svelte:head>
-	<title>Sign in — Critiqal</title>
+	<title>{t('auth.login.title')} — Critiqal</title>
 	<meta name="description" content="Sign in to your Critiqal account" />
 </svelte:head>
 
 <div class="page">
 	{#if step === 'auth'}
-		<div class="card" aria-label="Sign in" in:fly={{ y: 10, duration: 220 }}>
+		<div class="card" aria-label={t('auth.login.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
 				<span class="logo">critiqal</span>
 				<p class="subtitle">
 					{#if mode === 'totp'}
-						Enter the 6-digit code from your authenticator app
+						{t('auth.login.twoFactorHint')}
 					{:else if mode === 'recovery'}
-						Enter a recovery code to access your account
+						{t('auth.login.recoveryPlaceholder')}
 					{:else}
-						Sign in to your account
+						{t('auth.login.subtitle')}
 					{/if}
 				</p>
 			</div>
@@ -131,7 +131,7 @@
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				{#if mode === 'totp'}
 					<div class="field">
-						<label for="totp-code" class="field-label">Authentication code</label>
+						<label for="totp-code" class="field-label">{t('auth.login.twoFactorTitle')}</label>
 						<input
 							id="totp-code"
 							type="text"
@@ -142,32 +142,32 @@
 							maxlength="6"
 							required
 							disabled={isSubmitting}
-							placeholder="123456"
+							placeholder={t('auth.login.twoFactorPlaceholder')}
 						/>
 					</div>
 				{:else if mode === 'recovery'}
 					<div class="field">
-						<label for="rec-username" class="field-label">Username</label>
+						<label for="rec-username" class="field-label">{t('auth.register.username')}</label>
 						<input id="rec-username" type="text" class="field-input" bind:value={username}
-							autocomplete="username" required disabled={isSubmitting} placeholder="your_username" />
+							autocomplete="username" required disabled={isSubmitting} />
 					</div>
 					<div class="field">
-						<label for="rec-code" class="field-label">Recovery code</label>
+						<label for="rec-code" class="field-label">{t('auth.login.recoveryPlaceholder')}</label>
 						<input id="rec-code" type="text" class="field-input" bind:value={recoveryCode}
 							autocomplete="off" required disabled={isSubmitting} placeholder="xxxxxxxx-xxxx" />
 					</div>
 				{:else}
 					<div class="field">
-						<label for="username" class="field-label">Username</label>
+						<label for="username" class="field-label">{t('auth.login.identifier')}</label>
 						<input id="username" type="text" class="field-input" bind:value={username}
-							autocomplete="username" required disabled={isSubmitting} placeholder="your_username" />
+							autocomplete="username" required disabled={isSubmitting} />
 					</div>
 					<div class="field">
-						<label for="password" class="field-label">Password</label>
+						<label for="password" class="field-label">{t('auth.login.password')}</label>
 						<input id="password" type="password" class="field-input" bind:value={password}
 							autocomplete="current-password" required disabled={isSubmitting} placeholder="••••••••" />
 					</div>
-					<a href="/forgot-password" class="forgot-link">Forgot password?</a>
+					<a href="/forgot-password" class="forgot-link">{t('auth.login.forgot')}</a>
 				{/if}
 
 				<button
@@ -179,35 +179,35 @@
 						!username.trim() || !password
 					)}
 				>
-					{isSubmitting ? 'Verifying…' : mode === 'credentials' ? 'Sign in' : 'Verify'}
+					{isSubmitting ? t('auth.login.submitting') : t('auth.login.submit')}
 				</button>
 
 				{#if mode === 'totp'}
 					<button type="button" class="ghost-btn" disabled={isSubmitting}
 						onclick={() => { mode = 'recovery'; totpCode = ''; error = ''; }}>
-						Use recovery code instead
+						{t('auth.login.useRecovery')}
 					</button>
 					<button type="button" class="ghost-btn" disabled={isSubmitting} onclick={resetChallenge}>
-						Use another account
+						{t('common.back')}
 					</button>
 				{:else if mode === 'recovery'}
 					<button type="button" class="ghost-btn" disabled={isSubmitting}
 						onclick={() => { mode = 'totp'; recoveryCode = ''; error = ''; }}>
-						Use authenticator app instead
+						{t('auth.login.useTotp')}
 					</button>
 					<button type="button" class="ghost-btn" disabled={isSubmitting} onclick={resetChallenge}>
-						Back to sign in
+						{t('common.back')}
 					</button>
 				{/if}
 			</form>
 
 			{#if mode === 'credentials'}
-				<p class="switch-link">Don't have an account? <a href="/register">Create one</a></p>
+				<p class="switch-link">{t('auth.login.noAccount')} <a href="/register">{t('auth.login.createOne')}</a></p>
 			{/if}
 		</div>
 
 	{:else}
-		<div class="card" aria-label="Account setup" in:fly={{ y: 10, duration: 220 }}>
+		<div class="card" aria-label={t('auth.onboarding.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
 				<div class="onboarding-icon" aria-hidden="true">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
@@ -215,15 +215,13 @@
 						<polyline points="22,6 12,13 2,6"/>
 					</svg>
 				</div>
-				<p class="onboarding-title">Add a recovery email</p>
-				<p class="onboarding-sub">
-					Protect your account with an email address for password recovery.
-				</p>
+				<p class="onboarding-title">{t('auth.onboarding.title')}</p>
+				<p class="onboarding-sub">{t('auth.onboarding.subtitle')}</p>
 			</div>
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleAddEmail(); }}>
 				<div class="field">
-					<label for="email" class="field-label">Email address</label>
+					<label for="email" class="field-label">{t('auth.onboarding.emailLabel')}</label>
 					<input
 						id="email"
 						type="email"
@@ -231,17 +229,17 @@
 						bind:value={emailInput}
 						autocomplete="email"
 						disabled={emailSubmitting}
-						placeholder="you@example.com"
+						placeholder={t('auth.onboarding.emailPlaceholder')}
 					/>
 				</div>
 
 				<button type="submit" class="submit-btn" disabled={emailSubmitting || !emailInput.trim()}>
-					{emailSubmitting ? 'Saving…' : 'Add email'}
+					{emailSubmitting ? t('auth.onboarding.submitting') : t('auth.onboarding.submit')}
 				</button>
 			</form>
 
 			<button type="button" class="skip-btn" onclick={skip} disabled={emailSubmitting}>
-				Skip for now
+				{t('auth.onboarding.skip')}
 			</button>
 		</div>
 	{/if}

@@ -12,6 +12,8 @@
 	import { apiClient } from '$lib/api/client';
 	import { ApiError } from '$lib/types';
 	import type { User, TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import { t } from '$lib/i18n';
+	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
 
 	// Navigation (swipe + Telegram BackButton + slide-in) is owned by
 	// OverlayHost — this view is purely presentational content.
@@ -195,14 +197,14 @@
 	}
 
 	function mapError(err: unknown): string {
-		if (err instanceof ApiError) return err.message || 'Something went wrong';
+		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong';
+		return t('common.somethingWentWrong');
 	}
 </script>
 
 <header class="settings-header" class:scrolled>
-	<h1 class="settings-header__title">Settings</h1>
+	<h1 class="settings-header__title">{t('settings.title')}</h1>
 </header>
 
 <div
@@ -213,7 +215,7 @@
 
 		<!-- Profile -->
 		{#if authStore.user}
-			<div class="group-label">Profile</div>
+			<div class="group-label">{t('settings.sections.profile')}</div>
 			<div class="group">
 				<button type="button" class="row row-link" onclick={openOwnProfile}>
 					<div class="avatar">
@@ -237,8 +239,16 @@
 			</div>
 		{/if}
 
+		<!-- Language -->
+		<div class="group-label">{t('settings.sections.language')}</div>
+		<div class="group">
+			<div class="row row-block">
+				<LanguageSwitcher />
+			</div>
+		</div>
+
 		<!-- Account Security -->
-		<div class="group-label">Account</div>
+		<div class="group-label">{t('settings.sections.account')}</div>
 		<div class="group">
 
 			<!-- Email row -->
@@ -252,20 +262,20 @@
 						</svg>
 					</div>
 					<div class="row-body">
-						<span class="row-title">Email</span>
+						<span class="row-title">{t('settings.sections.email')}</span>
 						{#if authStore.user?.email && authStore.user.emailVerified}
 							<span class="row-sub">{authStore.user.email}</span>
 						{:else if authStore.user?.pendingEmail}
 							<span class="row-sub">{authStore.user.pendingEmail}</span>
 						{:else}
-							<span class="row-sub dim">Not set</span>
+							<span class="row-sub dim">{t('settings.email.notSet')}</span>
 						{/if}
 					</div>
 					<div class="row-right">
 						{#if authStore.user?.emailVerified}
-							<span class="status-pill green">Verified</span>
+							<span class="status-pill green">{t('settings.email.verified')}</span>
 						{:else if authStore.user?.pendingEmail}
-							<span class="status-pill amber">Pending</span>
+							<span class="status-pill amber">{t('settings.email.pending')}</span>
 						{/if}
 						<svg class="row-chevron" class:rotated={emailEditing} width="14" height="14" viewBox="0 0 24 24"
 							fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -280,17 +290,17 @@
 							<p class="feedback err">{emailError}</p>
 						{/if}
 						{#if emailSuccess}
-							<p class="feedback ok">Verification email sent — check your inbox.</p>
+							<p class="feedback ok">{t('settings.email.sent')}</p>
 						{/if}
 						{#if authStore.user?.pendingEmail && !emailSuccess}
-							<p class="feedback muted">Waiting for confirmation at <strong>{authStore.user.pendingEmail}</strong></p>
+							<p class="feedback muted">{t('settings.email.pendingHint')} — <strong>{authStore.user.pendingEmail}</strong></p>
 							<div class="form-actions">
 								<button class="m-btn ghost" disabled={emailSubmitting} onclick={handleResendVerification}>
-									{emailSubmitting ? 'Sending…' : 'Resend email'}
+									{emailSubmitting ? '…' : t('settings.email.resend')}
 								</button>
 								<button class="m-btn ghost" disabled={emailSubmitting}
 									onclick={() => { emailEditing = false; emailError = ''; }}>
-									Cancel
+									{t('common.cancel')}
 								</button>
 							</div>
 						{:else if !emailSuccess}
@@ -299,18 +309,18 @@
 									type="email"
 									class="m-input"
 									bind:value={emailInput}
-									placeholder={authStore.user?.email && authStore.user.emailVerified ? 'New email address' : 'you@example.com'}
+									placeholder={t('settings.email.newPlaceholder')}
 									autocomplete="email"
 									disabled={emailSubmitting}
 								/>
 								<div class="form-actions">
 									<button class="m-btn primary" disabled={emailSubmitting || !emailInput.trim()}
 										onclick={handleSetEmail}>
-										{emailSubmitting ? 'Saving…' : 'Save'}
+										{emailSubmitting ? t('common.saving') : t('common.save')}
 									</button>
 									<button class="m-btn ghost" disabled={emailSubmitting}
 										onclick={() => { emailEditing = false; emailInput = ''; emailError = ''; }}>
-										Cancel
+										{t('common.cancel')}
 									</button>
 								</div>
 							</div>
@@ -335,22 +345,22 @@
 						</svg>
 					</div>
 					<div class="row-body">
-						<span class="row-title">Two-factor auth</span>
+						<span class="row-title">{t('settings.sections.twoFactor')}</span>
 						{#if tfaLoading}
-							<span class="row-sub dim">Loading…</span>
+							<span class="row-sub dim">{t('common.loading')}</span>
 						{:else if tfaStatus?.enabled && tfaCodesCount !== null}
-							<span class="row-sub">{tfaCodesCount} recovery codes</span>
+							<span class="row-sub">{tfaCodesCount} {t('settings.twoFactor.recoveryCodes')}</span>
 						{:else if !tfaStatus?.enabled}
-							<span class="row-sub dim">Not enabled</span>
+							<span class="row-sub dim">{t('settings.twoFactor.notEnabled')}</span>
 						{/if}
 					</div>
 					<div class="row-right">
 						{#if tfaLoading}
-							<span class="spinner-xs" aria-label="Loading"></span>
+							<span class="spinner-xs" aria-label={t('common.loading')}></span>
 						{:else if tfaStatus?.enabled}
-							<span class="status-pill green">On</span>
+							<span class="status-pill green">{t('common.on')}</span>
 						{:else}
-							<span class="status-pill muted">Off</span>
+							<span class="status-pill muted">{t('common.off')}</span>
 						{/if}
 					</div>
 				</button>
@@ -363,25 +373,25 @@
 
 				{#if !tfaLoading && tfaView === 'setup-qr' && tfaSetup}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
-						<p class="feedback muted">Scan with Google Authenticator, Authy, or any TOTP app.</p>
-						<img class="qr" src={tfaSetup.qrCodeUri} alt="QR code" />
+						<p class="feedback muted">{t('settings.twoFactor.setupHint')}</p>
+						<img class="qr" src={tfaSetup.qrCodeUri} alt="QR" />
 						<details class="manual-entry">
-							<summary>Can't scan?</summary>
+							<summary>{t('settings.twoFactor.cantScan')}</summary>
 							<code class="tfa-secret">{tfaSetup.secret}</code>
 						</details>
 						<div class="inline-form">
 							<input type="text" class="m-input" bind:value={tfaConfirmCode}
-								inputmode="numeric" maxlength={6} placeholder="6-digit code"
+								inputmode="numeric" maxlength={6} placeholder={t('settings.twoFactor.codePlaceholder')}
 								autocomplete="one-time-code" disabled={tfaSubmitting} />
 							<div class="form-actions">
 								<button class="m-btn primary"
 									disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6}
 									onclick={handleConfirmTfa}>
-									{tfaSubmitting ? 'Confirming…' : 'Confirm'}
+									{tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
 								</button>
 								<button class="m-btn ghost" disabled={tfaSubmitting}
 									onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
-									Cancel
+									{t('common.cancel')}
 								</button>
 							</div>
 						</div>
@@ -389,7 +399,7 @@
 
 				{:else if !tfaLoading && (tfaView === 'show-codes' || tfaView === 'regen-codes')}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
-						<p class="feedback amber">Save these — each code works once if you lose your app.</p>
+						<p class="feedback amber">{t('settings.twoFactor.saveCodes')}</p>
 						<ul class="codes-grid">
 							{#each tfaRecoveryCodes as code}
 								<li class="code-chip">{code}</li>
@@ -399,26 +409,26 @@
 							onclick={tfaView === 'regen-codes'
 								? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); }
 								: handleDoneWithCodes}>
-							Done, I've saved them
+							{t('settings.twoFactor.savedDone')}
 						</button>
 					</div>
 
 				{:else if !tfaLoading && tfaView === 'disable-confirm'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
-						<p class="feedback muted">Enter your 6-digit code to confirm.</p>
+						<p class="feedback muted">{t('settings.twoFactor.disableHint')}</p>
 						<div class="inline-form">
 							<input type="text" class="m-input" bind:value={tfaDisableCode}
-								inputmode="numeric" maxlength={6} placeholder="6-digit code"
+								inputmode="numeric" maxlength={6} placeholder={t('settings.twoFactor.codePlaceholder')}
 								autocomplete="one-time-code" disabled={tfaSubmitting} />
 							<div class="form-actions">
 								<button class="m-btn danger"
 									disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6}
 									onclick={handleDisableTfa}>
-									{tfaSubmitting ? 'Disabling…' : 'Disable'}
+									{tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
 								</button>
 								<button class="m-btn ghost" disabled={tfaSubmitting}
 									onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
-									Cancel
+									{t('common.cancel')}
 								</button>
 							</div>
 						</div>
@@ -426,16 +436,14 @@
 
 				{:else if !tfaLoading && tfaView === 'regen-confirm'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
-						<p class="feedback amber">
-							This invalidates your current recovery codes and issues new ones. Continue?
-						</p>
+						<p class="feedback amber">{t('settings.twoFactor.saveCodes')}</p>
 						<div class="form-actions">
 							<button class="m-btn primary" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-								{tfaSubmitting ? 'Regenerating…' : 'Yes, regenerate'}
+								{tfaSubmitting ? '…' : t('common.confirm')}
 							</button>
 							<button class="m-btn ghost" disabled={tfaSubmitting}
 								onclick={() => { tfaView = 'idle'; tfaError = ''; }}>
-								Cancel
+								{t('common.cancel')}
 							</button>
 						</div>
 					</div>
@@ -445,11 +453,11 @@
 						<div class="tfa-actions">
 							<button class="m-text-btn"
 								onclick={() => { tfaView = 'regen-confirm'; tfaError = ''; }}>
-								Regenerate codes
+								{t('settings.twoFactor.regenerate')}
 							</button>
 							<span class="dot-sep" aria-hidden="true">·</span>
 							<button class="m-text-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
-								Disable
+								{t('common.disable')}
 							</button>
 						</div>
 					</div>
@@ -458,7 +466,7 @@
 		</div>
 
 		<!-- Integrations -->
-		<div class="group-label">Integrations</div>
+		<div class="group-label">{t('settings.sections.integrations')}</div>
 		<div class="group">
 			<div class="row">
 				<div class="row-icon strava-icon" aria-hidden="true">
@@ -467,37 +475,37 @@
 					</svg>
 				</div>
 				<div class="row-body">
-					<span class="row-title">Strava</span>
+					<span class="row-title">{t('settings.integrations.strava')}</span>
 					{#if stravaStore.connection}
 						<span class="row-sub">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
 					{:else}
-						<span class="row-sub dim">Connect your activities</span>
+						<span class="row-sub dim">{t('settings.integrations.stravaConnect')}</span>
 					{/if}
 				</div>
 				<div class="row-right">
 					{#if stravaStore.connection}
-						<span class="status-pill green">Connected</span>
+						<span class="status-pill green">{t('profile.strava.connected')}</span>
 						{#if confirmDisconnect}
 							<button class="m-text-btn danger sm" disabled={stravaStore.loading}
 								onclick={handleStravaDisconnect}>
-								{stravaStore.loading ? '…' : 'Disconnect'}
+								{stravaStore.loading ? '…' : t('settings.integrations.disconnect')}
 							</button>
 						{:else}
 							<button class="m-text-btn sm" onclick={() => { confirmDisconnect = true; }}>
-								Manage
+								{t('common.edit')}
 							</button>
 						{/if}
 					{:else if stravaComingSoon}
-						<span class="status-pill muted">Soon</span>
+						<span class="status-pill muted">{t('common.comingSoon')}</span>
 					{:else}
-						<button class="m-text-btn" onclick={handleStravaConnect}>Connect</button>
+						<button class="m-text-btn" onclick={handleStravaConnect}>{t('settings.integrations.connect')}</button>
 					{/if}
 				</div>
 			</div>
 		</div>
 
 		<!-- More -->
-		<div class="group-label">More</div>
+		<div class="group-label">{t('common.more')}</div>
 		<div class="group">
 			<button class="row row-tappable" onclick={openSupport}>
 				<div class="row-icon">
@@ -508,7 +516,7 @@
 						<line x1="12" y1="17" x2="12.01" y2="17"/>
 					</svg>
 				</div>
-				<span class="row-title">Support</span>
+				<span class="row-title">{t('settings.support')}</span>
 				<svg class="row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
 					stroke="currentColor" stroke-width="2" aria-hidden="true">
 					<polyline points="9 18 15 12 9 6" />
@@ -525,7 +533,7 @@
 						<path d="M8 21h8M12 17v4"/>
 					</svg>
 				</div>
-				<span class="row-title">Desktop version</span>
+				<span class="row-title">{t('settings.desktopVersion')}</span>
 				<svg class="row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
 					stroke="currentColor" stroke-width="2" aria-hidden="true">
 					<polyline points="9 18 15 12 9 6" />
@@ -536,7 +544,7 @@
 		<!-- Version -->
 		<div class="group">
 			<div class="row">
-				<span class="row-title dim">Version</span>
+				<span class="row-title dim">{t('settings.version')}</span>
 				<span class="row-right dim small">Critiqal v0.1</span>
 			</div>
 		</div>
@@ -552,7 +560,7 @@
 						<line x1="21" y1="12" x2="9" y2="12"/>
 					</svg>
 				</div>
-				<span class="row-title danger-text">Sign out</span>
+				<span class="row-title danger-text">{t('settings.signOut')}</span>
 			</button>
 		</div>
 

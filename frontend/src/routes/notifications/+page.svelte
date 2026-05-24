@@ -7,6 +7,7 @@
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
+	import { t } from '$lib/i18n';
 
 	const SKELETON_COUNT = 3;
 
@@ -32,7 +33,7 @@
 			posts = res.content;
 			hasNext = res.hasNext;
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to load feed.';
+			error = err instanceof Error ? err.message : t('feed.loadFailedShort');
 		} finally {
 			isLoading = false;
 		}
@@ -56,7 +57,7 @@
 </script>
 
 <svelte:head>
-	<title>Following — Critiqal</title>
+	<title>{t('feed.following')} — Critiqal</title>
 </svelte:head>
 
 <div class="page-layout">
@@ -64,15 +65,15 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label="Following feed">
+	<main class="col-center" aria-label={t('feed.following')}>
 		<header class="page-header">
-			<h1 class="page-title">Following</h1>
+			<h1 class="page-title">{t('feed.following')}</h1>
 		</header>
 
 		{#if !authStore.isAuthenticated}
 			<div class="empty-state">
-				<p>Sign in to see posts from people you follow.</p>
-				<a href="/login" class="btn-primary">Sign in</a>
+				<p>{t('feed.signInToSee')}</p>
+				<a href="/login" class="btn-primary">{t('nav.signIn')}</a>
 			</div>
 		{:else if isLoading}
 			<div class="feed">
@@ -83,13 +84,13 @@
 		{:else if error}
 			<div class="error-state" role="alert">
 				<p>{error}</p>
-				<button class="btn-retry" onclick={load}>Try again</button>
+				<button class="btn-retry" onclick={load}>{t('common.retry')}</button>
 			</div>
 		{:else if posts.length === 0}
 			<div class="empty-state">
-				<p class="empty-title">Nothing here yet</p>
-				<p class="empty-body">Follow people to see their posts here.</p>
-				<a href="/explore" class="btn-primary">Find people</a>
+				<p class="empty-title">{t('feed.empty')}</p>
+				<p class="empty-body">{t('feed.followingEmpty')}</p>
+				<a href="/explore" class="btn-primary">{t('feed.findPeople')}</a>
 			</div>
 		{:else}
 			<div class="feed">
@@ -102,7 +103,7 @@
 				{/if}
 
 				{#if isLoadingMore}
-					<div class="loading-more" aria-busy="true">Loading…</div>
+					<div class="loading-more" aria-busy="true">{t('common.loading')}</div>
 				{/if}
 			</div>
 		{/if}
