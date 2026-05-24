@@ -1,11 +1,13 @@
 import { postService } from '$lib/services';
 import type { Post } from '$lib/types';
 import { readCache, writeCache } from '$lib/utils/persistentCache';
+import { emit, subscribe } from '$lib/realtime/broadcast';
 
 export type FeedStatus = 'idle' | 'loading' | 'loaded' | 'error';
 
 const FEED_CACHE_TTL_MS = 30_000;
 const STALE_LOADING_MS = 10_000;
+const REVALIDATE_AFTER_MS = 20_000;
 const CACHE_KEY = 'feed:mobile';
 const PERSIST_LIMIT = 20;
 
@@ -68,12 +70,36 @@ function createMobileFeedStore() {
     persist();
   }
 
-  function prependPost(post: Post): void {
+  function prependPost(post: Post, options: { broadcast?: boolean } = {}): void {
+    if (posts.some((p) => p.id === post.id)) return;
     posts = [post, ...posts];
     loadedAt = Date.now();
     status = 'loaded';
     error = null;
     persist();
+    if (options.broadcast !== false) emit({ type: 'post:created', post });
+  }
+
+  function removePost(postId: string, options: { broadcast?: boolean } = {}): void {
+    const before = posts.length;
+    posts = posts.filter((p) => p.id !== postId);
+    if (posts.length !== before) persist();
+    if (options.broadcast !== false) emit({ type: 'post:deleted', postId });
+  }
+
+  // Apply remote events from other tabs without rebroadcasting.
+  subscribe((evt) => {
+    if (evt.type === 'post:created') prependPost(evt.post, { broadcast: false });
+    else if (evt.type === 'post:deleted') removePost(evt.postId, { broadcast: false });
+  });
+
+  // Silent revalidate when tab returns to foreground after a quiet stretch.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (loadedAt === null || Date.now() - loadedAt < REVALIDATE_AFTER_MS) return;
+      load({ force: true }).catch(() => {});
+    });
   }
 
   function load(options: { force?: boolean } = {}): Promise<Post[]> {
@@ -175,6 +201,7 @@ function createMobileFeedStore() {
     loadMore,
     ensureLoaded,
     prependPost,
+    removePost,
     reset,
   };
 }

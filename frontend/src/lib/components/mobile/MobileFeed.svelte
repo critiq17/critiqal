@@ -160,6 +160,7 @@
 				variant="mobile"
 				onAuthorClick={(username) => openProfile(username)}
 				onOpenComments={(postId) => openComments(postId)}
+				onDeleted={(id) => mobileFeedStore.removePost(id)}
 			/>
 		{/each}
 

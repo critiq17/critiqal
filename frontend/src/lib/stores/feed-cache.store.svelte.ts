@@ -1,8 +1,10 @@
 import { postService } from '$lib/services';
 import type { Post } from '$lib/types';
 import { readCache, writeCache } from '$lib/utils/persistentCache';
+import { emit, subscribe } from '$lib/realtime/broadcast';
 
 const STALE_TIME_MS = 30_000;
+const REVALIDATE_AFTER_MS = 20_000;
 const CACHE_KEY = 'feed:desktop';
 const PERSIST_LIMIT = 20;
 
@@ -88,19 +90,39 @@ function createFeedCacheStore() {
     }
   }
 
-  function prependPost(post: Post): void {
+  function prependPost(post: Post, options: { broadcast?: boolean } = {}): void {
+    // Skip if we already have this post (avoids duplicate from echo).
+    if (posts.some((p) => p.id === post.id)) return;
     posts = [post, ...posts];
     loadedAt = Date.now();
     persist();
+    if (options.broadcast !== false) emit({ type: 'post:created', post });
   }
 
-  function removePost(postId: string): void {
+  function removePost(postId: string, options: { broadcast?: boolean } = {}): void {
+    const before = posts.length;
     posts = posts.filter((p) => p.id !== postId);
-    persist();
+    if (posts.length !== before) persist();
+    if (options.broadcast !== false) emit({ type: 'post:deleted', postId });
   }
 
   function invalidate(): void {
     loadedAt = null;
+  }
+
+  // Apply remote events from other tabs without rebroadcasting.
+  subscribe((evt) => {
+    if (evt.type === 'post:created') prependPost(evt.post, { broadcast: false });
+    else if (evt.type === 'post:deleted') removePost(evt.postId, { broadcast: false });
+  });
+
+  // Revalidate silently when the tab becomes visible after a quiet stretch.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (loadedAt === null || Date.now() - loadedAt < REVALIDATE_AFTER_MS) return;
+      load({ force: true });
+    });
   }
 
   return {
