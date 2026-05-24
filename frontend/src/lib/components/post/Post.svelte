@@ -272,6 +272,14 @@
 		opacity: 0.24;
 	}
 
+	/* The photo-derived ambient halo is a single blur(34px) layer; harmless
+	   on desktop but it stacks expensive paint over a scrolling list on
+	   mid-range Android. Mobile posts already have their own glass-pane
+	   separation below — the halo isn't load-bearing there. */
+	.post.mobile .post-glow {
+		display: none;
+	}
+
 	/* Mini-app: each post sits on a barely-there glass pane. No border,
 	   no divider line — just a faint top-down tint, a 1px top-edge light
 	   cue, and a soft shadow that lifts it ~1px off the #0c0c0c base.

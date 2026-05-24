@@ -204,14 +204,32 @@
 		will-change: transform;
 	}
 
+	/* Tab panels are stacked absolutely so we can crossfade between them.
+	   Inactive panels are inert (visibility:hidden disables hit-testing and
+	   ARIA, opacity drives the fade). Active tab paints with a tiny lift. */
 	.tab-panel {
-		display: none;
-		height: 100%;
+		position: absolute;
+		inset: 0;
 		overflow: hidden;
+		opacity: 0;
+		visibility: hidden;
+		transform: translateY(4px);
+		transition:
+			opacity 0.16s ease,
+			transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
 	}
 
 	.tab-panel.active {
-		display: block;
+		opacity: 1;
+		visibility: visible;
+		transform: translateY(0);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tab-panel {
+			transition: none;
+			transform: none;
+		}
 	}
 
 	:global(.mobile-scroll-container) {

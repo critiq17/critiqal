@@ -121,21 +121,18 @@
 	}
 
 	.like-btn.bump .ic {
-		animation: heartBump 560ms var(--spring);
+		animation: heartBump 360ms var(--spring);
 	}
 
 	@keyframes heartBump {
 		0% {
 			transform: scale(1);
 		}
-		18% {
-			transform: scale(0.78);
+		25% {
+			transform: scale(0.82);
 		}
-		40% {
-			transform: scale(1.32);
-		}
-		65% {
-			transform: scale(0.94);
+		55% {
+			transform: scale(1.28);
 		}
 		100% {
 			transform: scale(1);
