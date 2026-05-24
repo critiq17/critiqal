@@ -33,6 +33,8 @@
 				src={comment.author.avatarUrl}
 				alt={comment.author.username}
 				class="comment-avatar-img"
+				loading="lazy"
+				decoding="async"
 			/>
 		{:else}
 			<span class="comment-avatar-initial">
@@ -118,6 +120,8 @@
 									src={reply.author.avatarUrl}
 									alt={reply.author.username}
 									class="reply-avatar-img"
+									loading="lazy"
+									decoding="async"
 								/>
 							{:else}
 								<span class="reply-avatar-initial">

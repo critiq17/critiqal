@@ -65,7 +65,7 @@
 						<a href="/{user.username}" class="user-row" onclick={onClose}>
 							<div class="user-avatar" aria-hidden="true">
 								{#if user.avatarUrl}
-									<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
+									<img src={user.avatarUrl} alt={user.username} class="avatar-img" loading="lazy" decoding="async" />
 								{:else}
 									<span class="user-avatar-initial">{getInitial(user)}</span>
 								{/if}

@@ -18,7 +18,7 @@
 	<button class="author-btn" onclick={onauthorclick} aria-label="View {post.author.username}'s profile">
 		<span class="avatar" aria-hidden="true">
 			{#if post.author.avatarUrl}
-				<img src={post.author.avatarUrl} alt={post.author.username} />
+				<img src={post.author.avatarUrl} alt={post.author.username} loading="lazy" decoding="async" />
 			{:else}
 				<span class="avatar-initial">{getInitials(post.author.name, post.author.username)}</span>
 			{/if}
