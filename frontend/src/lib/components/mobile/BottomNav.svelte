@@ -5,6 +5,7 @@
   import { openCompose } from '$lib/stores/compose.store.svelte';
   import { getTelegramWebApp } from '$lib/telegram';
   import { elasticDrag } from '$lib/actions/elasticDrag';
+  import { t } from '$lib/i18n';
 
   let navEl: HTMLElement | undefined = $state();
   // Refs to the three real tab buttons, keyed by tab. The compose button is
@@ -54,7 +55,7 @@
 <nav
   bind:this={navEl}
   class="nav-pill glass glass-soft"
-  aria-label="Main navigation"
+  aria-label={t('nav.feed')}
   use:elasticDrag={{
     axis: 'free',
     stretch: 0.17,
@@ -76,7 +77,7 @@
     bind:this={tabEls.feed}
     class="tab-btn"
     class:active={tabStore.active === 'feed'}
-    aria-label="Feed"
+    aria-label={t('nav.feed')}
     aria-current={tabStore.active === 'feed' ? 'page' : undefined}
     onclick={() => selectTab('feed')}
   >
@@ -90,7 +91,7 @@
     bind:this={tabEls.explore}
     class="tab-btn"
     class:active={tabStore.active === 'explore'}
-    aria-label="Explore"
+    aria-label={t('nav.explore')}
     aria-current={tabStore.active === 'explore' ? 'page' : undefined}
     onclick={() => selectTab('explore')}
   >
@@ -101,7 +102,7 @@
   </button>
 
   <!-- Centre compose button — not a tab, an action -->
-  <button class="compose-btn" aria-label="Create post" onclick={handleCompose}>
+  <button class="compose-btn" aria-label={t('post.composeTitle')} onclick={handleCompose}>
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 20h9"/>
       <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
@@ -112,7 +113,7 @@
     bind:this={tabEls.profile}
     class="tab-btn"
     class:active={tabStore.active === 'profile'}
-    aria-label="Profile"
+    aria-label={t('nav.profile')}
     aria-current={tabStore.active === 'profile' ? 'page' : undefined}
     onclick={() => selectTab('profile')}
   >

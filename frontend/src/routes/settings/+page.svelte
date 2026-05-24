@@ -12,6 +12,8 @@
 	import { ApiError } from '$lib/types';
 	import type { TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
+	import { t } from '$lib/i18n';
 
 	// ── Email ────────────────────────────────────────────────────────────────
 
@@ -161,9 +163,9 @@
 	}
 
 	function mapError(err: unknown): string {
-		if (err instanceof ApiError) return err.message || 'Something went wrong.';
+		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong.';
+		return t('common.somethingWentWrong');
 	}
 
 	onMount(() => {
@@ -173,7 +175,7 @@
 </script>
 
 <svelte:head>
-	<title>Settings — Critiqal</title>
+	<title>{t('settings.title')} — Critiqal</title>
 	<meta name="description" content="Manage your account settings" />
 </svelte:head>
 
@@ -184,13 +186,22 @@
 
 	<main class="col-center">
 		<header class="page-header">
-			<h1 class="page-title">Settings</h1>
+			<h1 class="page-title">{t('settings.title')}</h1>
 		</header>
+
+		<!-- Language -->
+		<section class="section">
+			<div class="setting-info col">
+				<p class="section-label">{t('settings.sections.language')}</p>
+				<span class="setting-sub">{t('settings.language.subtitle')}</span>
+			</div>
+			<LanguageSwitcher />
+		</section>
 
 		<!-- Profile -->
 		{#if authStore.isAuthenticated && authStore.user}
 			<section class="section">
-				<p class="section-label">Profile</p>
+				<p class="section-label">{t('settings.sections.profile')}</p>
 				<a href="/{authStore.user.username}" class="profile-row">
 					<div class="avatar" aria-hidden="true">
 						{#if authStore.user.avatarUrl}
@@ -214,17 +225,17 @@
 
 		<!-- Email -->
 		<section class="section">
-			<p class="section-label">Email</p>
+			<p class="section-label">{t('settings.sections.email')}</p>
 
 			<!-- Verified email row -->
 			{#if authStore.user?.email && authStore.user.emailVerified}
 				<div class="setting-row">
 					<div class="setting-info">
 						<span class="setting-value">{authStore.user.email}</span>
-						<span class="status-dot verified" title="Verified"></span>
+						<span class="status-dot verified" title={t('settings.email.verified')}></span>
 					</div>
 					{#if !emailEditing}
-						<button class="link-btn" onclick={startEmailEdit}>Change</button>
+						<button class="link-btn" onclick={startEmailEdit}>{t('common.change')}</button>
 					{/if}
 				</div>
 			{/if}
@@ -235,13 +246,13 @@
 					<div class="setting-info col">
 						<div class="setting-info">
 							<span class="setting-value">{authStore.user.pendingEmail}</span>
-							<span class="badge-pending">Pending</span>
+							<span class="badge-pending">{t('settings.email.pending')}</span>
 						</div>
-						<span class="setting-sub">Check your inbox for the verification link</span>
+						<span class="setting-sub">{t('settings.email.pendingHint')}</span>
 					</div>
 					{#if !emailEditing}
 						<button class="link-btn" disabled={emailSubmitting} onclick={handleResendVerification}>
-							{emailSubmitting ? '…' : 'Resend'}
+							{emailSubmitting ? '…' : t('settings.email.resend')}
 						</button>
 					{/if}
 				</div>
@@ -250,13 +261,13 @@
 			<!-- No email at all -->
 			{#if !authStore.user?.email && !authStore.user?.pendingEmail && !emailEditing}
 				<div class="setting-row">
-					<span class="setting-placeholder">No email set</span>
-					<button class="link-btn" onclick={startEmailEdit}>Add</button>
+					<span class="setting-placeholder">{t('settings.email.notSet')}</span>
+					<button class="link-btn" onclick={startEmailEdit}>{t('common.add')}</button>
 				</div>
 			{/if}
 
 			{#if emailSuccess}
-				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>Verification email sent — check your inbox.</p>
+				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>{t('settings.email.sent')}</p>
 			{/if}
 
 			{#if emailError && !emailEditing}
@@ -276,17 +287,17 @@
 							autocomplete="email"
 							required
 							disabled={emailSubmitting}
-							placeholder="new@example.com"
+							placeholder={t('settings.email.newPlaceholder')}
 						/>
 						<button
 							class="btn-primary"
 							disabled={emailSubmitting || emailInput.trim().length === 0}
 							onclick={handleSetEmail}
 						>
-							{emailSubmitting ? 'Saving…' : 'Save'}
+							{emailSubmitting ? t('common.saving') : t('common.save')}
 						</button>
 						<button class="btn-ghost" disabled={emailSubmitting} onclick={cancelEmailEdit}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
@@ -297,23 +308,23 @@
 		<section class="section">
 			<div class="setting-row">
 				<div class="setting-info col">
-					<p class="section-label">Two-factor authentication</p>
+					<p class="section-label">{t('settings.sections.twoFactor')}</p>
 					{#if !tfaLoading}
 						<span class="setting-sub">
 							{#if tfaStatus?.enabled}
-								Enabled · {tfaCodesCount ?? '…'} recovery codes
+								{t('settings.twoFactor.enabled')} · {tfaCodesCount ?? '…'} {t('settings.twoFactor.recoveryCodes')}
 							{:else}
-								Add an extra layer of security
+								{t('settings.twoFactor.notEnabled')}
 							{/if}
 						</span>
 					{/if}
 				</div>
 				{#if !tfaLoading && tfaView === 'idle'}
 					{#if tfaStatus?.enabled}
-						<span class="status-badge enabled">On</span>
+						<span class="status-badge enabled">{t('common.on')}</span>
 					{:else}
 						<button class="link-btn" disabled={tfaSubmitting} onclick={handleSetupTfa}>
-							{tfaSubmitting ? 'Setting up…' : 'Enable'}
+							{tfaSubmitting ? t('settings.twoFactor.settingUp') : t('common.enable')}
 						</button>
 					{/if}
 				{/if}
@@ -328,10 +339,10 @@
 
 			{:else if tfaView === 'setup-qr' && tfaSetup}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint">Scan with Google Authenticator, Authy, or any TOTP app.</p>
-					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR code" />
+					<p class="hint">{t('settings.twoFactor.setupHint')}</p>
+					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR" />
 					<details class="manual-entry">
-						<summary>Can't scan?</summary>
+						<summary>{t('settings.twoFactor.cantScan')}</summary>
 						<code class="secret">{tfaSetup.secret}</code>
 					</details>
 					<div class="input-row">
@@ -341,35 +352,35 @@
 							bind:value={tfaConfirmCode}
 							inputmode="numeric"
 							maxlength={6}
-							placeholder="6-digit code"
+							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
 							disabled={tfaSubmitting}
 						/>
 						<button class="btn-primary" disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6} onclick={handleConfirmTfa}>
-							{tfaSubmitting ? 'Confirming…' : 'Confirm'}
+							{tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
 						</button>
 						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
 
 			{:else if tfaView === 'show-codes' || tfaView === 'regen-codes'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint hint-warn">Save these codes — each works once if you lose your authenticator.</p>
+					<p class="hint hint-warn">{t('settings.twoFactor.saveCodes')}</p>
 					<ul class="codes-grid">
 						{#each tfaRecoveryCodes as code}
 							<li class="code">{code}</li>
 						{/each}
 					</ul>
 					<button class="btn-primary" style="align-self: flex-start" onclick={tfaView === 'regen-codes' ? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); } : handleDoneWithCodes}>
-						Done, I've saved them
+						{t('settings.twoFactor.savedDone')}
 					</button>
 				</div>
 
 			{:else if tfaView === 'disable-confirm'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint">Enter your 6-digit code to confirm disabling 2FA.</p>
+					<p class="hint">{t('settings.twoFactor.disableHint')}</p>
 					<div class="input-row">
 						<input
 							type="text"
@@ -377,15 +388,15 @@
 							bind:value={tfaDisableCode}
 							inputmode="numeric"
 							maxlength={6}
-							placeholder="6-digit code"
+							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
 							disabled={tfaSubmitting}
 						/>
 						<button class="btn-danger" disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6} onclick={handleDisableTfa}>
-							{tfaSubmitting ? 'Disabling…' : 'Disable'}
+							{tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
 						</button>
 						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
@@ -393,11 +404,11 @@
 			{:else if tfaStatus?.enabled && tfaView === 'idle'}
 				<div class="tfa-actions">
 					<button class="link-btn" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-						Regenerate codes
+						{t('settings.twoFactor.regenerate')}
 					</button>
 					<span class="dot-sep" aria-hidden="true">·</span>
 					<button class="link-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
-						Disable
+						{t('common.disable')}
 					</button>
 				</div>
 			{/if}
@@ -405,15 +416,15 @@
 
 		<!-- Integrations -->
 		<section class="section">
-			<p class="section-label">Integrations</p>
+			<p class="section-label">{t('settings.sections.integrations')}</p>
 
 			<div class="setting-row">
 				<div class="setting-info col">
-					<span class="setting-value">Strava</span>
+					<span class="setting-value">{t('settings.integrations.strava')}</span>
 					{#if stravaStore.connection}
 						<span class="setting-sub">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
 					{:else}
-						<span class="setting-sub">Connect your activities</span>
+						<span class="setting-sub">{t('settings.integrations.stravaConnect')}</span>
 					{/if}
 				</div>
 
@@ -421,26 +432,26 @@
 					{#if confirmDisconnect}
 						<div class="inline-actions">
 							<button class="link-btn danger" disabled={stravaStore.loading} onclick={handleStravaDisconnect}>
-								{stravaStore.loading ? '…' : 'Disconnect'}
+								{stravaStore.loading ? '…' : t('settings.integrations.disconnect')}
 							</button>
 							<button class="link-btn" disabled={stravaStore.loading} onclick={() => { confirmDisconnect = false; }}>
-								Cancel
+								{t('common.cancel')}
 							</button>
 						</div>
 					{:else}
-						<button class="link-btn" onclick={() => { confirmDisconnect = true; }}>Disconnect</button>
+						<button class="link-btn" onclick={() => { confirmDisconnect = true; }}>{t('settings.integrations.disconnect')}</button>
 					{/if}
 				{:else if stravaComingSoon}
-					<span class="setting-sub" in:fly={{ x: 4, duration: 150 }}>Coming soon</span>
+					<span class="setting-sub" in:fly={{ x: 4, duration: 150 }}>{t('common.comingSoon')}</span>
 				{:else}
-					<button class="link-btn" onclick={handleStravaConnect}>Connect</button>
+					<button class="link-btn" onclick={handleStravaConnect}>{t('settings.integrations.connect')}</button>
 				{/if}
 			</div>
 		</section>
 
 		<!-- Account -->
 		<section class="section section-last">
-			<button class="link-btn danger" onclick={handleLogout}>Sign out</button>
+			<button class="link-btn danger" onclick={handleLogout}>{t('settings.signOut')}</button>
 		</section>
 	</main>
 

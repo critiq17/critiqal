@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { ApiError } from '$lib/types';
 	import { recoveryService } from '$lib/services/recovery.service';
+	import { t } from '$lib/i18n';
 
 	let email = $state('');
 	let isSubmitting = $state(false);
@@ -11,11 +12,9 @@
 	const hasError = $derived(error.length > 0);
 
 	function mapError(err: unknown): string {
-		if (err instanceof ApiError) {
-			return err.message || 'Something went wrong. Please try again.';
-		}
+		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong. Please try again.';
+		return t('common.somethingWentWrong');
 	}
 
 	async function handleSubmit(): Promise<void> {
@@ -35,17 +34,15 @@
 </script>
 
 <svelte:head>
-	<title>Reset password — Critiqal</title>
+	<title>{t('auth.forgot.title')} — Critiqal</title>
 	<meta name="description" content="Reset your Critiqal account password" />
 </svelte:head>
 
 <div class="page">
-	<div class="card" aria-label="Reset password form">
+	<div class="card" aria-label={t('auth.forgot.title')}>
 		<div class="card-header">
 			<span class="logo-text">critiqal</span>
-			<p class="subtitle">
-				{sent ? 'Check your inbox' : 'Reset your password'}
-			</p>
+			<p class="subtitle">{t('auth.forgot.subtitle')}</p>
 		</div>
 
 		{#if sent}
@@ -55,9 +52,7 @@
 						<polyline points="20 6 9 17 4 12" />
 					</svg>
 				</div>
-				<p class="success-text">
-					If that email is registered, you'll receive a reset link shortly.
-				</p>
+				<p class="success-text">{t('auth.forgot.sent')}</p>
 			</div>
 		{:else}
 			{#if hasError}
@@ -70,7 +65,7 @@
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<div class="field">
-					<label for="email" class="field-label">Email address</label>
+					<label for="email" class="field-label">{t('auth.forgot.email')}</label>
 					<input
 						id="email"
 						type="email"
@@ -88,13 +83,13 @@
 					class="submit-btn"
 					disabled={isSubmitting || email.trim().length === 0}
 				>
-					{isSubmitting ? 'Sending...' : 'Send reset link'}
+					{isSubmitting ? t('auth.forgot.submitting') : t('auth.forgot.submit')}
 				</button>
 			</form>
 		{/if}
 
 		<p class="switch-link">
-			<a href="/login">Back to sign in</a>
+			<a href="/login">{t('auth.forgot.back')}</a>
 		</p>
 	</div>
 </div>

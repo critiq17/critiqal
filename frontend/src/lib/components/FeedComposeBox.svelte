@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import type { UseComposer } from '$lib/features/posts/useComposer.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		composer: UseComposer;
@@ -38,10 +39,10 @@
 			value={composer.text}
 			oninput={(e) => { composer.text = (e.target as HTMLTextAreaElement).value; }}
 			onkeydown={handleKeydown}
-			placeholder="What's on your mind?"
+			placeholder={t('feed.composePlaceholder')}
 			rows={3}
 			disabled={composer.loading}
-			aria-label="Write a post"
+			aria-label={t('post.composeTitle')}
 		></textarea>
 
 		{#if composer.previewUrls.length > 0}
@@ -63,7 +64,7 @@
 		<div class="compose-actions">
 			<div class="compose-actions-left">
 				{#if composer.selectedFiles.length < composer.maxPhotos}
-					<label class="compose-photo-label" aria-label="Attach photo" title="Attach photo (up to {composer.maxPhotos})">
+					<label class="compose-photo-label" aria-label={t('common.add')} title={`${t('common.add')} (${composer.maxPhotos})`}>
 						<input
 							type="file"
 							accept="image/jpeg,image/png,image/webp"
@@ -80,9 +81,9 @@
 				{/if}
 				<span class="compose-hint">
 					{#if composer.selectedFiles.length > 0}
-						{composer.selectedFiles.length}/{composer.maxPhotos} photos · Ctrl+Enter to post
+						{composer.selectedFiles.length}/{composer.maxPhotos} · Ctrl+Enter
 					{:else}
-						Ctrl+Enter to post
+						Ctrl+Enter
 					{/if}
 				</span>
 			</div>
@@ -92,9 +93,9 @@
 				disabled={!composer.canPost}
 			>
 				{#if composer.loading}
-					Posting…
+					{t('post.composePosting')}
 				{:else}
-					Post
+					{t('post.composePost')}
 				{/if}
 			</button>
 		</div>

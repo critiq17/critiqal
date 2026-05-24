@@ -4,18 +4,20 @@
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { ApiError } from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	type VerifyState = 'loading' | 'success' | 'error';
 
 	const token = $page.url.searchParams.get('token') ?? '';
 
 	let verifyState = $state<VerifyState>('loading');
-	let errorMessage = $state('This verification link is invalid or has expired.');
+	let errorMessage = $state('');
 
 	const backHref = $derived(authStore.isAuthenticated ? '/settings' : '/login');
 
 	onMount(async () => {
 		if (!token) {
+			errorMessage = t('auth.verifyEmail.invalidToken');
 			verifyState = 'error';
 			return;
 		}
@@ -24,16 +26,17 @@
 			await emailVerificationService.verifyEmail({ token });
 			verifyState = 'success';
 		} catch (err: unknown) {
-			if (err instanceof ApiError) {
-				errorMessage = err.message || 'This verification link is invalid or has expired.';
-			}
+			errorMessage =
+				err instanceof ApiError && err.message
+					? err.message
+					: t('auth.verifyEmail.invalidToken');
 			verifyState = 'error';
 		}
 	});
 </script>
 
 <svelte:head>
-	<title>Verify email — Critiqal</title>
+	<title>{t('auth.verifyEmail.title')} — Critiqal</title>
 	<meta name="description" content="Verify your email address" />
 </svelte:head>
 
@@ -45,8 +48,8 @@
 
 		{#if verifyState === 'loading'}
 			<div class="loading-state">
-				<div class="spinner" aria-label="Verifying…"></div>
-				<p class="state-text">Verifying your email…</p>
+				<div class="spinner" aria-label={t('auth.verifyEmail.verifying')}></div>
+				<p class="state-text">{t('auth.verifyEmail.verifying')}</p>
 			</div>
 		{:else if verifyState === 'success'}
 			<div class="result-state">
@@ -55,10 +58,9 @@
 						<polyline points="20 6 9 17 4 12" />
 					</svg>
 				</div>
-				<p class="state-title">Email verified!</p>
-				<p class="state-text">Your email address has been confirmed successfully.</p>
+				<p class="state-title">{t('auth.verifyEmail.success')}</p>
 				<a href={backHref} class="action-btn">
-					{authStore.isAuthenticated ? 'Go to settings' : 'Sign in'}
+					{authStore.isAuthenticated ? t('nav.settings') : t('nav.signIn')}
 				</a>
 			</div>
 		{:else}
@@ -69,10 +71,10 @@
 						<line x1="6" y1="6" x2="18" y2="18" />
 					</svg>
 				</div>
-				<p class="state-title">Verification failed</p>
+				<p class="state-title">{t('auth.verifyEmail.fail')}</p>
 				<p class="state-text">{errorMessage}</p>
 				<a href={backHref} class="action-btn">
-					{authStore.isAuthenticated ? 'Go to settings' : 'Sign in'}
+					{authStore.isAuthenticated ? t('nav.settings') : t('nav.signIn')}
 				</a>
 			</div>
 		{/if}

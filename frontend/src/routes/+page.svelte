@@ -8,6 +8,7 @@
 	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 	import FeedComposeBox from '$lib/components/FeedComposeBox.svelte';
+	import { t } from '$lib/i18n';
 
 	const SKELETON_COUNT = 5;
 
@@ -49,7 +50,7 @@
 </script>
 
 <svelte:head>
-	<title>Critiqal — Feed</title>
+	<title>Critiqal — {t('nav.feed')}</title>
 	<meta name="description" content="Your Critiqal feed" />
 </svelte:head>
 
@@ -58,9 +59,9 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label="Feed">
+	<main class="col-center" aria-label={t('nav.feed')}>
 		<header class="feed-header">
-			<h1 class="feed-title">Feed</h1>
+			<h1 class="feed-title">{t('nav.feed')}</h1>
 		</header>
 
 		{#if authStore.isAuthenticated}
@@ -68,21 +69,21 @@
 		{/if}
 
 		{#if showSkeleton}
-			<div aria-busy="true" aria-label="Loading feed">
+			<div aria-busy="true" aria-label={t('common.loading')}>
 				{#each { length: SKELETON_COUNT } as _, i (i)}
 					<PostCardSkeleton />
 				{/each}
 			</div>
 		{:else if error && posts.length === 0}
 			<div class="state-box" role="alert">
-				<p class="state-title">Something went wrong</p>
+				<p class="state-title">{t('common.error')}</p>
 				<p class="state-body">{error}</p>
-				<button class="retry-btn" onclick={reloadFeed}>Try again</button>
+				<button class="retry-btn" onclick={reloadFeed}>{t('common.retry')}</button>
 			</div>
 		{:else if posts.length === 0}
 			<div class="state-box">
-				<p class="state-title">Nothing here yet</p>
-				<p class="state-body">Be the first to post something.</p>
+				<p class="state-title">{t('feed.empty')}</p>
+				<p class="state-body">{t('feed.emptyHint')}</p>
 			</div>
 		{:else}
 			<div class="post-list">
@@ -98,7 +99,7 @@
 				></div>
 			{/if}
 			{#if feedCacheStore.isLoadingMore}
-				<div class="loading-more">Loading more…</div>
+				<div class="loading-more">{t('common.loading')}</div>
 			{/if}
 		{/if}
 	</main>
