@@ -56,6 +56,6 @@ public class AuthSessionRepositoryImpl
     @Transactional
     public void revoke(String sessionIdHash, Instant at) {
         update("revokedAt = ?1 WHERE sessionIdHash = ?2 AND revokedAt IS NULL",
-                at, sessionIdHash); 
+                at, sessionIdHash);
     }
 }
