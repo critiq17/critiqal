@@ -7,13 +7,16 @@
 	import { twoFactorService } from '$lib/services/two-factor.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { recoveryService } from '$lib/services/recovery.service';
+	import { sessionService } from '$lib/services/session.service';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { goto } from '$app/navigation';
 	import { apiClient } from '$lib/api/client';
 	import { ApiError } from '$lib/types';
-	import type { User, TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import type { User, TotpSetupResponse, TwoFactorStatusResponse, AuthSession } from '$lib/types';
 	import { t } from '$lib/i18n';
 	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
+	import DeviceIcon from '$lib/components/DeviceIcon.svelte';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 
 	// Navigation (swipe + Telegram BackButton + slide-in) is owned by
 	// OverlayHost — this view is purely presentational content.
@@ -40,6 +43,7 @@
 	onMount(() => {
 		loadTfaStatus();
 		stravaStore.load();
+		loadSessions();
 	});
 
 	// ── Email ────────────────────────────────────────────────────────────────
@@ -172,6 +176,70 @@
 	async function handleStravaDisconnect(): Promise<void> {
 		await stravaStore.disconnect();
 		confirmDisconnect = false;
+	}
+
+	// ── Sessions ─────────────────────────────────────────────────────────────
+
+	let sessions = $state<AuthSession[]>([]);
+	let sessionsLoading = $state(true);
+	let sessionsError = $state('');
+	let revokingId = $state<string | null>(null);
+	let confirmRevokeId = $state<string | null>(null);
+
+	async function loadSessions(): Promise<void> {
+		sessionsLoading = true;
+		sessionsError = '';
+		try {
+			sessions = await sessionService.list();
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			sessionsLoading = false;
+		}
+	}
+
+	async function handleRevokeSession(id: string): Promise<void> {
+		revokingId = id;
+		try {
+			await sessionService.revoke(id);
+			sessions = sessions.filter((s) => s.id !== id);
+			confirmRevokeId = null;
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			revokingId = null;
+		}
+	}
+
+	function sessionLocation(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.city) parts.push(s.city);
+		if (s.countryName) parts.push(s.countryName);
+		else if (s.countryCode) parts.push(s.countryCode);
+		return parts.length === 0 ? t('settings.sessions.unknownLocation') : parts.join(', ');
+	}
+
+	function sessionDevice(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.browser) parts.push(s.browser);
+		const p = prettyPlatform(s.platform);
+		if (p) parts.push(p);
+		return parts.length === 0 ? t('settings.sessions.unknownDevice') : parts.join(' · ');
+	}
+
+	function prettyPlatform(p: string | null): string | null {
+		if (!p) return null;
+		switch (p.toLowerCase()) {
+			case 'ios': return 'iOS';
+			case 'macos': return 'macOS';
+			case 'android': return 'Android';
+			case 'windows': return 'Windows';
+			case 'linux': return 'Linux';
+			case 'telegram': return 'Telegram';
+			case 'unknown':
+			case 'other': return null;
+			default: return p;
+		}
 	}
 
 	// ── External links ───────────────────────────────────────────────────────
@@ -463,6 +531,97 @@
 					</div>
 				{/if}
 			</div>
+		</div>
+
+		<!-- Sessions -->
+		<div class="group-label sessions-label">
+			<span>{t('settings.sections.sessions')}</span>
+			<button
+				type="button"
+				class="sessions-refresh"
+				disabled={sessionsLoading}
+				onclick={loadSessions}
+				aria-label={t('settings.sessions.refresh')}
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+					stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+					class:spinning={sessionsLoading} aria-hidden="true">
+					<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+					<path d="M21 3v5h-5" />
+					<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+					<path d="M3 21v-5h5" />
+				</svg>
+			</button>
+		</div>
+		<div class="group sessions-group">
+			{#if sessionsError}
+				<div class="sessions-feedback"><p class="feedback err">{sessionsError}</p></div>
+			{/if}
+			{#if sessionsLoading && sessions.length === 0}
+				<div class="sessions-skel">
+					<div class="session-skel"></div>
+					<div class="session-skel"></div>
+				</div>
+			{:else if sessions.length === 0}
+				<div class="sessions-feedback"><p class="feedback muted">{t('settings.sessions.empty')}</p></div>
+			{:else}
+				{#each sessions as session, idx (session.id)}
+					{#if idx > 0}
+						<div class="row-divider"></div>
+					{/if}
+					<div class="session-row" class:current={session.current}>
+						<div class="row">
+							<div class="row-icon session-icon" class:current-ic={session.current}>
+								<DeviceIcon platform={session.platform} size={16} stroke={2} />
+							</div>
+							<div class="row-body session-body">
+								<div class="session-head">
+									<span class="row-title">{sessionDevice(session)}</span>
+									{#if session.current}
+										<span class="status-pill green">{t('settings.sessions.current')}</span>
+									{:else if session.countryCode}
+										<span class="status-pill muted">{session.countryCode}</span>
+									{/if}
+								</div>
+								<span class="row-sub">{sessionLocation(session)}</span>
+								<span class="row-sub small dim">
+									{t('settings.sessions.signedIn')} · {formatRelativeTime(session.createdAt)} ·
+									{t('settings.sessions.lastSeen')} · {formatRelativeTime(session.lastSeenAt)}
+								</span>
+							</div>
+						</div>
+						{#if !session.current}
+							{#if confirmRevokeId === session.id}
+								<div class="row-expanded" transition:slide={{ duration: 180 }}>
+									<p class="feedback muted">{t('settings.sessions.revokeConfirm')}</p>
+									<div class="form-actions">
+										<button
+											class="m-btn danger"
+											disabled={revokingId === session.id}
+											onclick={() => handleRevokeSession(session.id)}
+										>
+											{revokingId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
+										</button>
+										<button
+											class="m-btn ghost"
+											disabled={revokingId === session.id}
+											onclick={() => (confirmRevokeId = null)}
+										>
+											{t('common.cancel')}
+										</button>
+									</div>
+								</div>
+							{:else}
+								<div class="session-actions">
+									<button class="m-text-btn danger sm" onclick={() => (confirmRevokeId = session.id)}>
+										{t('settings.sessions.revoke')}
+									</button>
+								</div>
+							{/if}
+						{/if}
+					</div>
+				{/each}
+			{/if}
 		</div>
 
 		<!-- Integrations -->
@@ -987,6 +1146,127 @@
 
 	.dot-sep {
 		color: var(--text-faint);
+	}
+
+	/* ── Sessions ─────────────────────────────────────────────────────────── */
+
+	.sessions-label {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding-right: 20px;
+	}
+
+	.sessions-refresh {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		border: none;
+		background: transparent;
+		color: var(--text-tertiary);
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+		transition: color 0.18s ease, background-color 0.18s ease;
+	}
+
+	.sessions-refresh:hover:not(:disabled) {
+		color: var(--text-strong);
+		background: var(--surface-tint-subtle);
+	}
+
+	.sessions-refresh svg {
+		width: 13px;
+		height: 13px;
+	}
+
+	.sessions-refresh svg.spinning {
+		animation: spin 0.9s linear infinite;
+	}
+
+	.sessions-group {
+		overflow: hidden;
+	}
+
+	.sessions-group .row-divider {
+		background: var(--divider-faint);
+		margin: 0 20px;
+	}
+
+	.session-row {
+		display: flex;
+		flex-direction: column;
+		transition: background-color 0.18s ease;
+	}
+
+	.session-row.current {
+		background: transparent;
+	}
+
+	.session-icon {
+		color: var(--text-strong);
+	}
+
+	.session-icon.current-ic {
+		background: rgba(16, 185, 129, 0.14);
+		color: #10b981;
+	}
+
+	.session-body {
+		gap: 3px;
+	}
+
+	.session-head {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	.session-head .row-title {
+		font-weight: 500;
+	}
+
+	.row-sub.small {
+		font-size: 0.6875rem;
+		line-height: 1.4;
+		white-space: normal;
+	}
+
+	.session-actions {
+		display: flex;
+		justify-content: flex-end;
+		padding: 0 16px 12px;
+	}
+
+	.sessions-feedback {
+		padding: 14px 16px;
+	}
+
+	.sessions-skel {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.session-skel {
+		height: 64px;
+		background: var(--surface-tint-soft);
+		border-bottom: 1px solid var(--surface-tint-subtle);
+		position: relative;
+		overflow: hidden;
+		animation: pulse-bg 1.4s ease-in-out infinite;
+	}
+
+	.session-skel:last-child {
+		border-bottom: none;
+	}
+
+	@keyframes pulse-bg {
+		0%, 100% { opacity: 0.5; }
+		50% { opacity: 0.9; }
 	}
 
 	/* ── Misc ─────────────────────────────────────────────────────────────── */

@@ -20,6 +20,10 @@ export const API = {
       disable: '/api/auth/2fa',
       status: '/api/auth/2fa/status',
     },
+    sessions: {
+      list: '/api/auth/sessions',
+      revoke: (id: string) => `/api/auth/sessions/${id}`,
+    },
   },
   posts: {
     feed: '/api/posts',

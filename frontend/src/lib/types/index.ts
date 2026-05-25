@@ -23,3 +23,4 @@ export type { LikeResponse } from './like';
 export type { PageResponse } from './api';
 export { ApiError } from './api';
 export type { StravaConnection, StravaActivity } from './strava';
+export type { AuthSession } from './session';
