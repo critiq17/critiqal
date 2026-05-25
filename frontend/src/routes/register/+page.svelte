@@ -6,6 +6,8 @@
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { ApiError } from '$lib/types';
 	import PasswordStrengthIndicator from '$lib/components/PasswordStrengthIndicator.svelte';
+	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
+	import { t } from '$lib/i18n';
 
 	type Step = 'register' | 'onboarding';
 
@@ -34,7 +36,7 @@
 
 	async function handleRegister(): Promise<void> {
 		if (passwordScore < 2) {
-			error = 'Please choose a stronger password.';
+			error = t('auth.register.weakPasswordError');
 			shakeKey++;
 			return;
 		}
@@ -51,10 +53,10 @@
 		} catch (err: unknown) {
 			if (err instanceof ApiError) {
 				error = err.message?.toLowerCase().includes('already taken')
-					? 'That username is already taken.'
-					: err.message || 'Something went wrong.';
+					? t('auth.register.usernameTakenError')
+					: err.message || t('common.somethingWentWrong');
 			} else {
-				error = 'Something went wrong.';
+				error = t('common.somethingWentWrong');
 			}
 			shakeKey++;
 		} finally {
@@ -85,16 +87,17 @@
 </script>
 
 <svelte:head>
-	<title>Create account — Critiqal</title>
+	<title>{t('auth.register.title')} — Critiqal</title>
 	<meta name="description" content="Create your Critiqal account" />
 </svelte:head>
 
 <div class="page">
+	<StarfieldBackdrop />
 	{#if step === 'register'}
-		<div class="card" aria-label="Create account" in:fly={{ y: 10, duration: 220 }}>
+		<div class="card" aria-label={t('auth.register.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
 				<span class="logo">critiqal</span>
-				<p class="subtitle">Create your account</p>
+				<p class="subtitle">{t('auth.register.subtitle')}</p>
 			</div>
 
 			{#if error}
@@ -105,7 +108,7 @@
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleRegister(); }}>
 				<div class="field">
-					<label for="username" class="field-label">Username</label>
+					<label for="username" class="field-label">{t('auth.register.username')}</label>
 					<input
 						id="username"
 						type="text"
@@ -116,12 +119,11 @@
 						minlength={3}
 						maxlength={30}
 						disabled={isSubmitting}
-						placeholder="your_username"
 					/>
 				</div>
 
 				<div class="field">
-					<label for="password" class="field-label">Password</label>
+					<label for="password" class="field-label">{t('auth.register.password')}</label>
 					<input
 						id="password"
 						type="password"
@@ -136,20 +138,20 @@
 					/>
 					<PasswordStrengthIndicator {password} />
 					{#if showPasswordHint}
-						<p class="field-hint">At least 8 characters</p>
+						<p class="field-hint">{t('auth.register.passwordHint')}</p>
 					{/if}
 				</div>
 
 				<button type="submit" class="submit-btn" disabled={isSubmitting}>
-					{isSubmitting ? 'Creating account…' : 'Create account'}
+					{isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
 				</button>
 			</form>
 
-			<p class="switch-link">Already have an account? <a href="/login">Sign in</a></p>
+			<p class="switch-link">{t('auth.register.haveAccount')} <a href="/login">{t('auth.register.signIn')}</a></p>
 		</div>
 
 	{:else}
-		<div class="card" aria-label="Account setup" in:fly={{ y: 10, duration: 220 }}>
+		<div class="card" aria-label={t('auth.onboarding.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
 				<div class="onboarding-icon" aria-hidden="true">
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
@@ -157,15 +159,13 @@
 						<circle cx="12" cy="7" r="4"/>
 					</svg>
 				</div>
-				<p class="onboarding-title">Add a recovery email</p>
-				<p class="onboarding-sub">
-					If you ever lose access to your account, your email is the only way to recover it.
-				</p>
+				<p class="onboarding-title">{t('auth.onboarding.title')}</p>
+				<p class="onboarding-sub">{t('auth.onboarding.subtitle')}</p>
 			</div>
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleAddEmail(); }}>
 				<div class="field">
-					<label for="email" class="field-label">Email address</label>
+					<label for="email" class="field-label">{t('auth.onboarding.emailLabel')}</label>
 					<input
 						id="email"
 						type="email"
@@ -173,17 +173,17 @@
 						bind:value={emailInput}
 						autocomplete="email"
 						disabled={emailSubmitting}
-						placeholder="you@example.com"
+						placeholder={t('auth.onboarding.emailPlaceholder')}
 					/>
 				</div>
 
 				<button type="submit" class="submit-btn" disabled={emailSubmitting || emailInput.trim().length === 0}>
-					{emailSubmitting ? 'Saving…' : 'Add email'}
+					{emailSubmitting ? t('auth.onboarding.submitting') : t('auth.onboarding.submit')}
 				</button>
 			</form>
 
 			<button type="button" class="skip-btn" onclick={skip} disabled={emailSubmitting}>
-				Skip for now
+				{t('auth.onboarding.skip')}
 			</button>
 		</div>
 	{/if}
@@ -197,9 +197,13 @@
 		justify-content: center;
 		padding: 1.5rem;
 		background: var(--color-bg);
+		position: relative;
+		overflow: hidden;
 	}
 
 	.card {
+		position: relative;
+		z-index: 1;
 		width: 100%;
 		max-width: 22rem;
 		background: var(--color-surface);

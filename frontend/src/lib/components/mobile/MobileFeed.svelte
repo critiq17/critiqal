@@ -6,6 +6,7 @@
 	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
 	import StarDraw from '$lib/ui/StarDraw.svelte';
+	import { t } from '$lib/i18n';
 
 	// Pull-to-refresh
 	let isPulling = $state(false);
@@ -19,6 +20,18 @@
 
 	// Refresh indicator
 	let isRefreshing = $state(false);
+
+	// Brand title in the transparent TG header strip frosts in on scroll.
+	let headerScrolled = $state(false);
+	let headerTicking = false;
+	function onContainerScroll(): void {
+		if (headerTicking) return;
+		headerTicking = true;
+		requestAnimationFrame(() => {
+			headerScrolled = (containerEl?.scrollTop ?? 0) > 16;
+			headerTicking = false;
+		});
+	}
 
 	function openComments(postId: string): void {
 		openMobileComments(postId);
@@ -131,27 +144,28 @@
 {/if}
 
 <!-- Brand title sits inside the transparent TG header — centered between Close and action buttons -->
-<div class="feed-header-title" aria-hidden="true">
+<div class="feed-header-title" class:scrolled={headerScrolled} aria-hidden="true">
 	<span class="feed-header-brand">critiqal</span>
 </div>
 
 <div
 	class="feed-container"
 	role="region"
-	aria-label="Feed"
+	aria-label={t('nav.feed')}
 	bind:this={containerEl}
+	onscroll={onContainerScroll}
 	ontouchstart={onPullTouchStart}
 	ontouchmove={onPullTouchMove}
 	ontouchend={onPullTouchEnd}
 >
 	{#if mobileFeedStore.status === 'loading' && mobileFeedStore.posts.length === 0}
-		<div class="feed-loader" aria-busy="true" aria-label="Loading feed">
-			<StarDraw size={52} duration={1900} title="Loading feed" />
+		<div class="feed-loader" aria-busy="true" aria-label={t('common.loading')}>
+			<StarDraw size={52} duration={1900} title={t('common.loading')} />
 		</div>
 	{:else if mobileFeedStore.error && mobileFeedStore.posts.length === 0}
 		<div class="feed-state error">
 			<p>{mobileFeedStore.error}</p>
-			<button class="retry-btn" onclick={() => fetchFeed({ force: true })}>Retry</button>
+			<button class="retry-btn" onclick={() => fetchFeed({ force: true })}>{t('common.retry')}</button>
 		</div>
 	{:else}
 		{#each mobileFeedStore.posts as post (post.id)}
@@ -160,6 +174,7 @@
 				variant="mobile"
 				onAuthorClick={(username) => openProfile(username)}
 				onOpenComments={(postId) => openComments(postId)}
+				onDeleted={(id) => mobileFeedStore.removePost(id)}
 			/>
 		{/each}
 
@@ -169,8 +184,8 @@
 		{/if}
 
 		{#if mobileFeedStore.isLoadingMore}
-			<div class="loading-more" aria-busy="true" aria-label="Loading more posts">
-				<StarDraw size={24} duration={1500} title="Loading more posts" />
+			<div class="loading-more" aria-busy="true" aria-label={t('common.loading')}>
+				<StarDraw size={24} duration={1500} title={t('common.loading')} />
 			</div>
 		{/if}
 	{/if}
@@ -192,6 +207,16 @@
 		justify-content: center;
 		pointer-events: none;
 		z-index: 5;
+		background: transparent;
+		border-bottom: 1px solid transparent;
+		transition: background 0.22s ease, border-color 0.22s ease;
+	}
+
+	.feed-header-title.scrolled {
+		background: var(--glass-bg);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		border-bottom-color: var(--glass-border);
 	}
 
 	.feed-header-brand {

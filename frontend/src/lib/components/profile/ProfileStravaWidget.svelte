@@ -45,7 +45,7 @@
 		<div class="strava-connected" in:fly={{ y: 6, duration: 200 }}>
 			<div class="strava-athlete">
 				{#if c.avatarUrl}
-					<img src={c.avatarUrl} alt="{c.firstname} {c.lastname}" class="strava-avatar" />
+					<img src={c.avatarUrl} alt="{c.firstname} {c.lastname}" class="strava-avatar" loading="lazy" decoding="async" />
 				{:else}
 					<div class="strava-avatar-fallback">{c.firstname.charAt(0)}</div>
 				{/if}

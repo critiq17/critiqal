@@ -10,6 +10,7 @@
 	import ExploreSearchBar from '$lib/components/explore/ExploreSearchBar.svelte';
 	import ExplorePostsTab from '$lib/components/explore/ExplorePostsTab.svelte';
 	import ExplorePeopleTab from '$lib/components/explore/ExplorePeopleTab.svelte';
+	import { t } from '$lib/i18n';
 
 	const TAB_ORDER: Record<ExploreTab, number> = { posts: 0, people: 1 };
 
@@ -105,7 +106,7 @@
 	<div
 		class="content-area"
 		role="tabpanel"
-		aria-label={activeTab === 'posts' ? 'Posts results' : 'People results'}
+		aria-label={activeTab === 'posts' ? t('feed.tabPosts') : t('feed.tabPeople')}
 	>
 		{#key activeTab}
 			<div

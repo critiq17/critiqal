@@ -2,6 +2,19 @@ import { postService } from '$lib/services/post.service';
 import { mediaService } from '$lib/services/media.service';
 import type { Post, PostPhoto } from '$lib/types';
 
+interface SubmitOptions {
+  /**
+   * Fires the moment the server confirms the bare post, BEFORE photo uploads
+   * complete. Lets the feed insert the post immediately for instant feedback.
+   */
+  onCreated?: (post: Post) => void;
+  /**
+   * Fires once all photo uploads have settled (succeeded or failed) so the
+   * feed can patch the inserted post with its photos.
+   */
+  onPhotosReady?: (postId: string, photos: PostPhoto[]) => void;
+}
+
 const MAX_PHOTOS = 3;
 const MAX_CHARS = 500;
 
@@ -55,35 +68,41 @@ export class UseComposer {
     this.loading = false;
   }
 
-  async submit(): Promise<Post | null> {
+  async submit(options: SubmitOptions = {}): Promise<Post | null> {
     const content = this.text.trim();
     if (!content || this.loading || this.overLimit) return null;
 
     this.loading = true;
     this.errorMessage = '';
 
+    let newPost: Post;
     try {
-      const newPost = await postService.create({ content });
-
-      const uploadedPhotos: PostPhoto[] = [];
-      for (const file of this.selectedFiles) {
-        try {
-          const photo = await mediaService.uploadPostPhoto(newPost.id, file);
-          uploadedPhotos.push(photo);
-        } catch {
-          // skip failed uploads
-        }
-      }
-
-      const finalPost: Post =
-        uploadedPhotos.length > 0 ? { ...newPost, photos: uploadedPhotos } : newPost;
-
-      this.reset();
-      return finalPost;
+      newPost = await postService.create({ content });
     } catch (err: unknown) {
       this.errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
       this.loading = false;
       return null;
     }
+
+    // Fire the optimistic callback BEFORE photo upload so the feed can render
+    // the post instantly. Snapshot files so reset() can clear the composer state.
+    const filesToUpload = [...this.selectedFiles];
+    options.onCreated?.(newPost);
+    this.reset();
+
+    if (filesToUpload.length === 0) return newPost;
+
+    const uploadedPhotos: PostPhoto[] = [];
+    for (const file of filesToUpload) {
+      try {
+        const photo = await mediaService.uploadPostPhoto(newPost.id, file);
+        uploadedPhotos.push(photo);
+      } catch {
+        // skip failed uploads
+      }
+    }
+
+    options.onPhotosReady?.(newPost.id, uploadedPhotos);
+    return uploadedPhotos.length > 0 ? { ...newPost, photos: uploadedPhotos } : newPost;
   }
 }

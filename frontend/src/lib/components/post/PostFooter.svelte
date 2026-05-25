@@ -5,6 +5,7 @@
 	import { hapticLight } from '$lib/tma/buttons';
 	import type { UseLike } from '$lib/features/posts/useLike.svelte';
 	import type { Post } from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		post: Post;
@@ -54,7 +55,7 @@
 			class="act"
 			class:active={commentsExpanded}
 			onclick={oncommentstoggle}
-			aria-label="{commentCount} comments"
+			aria-label="{commentCount} {t('post.comments')}"
 			aria-expanded={commentsExpanded}
 			type="button"
 		>
@@ -74,7 +75,7 @@
 		</button>
 	{/if}
 
-	<button class="act" onclick={handleShare} aria-label="Share post" type="button">
+	<button class="act" onclick={handleShare} aria-label={t('post.share')} type="button">
 		<svg
 			class="ic"
 			viewBox="0 0 24 24"
@@ -93,7 +94,7 @@
 
 	<span class="act-spacer"></span>
 
-	<span class="act act-views" aria-label="{viewCount} views">
+	<span class="act act-views" aria-label={String(viewCount)}>
 		<span class="count">{formatViews(viewCount)}</span>
 		<svg
 			class="ic"
@@ -113,7 +114,7 @@
 
 {#if copiedToast}
 	<div class="copied-toast" role="status" aria-live="polite" transition:fade={{ duration: 160 }}>
-		Link copied
+		{t('post.shareCopied')}
 	</div>
 {/if}
 

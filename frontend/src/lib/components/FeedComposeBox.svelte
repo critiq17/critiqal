@@ -1,46 +1,32 @@
 <script lang="ts">
 	import { authStore } from '$lib/stores/auth.store.svelte';
-
-	interface PendingPhoto {
-		file: File;
-		previewUrl: string;
-	}
+	import type { UseComposer } from '$lib/features/posts/useComposer.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
-		text: string;
-		pendingPhotos: PendingPhoto[];
-		isPosting: boolean;
-		isUploadingPhotos: boolean;
-		maxPhotos: number;
-		onTextChange: (v: string) => void;
-		onPhotoSelect: (e: Event) => void;
-		onRemovePhoto: (index: number) => void;
+		composer: UseComposer;
 		onSubmit: () => void;
 	}
 
-	let {
-		text,
-		pendingPhotos,
-		isPosting,
-		isUploadingPhotos,
-		maxPhotos,
-		onTextChange,
-		onPhotoSelect,
-		onRemovePhoto,
-		onSubmit
-	}: Props = $props();
+	let { composer, onSubmit }: Props = $props();
 
 	function handleKeydown(e: KeyboardEvent): void {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-			onSubmit();
-		}
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSubmit();
+	}
+
+	function handlePhotoSelect(e: Event): void {
+		const input = e.target as HTMLInputElement;
+		const files = input.files;
+		if (!files || files.length === 0) return;
+		composer.addFiles(Array.from(files));
+		input.value = '';
 	}
 </script>
 
 <div class="compose-box">
 	<div class="compose-avatar" aria-hidden="true">
 		{#if authStore.user?.avatarUrl}
-			<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="compose-avatar-img" />
+			<img src={authStore.user.avatarUrl} alt={authStore.user.username} class="compose-avatar-img" loading="lazy" decoding="async" />
 		{:else}
 			<span class="compose-avatar-initial">
 				{(authStore.user?.name ?? authStore.user?.username ?? '?').charAt(0).toUpperCase()}
@@ -50,23 +36,23 @@
 	<div class="compose-right">
 		<textarea
 			class="compose-input"
-			value={text}
-			oninput={(e) => onTextChange((e.target as HTMLTextAreaElement).value)}
+			value={composer.text}
+			oninput={(e) => { composer.text = (e.target as HTMLTextAreaElement).value; }}
 			onkeydown={handleKeydown}
-			placeholder="What's on your mind?"
+			placeholder={t('feed.composePlaceholder')}
 			rows={3}
-			disabled={isPosting}
-			aria-label="Write a post"
+			disabled={composer.loading}
+			aria-label={t('post.composeTitle')}
 		></textarea>
 
-		{#if pendingPhotos.length > 0}
+		{#if composer.previewUrls.length > 0}
 			<div class="photo-thumbnail-row">
-				{#each pendingPhotos as photo, i (photo.previewUrl)}
+				{#each composer.previewUrls as url, i (url)}
 					<div class="photo-thumbnail-wrap">
-						<img src={photo.previewUrl} alt="Selected photo {i + 1}" class="photo-thumbnail-img" />
+						<img src={url} alt="Selected photo {i + 1}" class="photo-thumbnail-img" />
 						<button
 							class="photo-remove-btn"
-							onclick={() => onRemovePhoto(i)}
+							onclick={() => composer.removePhoto(i)}
 							aria-label="Remove photo {i + 1}"
 							type="button"
 						>×</button>
@@ -77,14 +63,14 @@
 
 		<div class="compose-actions">
 			<div class="compose-actions-left">
-				{#if pendingPhotos.length < maxPhotos}
-					<label class="compose-photo-label" aria-label="Attach photo" title="Attach photo (up to {maxPhotos})">
+				{#if composer.selectedFiles.length < composer.maxPhotos}
+					<label class="compose-photo-label" aria-label={t('common.add')} title={`${t('common.add')} (${composer.maxPhotos})`}>
 						<input
 							type="file"
 							accept="image/jpeg,image/png,image/webp"
 							class="compose-photo-input"
-							onchange={onPhotoSelect}
-							disabled={isPosting || isUploadingPhotos}
+							onchange={handlePhotoSelect}
+							disabled={composer.loading}
 							multiple
 						/>
 						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true">
@@ -94,27 +80,29 @@
 					</label>
 				{/if}
 				<span class="compose-hint">
-					{#if pendingPhotos.length > 0}
-						{pendingPhotos.length}/{maxPhotos} photos · Ctrl+Enter to post
+					{#if composer.selectedFiles.length > 0}
+						{composer.selectedFiles.length}/{composer.maxPhotos} · Ctrl+Enter
 					{:else}
-						Ctrl+Enter to post
+						Ctrl+Enter
 					{/if}
 				</span>
 			</div>
 			<button
 				class="compose-submit"
 				onclick={onSubmit}
-				disabled={!text.trim() || isPosting || isUploadingPhotos}
+				disabled={!composer.canPost}
 			>
-				{#if isUploadingPhotos}
-					Uploading…
-				{:else if isPosting}
-					Posting…
+				{#if composer.loading}
+					{t('post.composePosting')}
 				{:else}
-					Post
+					{t('post.composePost')}
 				{/if}
 			</button>
 		</div>
+
+		{#if composer.errorMessage}
+			<p class="compose-error" role="alert">{composer.errorMessage}</p>
+		{/if}
 	</div>
 </div>
 
@@ -307,5 +295,11 @@
 
 	.compose-submit:not(:disabled):active {
 		transform: scale(0.96);
+	}
+
+	.compose-error {
+		margin: 0;
+		font-size: 0.75rem;
+		color: #e05252;
 	}
 </style>

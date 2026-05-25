@@ -3,6 +3,7 @@
 	import { ApiError } from '$lib/types';
 	import { recoveryService } from '$lib/services/recovery.service';
 	import PasswordStrengthIndicator from '$lib/components/PasswordStrengthIndicator.svelte';
+	import { t } from '$lib/i18n';
 
 	const token = $page.url.searchParams.get('token') ?? '';
 
@@ -32,18 +33,16 @@
 
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
-			if (err.status === 400 || err.status === 404) {
-				return 'This reset link is invalid or has expired.';
-			}
-			return err.message || 'Something went wrong. Please try again.';
+			if (err.status === 400 || err.status === 404) return t('auth.reset.invalidToken');
+			return err.message || t('common.somethingWentWrong');
 		}
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong. Please try again.';
+		return t('common.somethingWentWrong');
 	}
 
 	async function handleSubmit(): Promise<void> {
 		if (passwordScore < 2) {
-			error = 'Please choose a stronger password.';
+			error = t('auth.register.weakPasswordError');
 			shakeKey++;
 			return;
 		}
@@ -64,21 +63,21 @@
 </script>
 
 <svelte:head>
-	<title>Set new password — Critiqal</title>
+	<title>{t('auth.reset.title')} — Critiqal</title>
 	<meta name="description" content="Set a new password for your Critiqal account" />
 </svelte:head>
 
 <div class="page">
-	<div class="card" aria-label="Reset password form">
+	<div class="card" aria-label={t('auth.reset.title')}>
 		<div class="card-header">
 			<span class="logo-text">critiqal</span>
 			<p class="subtitle">
 				{#if !hasToken}
-					Invalid reset link
+					{t('auth.reset.invalidToken')}
 				{:else if done}
-					Password updated
+					{t('auth.reset.success')}
 				{:else}
-					Set a new password
+					{t('auth.reset.subtitle')}
 				{/if}
 			</p>
 		</div>
@@ -90,16 +89,16 @@
 					<line x1="6" y1="6" x2="18" y2="18" />
 				</svg>
 			</div>
-			<p class="state-text">Invalid or expired reset link.</p>
-			<a href="/forgot-password" class="submit-btn submit-btn-link">Request a new link</a>
+			<p class="state-text">{t('auth.reset.invalidToken')}</p>
+			<a href="/forgot-password" class="submit-btn submit-btn-link">{t('auth.forgot.submit')}</a>
 		{:else if done}
 			<div class="state-icon state-icon-success" aria-hidden="true">
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
 					<polyline points="20 6 9 17 4 12" />
 				</svg>
 			</div>
-			<p class="state-text">Password updated. You can now sign in.</p>
-			<a href="/login" class="submit-btn submit-btn-link">Sign in</a>
+			<p class="state-text">{t('auth.reset.success')}</p>
+			<a href="/login" class="submit-btn submit-btn-link">{t('auth.login.submit')}</a>
 		{:else}
 			{#if hasError}
 				{#key shakeKey}
@@ -111,7 +110,7 @@
 
 			<form class="form" onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
 				<div class="field">
-					<label for="new-password" class="field-label">New password</label>
+					<label for="new-password" class="field-label">{t('auth.reset.password')}</label>
 					<input
 						id="new-password"
 						type="password"
@@ -126,7 +125,7 @@
 					/>
 					<PasswordStrengthIndicator password={newPassword} />
 					{#if showPasswordHint}
-						<p class="field-hint">Password must be at least 8 characters</p>
+						<p class="field-hint">{t('auth.register.passwordHint')}</p>
 					{/if}
 				</div>
 
@@ -135,7 +134,7 @@
 					class="submit-btn"
 					disabled={isSubmitting || newPassword.length === 0}
 				>
-					{isSubmitting ? 'Updating...' : 'Update password'}
+					{isSubmitting ? t('auth.reset.submitting') : t('auth.reset.submit')}
 				</button>
 			</form>
 		{/if}

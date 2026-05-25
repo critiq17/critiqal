@@ -13,8 +13,25 @@ interface ProfileEntry {
 }
 
 const STALE_TIME_MS = 60_000;
+const REVALIDATE_AFTER_MS = 30_000;
 
 const cache = new Map<string, ProfileEntry>();
+type Listener = (username: string) => void;
+const visibilityListeners = new Set<Listener>();
+
+// One global visibilitychange handler — instead of every UseProfile hook
+// attaching its own. Hooks subscribe via onStaleOnReturn(); we fire for any
+// cached username whose entry has gone past the revalidate threshold.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    for (const [username, entry] of cache.entries()) {
+      if (now - entry.loadedAt < REVALIDATE_AFTER_MS) continue;
+      for (const l of visibilityListeners) l(username);
+    }
+  });
+}
 
 export const profileCache = {
   get(username: string): ProfileEntry | null {
@@ -51,5 +68,14 @@ export const profileCache = {
 
   clear(): void {
     cache.clear();
+  },
+
+  /**
+   * Fires `listener(username)` for each cached profile that has gone stale,
+   * whenever the tab/app returns to the foreground. Returns an unsubscribe.
+   */
+  onStaleOnReturn(listener: Listener): () => void {
+    visibilityListeners.add(listener);
+    return () => visibilityListeners.delete(listener);
   },
 };

@@ -1,7 +1,9 @@
 package org.critiqal.support;
 
+import org.critiqal.domain.auth.session.AuthSession;
 import org.critiqal.domain.auth.session.SessionService;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,5 +28,15 @@ public class InMemorySessionService implements SessionService {
     @Override
     public void destroy(String sid) {
         store.remove(sid);
+    }
+
+    @Override
+    public boolean revoke(UUID userId, UUID authSessionId) {
+        return false;
+    }
+
+    @Override
+    public List<AuthSession> getSessions(UUID userId) {
+        return List.of();
     }
 }

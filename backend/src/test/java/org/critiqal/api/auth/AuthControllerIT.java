@@ -101,22 +101,23 @@ class AuthControllerIT {
 
     @Test
     void revokeSession_ownSession_returns204() {
-        // Register and capture the session ID from login response
-        var loginResp = given().contentType(JSON)
+        var sid = given().contentType(JSON)
                 .body("{\"username\":\"revoke_user\",\"password\":\"pass123\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
-                .extract().response();
+                .extract().cookie("session");
 
-        var sid = loginResp.getCookie("session");
+        var sessionId = given()
+                .cookie("session", sid)
+                .when().get("/api/auth/sessions")
+                .then().statusCode(200)
+                .extract().jsonPath().getString("[0].id");
 
-        // Revoke the own session
         given()
             .cookie("session", sid)
-        .when().delete("/api/auth/sessions/" + sid)
+        .when().delete("/api/auth/sessions/" + sessionId)
         .then().statusCode(204);
 
-        // Verify the session is gone — /me must return 401 now
         given()
             .cookie("session", sid)
         .when().get("/api/auth/me")
@@ -137,10 +138,15 @@ class AuthControllerIT {
                 .then().statusCode(201)
                 .extract().cookie("session");
 
-        // Bob tries to revoke Alice's session
+        var aliceSessionId = given()
+                .cookie("session", aliceSid)
+                .when().get("/api/auth/sessions")
+                .then().statusCode(200)
+                .extract().jsonPath().getString("[0].id");
+
         given()
             .cookie("session", bobSid)
-        .when().delete("/api/auth/sessions/" + aliceSid)
+        .when().delete("/api/auth/sessions/" + aliceSessionId)
         .then().statusCode(403);
     }
 

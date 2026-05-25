@@ -9,6 +9,7 @@
 		type LoginRequest,
 		type RegisterRequest
 	} from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	type AuthMode = 'login' | 'register';
 
@@ -57,23 +58,15 @@
 
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
-			if (challengeToken && err.isUnauthorized) {
-				return 'Invalid authentication code.';
-			}
-
-			if (activeMode === 'login' && err.isUnauthorized) {
-				return 'Invalid username or password.';
-			}
-
+			if (challengeToken && err.isUnauthorized) return t('auth.errors.invalid2FA');
+			if (activeMode === 'login' && err.isUnauthorized) return t('auth.errors.invalidCredentials');
 			if (activeMode === 'register' && err.message?.toLowerCase().includes('already taken')) {
-				return 'That username is already taken. Try another.';
+				return t('auth.register.usernameTakenError');
 			}
-
-			return err.message || 'Something went wrong. Please try again.';
+			return err.message || t('common.somethingWentWrong');
 		}
-
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong. Please try again.';
+		return t('common.somethingWentWrong');
 	}
 
 	function bumpError(message: string): void {
@@ -97,7 +90,7 @@
 		if (loading) return;
 
 		if (activeMode === 'register' && passwordScore < 2) {
-			bumpError('Please choose a stronger password.');
+			bumpError(t('auth.register.weakPasswordError'));
 			return;
 		}
 
@@ -138,14 +131,14 @@
 
 <div class="auth-page">
 	<div class="auth-shell">
-		<div class="auth-card" aria-label={activeMode === 'login' ? 'Sign in form' : 'Create account form'}>
+		<div class="auth-card" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
 			<div class="card-header">
 				<span class="logo-text">critiqal</span>
 				<p class="subtitle">
 					{#if challengeToken}
-						Enter the 6-digit code from your authenticator app
+						{t('auth.login.twoFactorHint')}
 					{:else}
-						{activeMode === 'login' ? 'Sign in to your account' : 'Create your account'}
+						{activeMode === 'login' ? t('auth.login.subtitle') : t('auth.register.subtitle')}
 					{/if}
 				</p>
 			</div>
@@ -164,7 +157,7 @@
 			}}>
 				{#if challengeToken}
 					<div class="field">
-						<label for="mobile-auth-code" class="field-label">Authentication code</label>
+						<label for="mobile-auth-code" class="field-label">{t('auth.login.twoFactorTitle')}</label>
 						<input
 							id="mobile-auth-code"
 							type="text"
@@ -175,7 +168,7 @@
 							pattern={'[0-9]{6}'}
 							required
 							disabled={loading}
-							placeholder="123456"
+							placeholder={t('auth.login.twoFactorPlaceholder')}
 							oninput={() => {
 								if (error) error = '';
 							}}
@@ -183,7 +176,7 @@
 					</div>
 				{:else}
 					<div class="field">
-						<label for="mobile-auth-username" class="field-label">Username</label>
+						<label for="mobile-auth-username" class="field-label">{t('auth.register.username')}</label>
 						<input
 							id="mobile-auth-username"
 							type="text"
@@ -196,7 +189,6 @@
 							minlength={3}
 							maxlength={30}
 							disabled={loading}
-							placeholder="your_username"
 							oninput={() => {
 								if (error) error = '';
 							}}
@@ -204,7 +196,7 @@
 					</div>
 
 					<div class="field">
-						<label for="mobile-auth-password" class="field-label">Password</label>
+						<label for="mobile-auth-password" class="field-label">{t('auth.login.password')}</label>
 						<input
 							id="mobile-auth-password"
 							type="password"
@@ -222,7 +214,7 @@
 							<div class="password-meta">
 								<PasswordStrengthIndicator {password} />
 								{#if showPasswordHint}
-									<p class="field-hint">Password must be at least 8 characters.</p>
+									<p class="field-hint">{t('auth.register.passwordHint')}</p>
 								{/if}
 							</div>
 						{/if}
@@ -232,22 +224,22 @@
 				<button type="submit" class="submit-btn" disabled={isSubmitDisabled}>
 					{#if loading}
 						{#if challengeToken}
-							Verifying...
+							{t('auth.login.submitting')}
 						{:else}
-							{activeMode === 'login' ? 'Signing in...' : 'Creating account...'}
+							{activeMode === 'login' ? t('auth.login.submitting') : t('auth.register.submitting')}
 						{/if}
 					{:else}
 						{#if challengeToken}
-							Verify code
+							{t('auth.login.submit')}
 						{:else}
-							{activeMode === 'login' ? 'Sign in' : 'Create account'}
+							{activeMode === 'login' ? t('auth.login.submit') : t('auth.register.submit')}
 						{/if}
 					{/if}
 				</button>
 
 				{#if challengeToken}
 					<button type="button" class="ghost-btn" disabled={loading} onclick={resetChallenge}>
-						Use another account
+						{t('common.back')}
 					</button>
 				{/if}
 			</form>
@@ -255,14 +247,14 @@
 			{#if !challengeToken}
 				<p class="switch-link">
 					{#if activeMode === 'login'}
-						Don't have an account?
+						{t('auth.login.noAccount')}
 						<button type="button" class="switch-btn" onclick={() => switchMode('register')}>
-							Create one
+							{t('auth.login.createOne')}
 						</button>
 					{:else}
-						Already have an account?
+						{t('auth.register.haveAccount')}
 						<button type="button" class="switch-btn" onclick={() => switchMode('login')}>
-							Sign in
+							{t('auth.register.signIn')}
 						</button>
 					{/if}
 				</p>

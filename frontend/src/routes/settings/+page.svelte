@@ -9,9 +9,14 @@
 	import { twoFactorService } from '$lib/services/two-factor.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { recoveryService } from '$lib/services/recovery.service';
+	import { sessionService } from '$lib/services/session.service';
 	import { ApiError } from '$lib/types';
-	import type { TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import type { TotpSetupResponse, TwoFactorStatusResponse, AuthSession } from '$lib/types';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+	import DeviceIcon from '$lib/components/DeviceIcon.svelte';
+	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
+	import { t } from '$lib/i18n';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 
 	// ── Email ────────────────────────────────────────────────────────────────
 
@@ -153,6 +158,70 @@
 		confirmDisconnect = false;
 	}
 
+	// ── Sessions ─────────────────────────────────────────────────────────────
+
+	let sessions = $state<AuthSession[]>([]);
+	let sessionsLoading = $state(true);
+	let sessionsError = $state('');
+	let revokingId = $state<string | null>(null);
+	let confirmRevokeId = $state<string | null>(null);
+
+	async function loadSessions(): Promise<void> {
+		sessionsLoading = true;
+		sessionsError = '';
+		try {
+			sessions = await sessionService.list();
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			sessionsLoading = false;
+		}
+	}
+
+	async function handleRevokeSession(id: string): Promise<void> {
+		revokingId = id;
+		try {
+			await sessionService.revoke(id);
+			sessions = sessions.filter((s) => s.id !== id);
+			confirmRevokeId = null;
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			revokingId = null;
+		}
+	}
+
+	function sessionLocation(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.city) parts.push(s.city);
+		if (s.countryName) parts.push(s.countryName);
+		else if (s.countryCode) parts.push(s.countryCode);
+		return parts.length === 0 ? t('settings.sessions.unknownLocation') : parts.join(', ');
+	}
+
+	function sessionDevice(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.browser) parts.push(s.browser);
+		const p = prettyPlatform(s.platform);
+		if (p) parts.push(p);
+		return parts.length === 0 ? t('settings.sessions.unknownDevice') : parts.join(' · ');
+	}
+
+	function prettyPlatform(p: string | null): string | null {
+		if (!p) return null;
+		switch (p.toLowerCase()) {
+			case 'ios': return 'iOS';
+			case 'macos': return 'macOS';
+			case 'android': return 'Android';
+			case 'windows': return 'Windows';
+			case 'linux': return 'Linux';
+			case 'telegram': return 'Telegram';
+			case 'unknown':
+			case 'other': return null;
+			default: return p;
+		}
+	}
+
 	// ── Account ──────────────────────────────────────────────────────────────
 
 	async function handleLogout(): Promise<void> {
@@ -161,19 +230,20 @@
 	}
 
 	function mapError(err: unknown): string {
-		if (err instanceof ApiError) return err.message || 'Something went wrong.';
+		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
 		if (err instanceof Error) return err.message;
-		return 'Something went wrong.';
+		return t('common.somethingWentWrong');
 	}
 
 	onMount(() => {
 		loadTfaStatus();
 		stravaStore.load();
+		loadSessions();
 	});
 </script>
 
 <svelte:head>
-	<title>Settings — Critiqal</title>
+	<title>{t('settings.title')} — Critiqal</title>
 	<meta name="description" content="Manage your account settings" />
 </svelte:head>
 
@@ -184,13 +254,22 @@
 
 	<main class="col-center">
 		<header class="page-header">
-			<h1 class="page-title">Settings</h1>
+			<h1 class="page-title">{t('settings.title')}</h1>
 		</header>
+
+		<!-- Language -->
+		<section class="section">
+			<div class="setting-info col">
+				<p class="section-label">{t('settings.sections.language')}</p>
+				<span class="setting-sub">{t('settings.language.subtitle')}</span>
+			</div>
+			<LanguageSwitcher />
+		</section>
 
 		<!-- Profile -->
 		{#if authStore.isAuthenticated && authStore.user}
 			<section class="section">
-				<p class="section-label">Profile</p>
+				<p class="section-label">{t('settings.sections.profile')}</p>
 				<a href="/{authStore.user.username}" class="profile-row">
 					<div class="avatar" aria-hidden="true">
 						{#if authStore.user.avatarUrl}
@@ -214,17 +293,17 @@
 
 		<!-- Email -->
 		<section class="section">
-			<p class="section-label">Email</p>
+			<p class="section-label">{t('settings.sections.email')}</p>
 
 			<!-- Verified email row -->
 			{#if authStore.user?.email && authStore.user.emailVerified}
 				<div class="setting-row">
 					<div class="setting-info">
 						<span class="setting-value">{authStore.user.email}</span>
-						<span class="status-dot verified" title="Verified"></span>
+						<span class="status-dot verified" title={t('settings.email.verified')}></span>
 					</div>
 					{#if !emailEditing}
-						<button class="link-btn" onclick={startEmailEdit}>Change</button>
+						<button class="link-btn" onclick={startEmailEdit}>{t('common.change')}</button>
 					{/if}
 				</div>
 			{/if}
@@ -235,13 +314,13 @@
 					<div class="setting-info col">
 						<div class="setting-info">
 							<span class="setting-value">{authStore.user.pendingEmail}</span>
-							<span class="badge-pending">Pending</span>
+							<span class="badge-pending">{t('settings.email.pending')}</span>
 						</div>
-						<span class="setting-sub">Check your inbox for the verification link</span>
+						<span class="setting-sub">{t('settings.email.pendingHint')}</span>
 					</div>
 					{#if !emailEditing}
 						<button class="link-btn" disabled={emailSubmitting} onclick={handleResendVerification}>
-							{emailSubmitting ? '…' : 'Resend'}
+							{emailSubmitting ? '…' : t('settings.email.resend')}
 						</button>
 					{/if}
 				</div>
@@ -250,13 +329,13 @@
 			<!-- No email at all -->
 			{#if !authStore.user?.email && !authStore.user?.pendingEmail && !emailEditing}
 				<div class="setting-row">
-					<span class="setting-placeholder">No email set</span>
-					<button class="link-btn" onclick={startEmailEdit}>Add</button>
+					<span class="setting-placeholder">{t('settings.email.notSet')}</span>
+					<button class="link-btn" onclick={startEmailEdit}>{t('common.add')}</button>
 				</div>
 			{/if}
 
 			{#if emailSuccess}
-				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>Verification email sent — check your inbox.</p>
+				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>{t('settings.email.sent')}</p>
 			{/if}
 
 			{#if emailError && !emailEditing}
@@ -276,17 +355,17 @@
 							autocomplete="email"
 							required
 							disabled={emailSubmitting}
-							placeholder="new@example.com"
+							placeholder={t('settings.email.newPlaceholder')}
 						/>
 						<button
 							class="btn-primary"
 							disabled={emailSubmitting || emailInput.trim().length === 0}
 							onclick={handleSetEmail}
 						>
-							{emailSubmitting ? 'Saving…' : 'Save'}
+							{emailSubmitting ? t('common.saving') : t('common.save')}
 						</button>
 						<button class="btn-ghost" disabled={emailSubmitting} onclick={cancelEmailEdit}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
@@ -297,23 +376,23 @@
 		<section class="section">
 			<div class="setting-row">
 				<div class="setting-info col">
-					<p class="section-label">Two-factor authentication</p>
+					<p class="section-label">{t('settings.sections.twoFactor')}</p>
 					{#if !tfaLoading}
 						<span class="setting-sub">
 							{#if tfaStatus?.enabled}
-								Enabled · {tfaCodesCount ?? '…'} recovery codes
+								{t('settings.twoFactor.enabled')} · {tfaCodesCount ?? '…'} {t('settings.twoFactor.recoveryCodes')}
 							{:else}
-								Add an extra layer of security
+								{t('settings.twoFactor.notEnabled')}
 							{/if}
 						</span>
 					{/if}
 				</div>
 				{#if !tfaLoading && tfaView === 'idle'}
 					{#if tfaStatus?.enabled}
-						<span class="status-badge enabled">On</span>
+						<span class="status-badge enabled">{t('common.on')}</span>
 					{:else}
 						<button class="link-btn" disabled={tfaSubmitting} onclick={handleSetupTfa}>
-							{tfaSubmitting ? 'Setting up…' : 'Enable'}
+							{tfaSubmitting ? t('settings.twoFactor.settingUp') : t('common.enable')}
 						</button>
 					{/if}
 				{/if}
@@ -328,10 +407,10 @@
 
 			{:else if tfaView === 'setup-qr' && tfaSetup}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint">Scan with Google Authenticator, Authy, or any TOTP app.</p>
-					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR code" />
+					<p class="hint">{t('settings.twoFactor.setupHint')}</p>
+					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR" />
 					<details class="manual-entry">
-						<summary>Can't scan?</summary>
+						<summary>{t('settings.twoFactor.cantScan')}</summary>
 						<code class="secret">{tfaSetup.secret}</code>
 					</details>
 					<div class="input-row">
@@ -341,35 +420,35 @@
 							bind:value={tfaConfirmCode}
 							inputmode="numeric"
 							maxlength={6}
-							placeholder="6-digit code"
+							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
 							disabled={tfaSubmitting}
 						/>
 						<button class="btn-primary" disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6} onclick={handleConfirmTfa}>
-							{tfaSubmitting ? 'Confirming…' : 'Confirm'}
+							{tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
 						</button>
 						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
 
 			{:else if tfaView === 'show-codes' || tfaView === 'regen-codes'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint hint-warn">Save these codes — each works once if you lose your authenticator.</p>
+					<p class="hint hint-warn">{t('settings.twoFactor.saveCodes')}</p>
 					<ul class="codes-grid">
 						{#each tfaRecoveryCodes as code}
 							<li class="code">{code}</li>
 						{/each}
 					</ul>
 					<button class="btn-primary" style="align-self: flex-start" onclick={tfaView === 'regen-codes' ? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); } : handleDoneWithCodes}>
-						Done, I've saved them
+						{t('settings.twoFactor.savedDone')}
 					</button>
 				</div>
 
 			{:else if tfaView === 'disable-confirm'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
-					<p class="hint">Enter your 6-digit code to confirm disabling 2FA.</p>
+					<p class="hint">{t('settings.twoFactor.disableHint')}</p>
 					<div class="input-row">
 						<input
 							type="text"
@@ -377,15 +456,15 @@
 							bind:value={tfaDisableCode}
 							inputmode="numeric"
 							maxlength={6}
-							placeholder="6-digit code"
+							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
 							disabled={tfaSubmitting}
 						/>
 						<button class="btn-danger" disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6} onclick={handleDisableTfa}>
-							{tfaSubmitting ? 'Disabling…' : 'Disable'}
+							{tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
 						</button>
 						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
-							Cancel
+							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
@@ -393,11 +472,11 @@
 			{:else if tfaStatus?.enabled && tfaView === 'idle'}
 				<div class="tfa-actions">
 					<button class="link-btn" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-						Regenerate codes
+						{t('settings.twoFactor.regenerate')}
 					</button>
 					<span class="dot-sep" aria-hidden="true">·</span>
 					<button class="link-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
-						Disable
+						{t('common.disable')}
 					</button>
 				</div>
 			{/if}
@@ -405,15 +484,15 @@
 
 		<!-- Integrations -->
 		<section class="section">
-			<p class="section-label">Integrations</p>
+			<p class="section-label">{t('settings.sections.integrations')}</p>
 
 			<div class="setting-row">
 				<div class="setting-info col">
-					<span class="setting-value">Strava</span>
+					<span class="setting-value">{t('settings.integrations.strava')}</span>
 					{#if stravaStore.connection}
 						<span class="setting-sub">{stravaStore.connection.firstname} {stravaStore.connection.lastname}</span>
 					{:else}
-						<span class="setting-sub">Connect your activities</span>
+						<span class="setting-sub">{t('settings.integrations.stravaConnect')}</span>
 					{/if}
 				</div>
 
@@ -421,26 +500,115 @@
 					{#if confirmDisconnect}
 						<div class="inline-actions">
 							<button class="link-btn danger" disabled={stravaStore.loading} onclick={handleStravaDisconnect}>
-								{stravaStore.loading ? '…' : 'Disconnect'}
+								{stravaStore.loading ? '…' : t('settings.integrations.disconnect')}
 							</button>
 							<button class="link-btn" disabled={stravaStore.loading} onclick={() => { confirmDisconnect = false; }}>
-								Cancel
+								{t('common.cancel')}
 							</button>
 						</div>
 					{:else}
-						<button class="link-btn" onclick={() => { confirmDisconnect = true; }}>Disconnect</button>
+						<button class="link-btn" onclick={() => { confirmDisconnect = true; }}>{t('settings.integrations.disconnect')}</button>
 					{/if}
 				{:else if stravaComingSoon}
-					<span class="setting-sub" in:fly={{ x: 4, duration: 150 }}>Coming soon</span>
+					<span class="setting-sub" in:fly={{ x: 4, duration: 150 }}>{t('common.comingSoon')}</span>
 				{:else}
-					<button class="link-btn" onclick={handleStravaConnect}>Connect</button>
+					<button class="link-btn" onclick={handleStravaConnect}>{t('settings.integrations.connect')}</button>
 				{/if}
 			</div>
 		</section>
 
+		<!-- Sessions -->
+		<section class="section sessions">
+			<div class="setting-row">
+				<div class="setting-info col">
+					<p class="section-label">{t('settings.sections.sessions')}</p>
+					<span class="setting-sub">{t('settings.sessions.subtitle')}</span>
+				</div>
+				<button class="link-btn" disabled={sessionsLoading} onclick={loadSessions} title={t('settings.sessions.refresh')}>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+						stroke-linecap="round" stroke-linejoin="round" class="refresh-icon"
+						class:spinning={sessionsLoading} aria-hidden="true">
+						<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+						<path d="M21 3v5h-5" />
+						<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+						<path d="M3 21v-5h5" />
+					</svg>
+				</button>
+			</div>
+
+			{#if sessionsError}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{sessionsError}</p>
+			{/if}
+
+			{#if sessionsLoading && sessions.length === 0}
+				<div class="session-skel-list">
+					{#each Array(2) as _, i (i)}
+						<div class="session-skel"></div>
+					{/each}
+				</div>
+			{:else if sessions.length === 0}
+				<p class="hint">{t('settings.sessions.empty')}</p>
+			{:else}
+				<ul class="session-list">
+					{#each sessions as session (session.id)}
+						<li class="session" class:current={session.current}
+							in:fly|local={{ y: 6, duration: 220 }}>
+							<div class="session-icon" aria-hidden="true">
+								<DeviceIcon platform={session.platform} />
+							</div>
+							<div class="session-body">
+								<div class="session-line-1">
+									<span class="session-device">{sessionDevice(session)}</span>
+									{#if session.current}
+										<span class="session-badge current-badge">{t('settings.sessions.current')}</span>
+									{:else if session.countryCode}
+										<span class="session-badge country">{session.countryCode}</span>
+									{/if}
+								</div>
+								<div class="session-line-2">
+									<span class="session-loc">{sessionLocation(session)}</span>
+								</div>
+								<div class="session-line-3">
+									<span>{t('settings.sessions.signedIn')} · {formatRelativeTime(session.createdAt)}</span>
+									<span class="dot-sep" aria-hidden="true">·</span>
+									<span>{t('settings.sessions.lastSeen')} · {formatRelativeTime(session.lastSeenAt)}</span>
+								</div>
+							</div>
+							{#if !session.current}
+								<div class="session-action">
+									{#if confirmRevokeId === session.id}
+										<div class="inline-actions" in:fly={{ x: 4, duration: 140 }}>
+											<button
+												class="link-btn danger"
+												disabled={revokingId === session.id}
+												onclick={() => handleRevokeSession(session.id)}
+											>
+												{revokingId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
+											</button>
+											<button
+												class="link-btn"
+												disabled={revokingId === session.id}
+												onclick={() => (confirmRevokeId = null)}
+											>
+												{t('common.cancel')}
+											</button>
+										</div>
+									{:else}
+										<button class="link-btn danger" onclick={() => (confirmRevokeId = session.id)}>
+											{t('settings.sessions.revoke')}
+										</button>
+									{/if}
+								</div>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
 		<!-- Account -->
 		<section class="section section-last">
-			<button class="link-btn danger" onclick={handleLogout}>Sign out</button>
+			<button class="link-btn danger" onclick={handleLogout}>{t('settings.signOut')}</button>
 		</section>
 	</main>
 
@@ -884,6 +1052,183 @@
 		border-radius: 0.375rem;
 		padding: 0.375rem 0.625rem;
 		letter-spacing: 0.04em;
+	}
+
+	/* ── Sessions ─────────────────────────────────────────────────────────── */
+
+	.session-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.session {
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		align-items: center;
+		gap: 0.875rem;
+		padding: 0.75rem 0.5rem;
+		border-radius: 0.625rem;
+		background: transparent;
+		border: none;
+		transition: background-color 0.18s ease;
+	}
+
+	.session + .session {
+		border-top: 1px solid var(--divider-faint);
+	}
+
+	.session:hover {
+		background: var(--surface-tint-faint);
+	}
+
+	.session.current {
+		background: transparent;
+	}
+
+	.session-icon {
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.625rem;
+		background: var(--surface-tint-medium);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		color: var(--text-strong);
+		transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.session.current .session-icon {
+		color: #10b981;
+		background: rgba(16, 185, 129, 0.12);
+	}
+
+	.session:hover .session-icon {
+		transform: scale(1.04);
+	}
+
+	.session-body {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+	}
+
+	.session-line-1 {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.session-device {
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: var(--color-text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.session-badge {
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		padding: 0.125rem 0.4375rem;
+		border-radius: 999px;
+		text-transform: uppercase;
+		flex-shrink: 0;
+	}
+
+	.session-badge.current-badge {
+		background: rgba(16, 185, 129, 0.14);
+		color: #10b981;
+	}
+
+	.session-badge.country {
+		background: var(--surface-tint-medium);
+		color: var(--text-strong);
+	}
+
+	.session-line-2 {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		color: var(--color-text-secondary);
+	}
+
+	.session-loc {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.session-line-3 {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+	}
+
+	.session-action {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.sessions .setting-row .link-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 999px;
+		color: var(--color-text-secondary);
+	}
+
+	.sessions .setting-row .link-btn:hover:not(:disabled) {
+		color: var(--color-text-primary);
+		background: var(--surface-tint-soft);
+		opacity: 1;
+	}
+
+	.refresh-icon {
+		width: 0.9375rem;
+		height: 0.9375rem;
+		transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.refresh-icon.spinning {
+		animation: spin 0.9s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.session-skel-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.session-skel {
+		height: 4.25rem;
+		border-radius: 0.75rem;
+		background: var(--color-skeleton);
+		animation: pulse 1.4s ease-in-out infinite;
+	}
+
+	@media (max-width: 520px) {
+		.session-line-3 {
+			flex-wrap: wrap;
+		}
 	}
 
 	/* ── Skeleton ─────────────────────────────────────────────────────────── */

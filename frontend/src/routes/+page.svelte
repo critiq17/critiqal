@@ -1,27 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { PostPhoto } from '$lib/types';
-	import { postService, mediaService } from '$lib/services';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { feedCacheStore } from '$lib/stores/feed-cache.store.svelte';
+	import { UseComposer } from '$lib/features/posts/useComposer.svelte';
 	import { infiniteScroll } from '$lib/actions/infiniteScroll';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import { Post as PostCard } from '$lib/components/post';
 	import PostCardSkeleton from '$lib/components/PostCardSkeleton.svelte';
 	import FeedComposeBox from '$lib/components/FeedComposeBox.svelte';
+	import { t } from '$lib/i18n';
 
-	interface PendingPhoto {
-		file: File;
-		previewUrl: string;
-	}
-
-	const MAX_PHOTOS = 3;
 	const SKELETON_COUNT = 5;
 
-	let composeText = $state('');
-	let isPosting = $state(false);
-	let pendingPhotos = $state<PendingPhoto[]>([]);
-	let isUploadingPhotos = $state(false);
+	const composer = new UseComposer();
 
 	const posts = $derived(feedCacheStore.posts);
 	const hasNext = $derived(feedCacheStore.hasNext);
@@ -43,68 +34,14 @@
 		feedCacheStore.load({ force: true });
 	}
 
-	function handlePhotoSelect(e: Event): void {
-		const input = e.target as HTMLInputElement;
-		const files = input.files;
-		if (!files || files.length === 0) return;
-
-		const remaining = MAX_PHOTOS - pendingPhotos.length;
-		const toAdd = Array.from(files).slice(0, remaining);
-		const newPending: PendingPhoto[] = toAdd.map((file) => ({
-			file,
-			previewUrl: URL.createObjectURL(file)
-		}));
-
-		pendingPhotos = [...pendingPhotos, ...newPending];
-		input.value = '';
-	}
-
-	function removePhoto(index: number): void {
-		const photo = pendingPhotos[index];
-		if (photo) URL.revokeObjectURL(photo.previewUrl);
-		pendingPhotos = pendingPhotos.filter((_, i) => i !== index);
-	}
-
-	function clearPendingPhotos(): void {
-		pendingPhotos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
-		pendingPhotos = [];
-	}
-
 	async function submitPost(): Promise<void> {
-		const content = composeText.trim();
-		if (!content || isPosting) return;
-		isPosting = true;
-		try {
-			const newPost = await postService.create({ content });
-			const photosToUpload = [...pendingPhotos];
-
-			if (photosToUpload.length > 0) {
-				isUploadingPhotos = true;
-				try {
-					const photos: PostPhoto[] = [];
-					for (const p of photosToUpload) {
-						try {
-							const photo = await mediaService.uploadPostPhoto(newPost.id, p.file);
-							photos.push(photo);
-						} catch {
-							// skip failed photo
-						}
-					}
-					feedCacheStore.prependPost({ ...newPost, photos });
-				} finally {
-					isUploadingPhotos = false;
-				}
-			} else {
-				feedCacheStore.prependPost(newPost);
+		// Two-phase: insert bare post on creation, patch photos in on upload.
+		await composer.submit({
+			onCreated: (post) => feedCacheStore.prependPost(post),
+			onPhotosReady: (postId, photos) => {
+				if (photos.length > 0) feedCacheStore.updatePost(postId, { photos });
 			}
-
-			composeText = '';
-			clearPendingPhotos();
-		} catch {
-			// ignore
-		} finally {
-			isPosting = false;
-		}
+		});
 	}
 
 	function handlePostDeleted(postId: string): void {
@@ -113,7 +50,7 @@
 </script>
 
 <svelte:head>
-	<title>Critiqal — Feed</title>
+	<title>Critiqal — {t('nav.feed')}</title>
 	<meta name="description" content="Your Critiqal feed" />
 </svelte:head>
 
@@ -122,41 +59,31 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label="Feed">
+	<main class="col-center" aria-label={t('nav.feed')}>
 		<header class="feed-header">
-			<h1 class="feed-title">Feed</h1>
+			<h1 class="feed-title">{t('nav.feed')}</h1>
 		</header>
 
 		{#if authStore.isAuthenticated}
-			<FeedComposeBox
-				text={composeText}
-				{pendingPhotos}
-				{isPosting}
-				{isUploadingPhotos}
-				maxPhotos={MAX_PHOTOS}
-				onTextChange={(v) => { composeText = v; }}
-				onPhotoSelect={handlePhotoSelect}
-				onRemovePhoto={removePhoto}
-				onSubmit={submitPost}
-			/>
+			<FeedComposeBox {composer} onSubmit={submitPost} />
 		{/if}
 
 		{#if showSkeleton}
-			<div aria-busy="true" aria-label="Loading feed">
+			<div aria-busy="true" aria-label={t('common.loading')}>
 				{#each { length: SKELETON_COUNT } as _, i (i)}
 					<PostCardSkeleton />
 				{/each}
 			</div>
 		{:else if error && posts.length === 0}
 			<div class="state-box" role="alert">
-				<p class="state-title">Something went wrong</p>
+				<p class="state-title">{t('common.error')}</p>
 				<p class="state-body">{error}</p>
-				<button class="retry-btn" onclick={reloadFeed}>Try again</button>
+				<button class="retry-btn" onclick={reloadFeed}>{t('common.retry')}</button>
 			</div>
 		{:else if posts.length === 0}
 			<div class="state-box">
-				<p class="state-title">Nothing here yet</p>
-				<p class="state-body">Be the first to post something.</p>
+				<p class="state-title">{t('feed.empty')}</p>
+				<p class="state-body">{t('feed.emptyHint')}</p>
 			</div>
 		{:else}
 			<div class="post-list">
@@ -172,7 +99,7 @@
 				></div>
 			{/if}
 			{#if feedCacheStore.isLoadingMore}
-				<div class="loading-more">Loading more…</div>
+				<div class="loading-more">{t('common.loading')}</div>
 			{/if}
 		{/if}
 	</main>
@@ -221,17 +148,21 @@
 		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		background: linear-gradient(
-			to bottom,
-			var(--color-bg) 0%,
-			rgba(12, 12, 12, 0.85) 45%,
-			rgba(12, 12, 12, 0) 100%
-		);
-		backdrop-filter: blur(12px) saturate(150%);
-		-webkit-backdrop-filter: blur(12px) saturate(150%);
+		/* Theme-aware glass via the shared tokens (.glass would add a border;
+		   we want the seamless mask-faded edge, so we inline the surface but
+		   reuse the same tokens for both themes). */
+		background: var(--glass-bg-soft);
+		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
 		z-index: 10;
+	}
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.feed-header {
+			background: var(--color-bg);
+		}
 	}
 
 	.feed-title {

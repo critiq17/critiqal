@@ -45,6 +45,13 @@ export class UseProfile {
       this.followersCount = cached.stats.followersCount;
       this.followingCount = cached.stats.followingCount;
     }
+
+    // Silent revalidate when the tab returns to foreground after a quiet
+    // stretch. profileCache fires once per stale entry per visibility event,
+    // so we don't hammer the backend.
+    profileCache.onStaleOnReturn((u) => {
+      if (u === authStore.user?.username) this.load();
+    });
   }
 
   private async loadStats(userId: string, username: string): Promise<void> {

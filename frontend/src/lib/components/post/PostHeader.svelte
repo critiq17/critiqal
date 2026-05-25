@@ -2,6 +2,7 @@
 	import { getInitials } from '$lib/utils/getInitials';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 	import type { Post } from '$lib/types';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		post: Post;
@@ -15,10 +16,10 @@
 </script>
 
 <div class="p-head">
-	<button class="author-btn" onclick={onauthorclick} aria-label="View {post.author.username}'s profile">
+	<button class="author-btn" onclick={onauthorclick} aria-label={`${t('nav.profile')} @${post.author.username}`}>
 		<span class="avatar" aria-hidden="true">
 			{#if post.author.avatarUrl}
-				<img src={post.author.avatarUrl} alt={post.author.username} />
+				<img src={post.author.avatarUrl} alt={post.author.username} loading="lazy" decoding="async" />
 			{:else}
 				<span class="avatar-initial">{getInitials(post.author.name, post.author.username)}</span>
 			{/if}
@@ -33,7 +34,7 @@
 	</button>
 
 	{#if showOptions}
-		<button class="p-more" onclick={onoptionsclick} aria-label="Post options" type="button">
+		<button class="p-more" onclick={onoptionsclick} aria-label={t('common.more')} type="button">
 			<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" aria-hidden="true">
 				<circle cx="6" cy="12" r="1.6" />
 				<circle cx="12" cy="12" r="1.6" />
