@@ -7,6 +7,7 @@
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { ApiError, isTwoFactorChallenge } from '$lib/types';
 	import { t } from '$lib/i18n';
+	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
 
 	type AuthMode = 'credentials' | 'totp' | 'recovery';
 	type Step = 'auth' | 'onboarding';
@@ -107,6 +108,7 @@
 </svelte:head>
 
 <div class="page">
+	<StarfieldBackdrop />
 	{#if step === 'auth'}
 		<div class="card" aria-label={t('auth.login.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
@@ -253,9 +255,13 @@
 		justify-content: center;
 		padding: 1.5rem;
 		background: var(--color-bg);
+		position: relative;
+		overflow: hidden;
 	}
 
 	.card {
+		position: relative;
+		z-index: 1;
 		width: 100%;
 		max-width: 22rem;
 		background: var(--color-surface);

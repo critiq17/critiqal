@@ -9,11 +9,14 @@
 	import { twoFactorService } from '$lib/services/two-factor.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { recoveryService } from '$lib/services/recovery.service';
+	import { sessionService } from '$lib/services/session.service';
 	import { ApiError } from '$lib/types';
-	import type { TotpSetupResponse, TwoFactorStatusResponse } from '$lib/types';
+	import type { TotpSetupResponse, TwoFactorStatusResponse, AuthSession } from '$lib/types';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
+	import DeviceIcon from '$lib/components/DeviceIcon.svelte';
 	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
 	import { t } from '$lib/i18n';
+	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 
 	// ── Email ────────────────────────────────────────────────────────────────
 
@@ -155,6 +158,70 @@
 		confirmDisconnect = false;
 	}
 
+	// ── Sessions ─────────────────────────────────────────────────────────────
+
+	let sessions = $state<AuthSession[]>([]);
+	let sessionsLoading = $state(true);
+	let sessionsError = $state('');
+	let revokingId = $state<string | null>(null);
+	let confirmRevokeId = $state<string | null>(null);
+
+	async function loadSessions(): Promise<void> {
+		sessionsLoading = true;
+		sessionsError = '';
+		try {
+			sessions = await sessionService.list();
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			sessionsLoading = false;
+		}
+	}
+
+	async function handleRevokeSession(id: string): Promise<void> {
+		revokingId = id;
+		try {
+			await sessionService.revoke(id);
+			sessions = sessions.filter((s) => s.id !== id);
+			confirmRevokeId = null;
+		} catch (err) {
+			sessionsError = mapError(err);
+		} finally {
+			revokingId = null;
+		}
+	}
+
+	function sessionLocation(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.city) parts.push(s.city);
+		if (s.countryName) parts.push(s.countryName);
+		else if (s.countryCode) parts.push(s.countryCode);
+		return parts.length === 0 ? t('settings.sessions.unknownLocation') : parts.join(', ');
+	}
+
+	function sessionDevice(s: AuthSession): string {
+		const parts: string[] = [];
+		if (s.browser) parts.push(s.browser);
+		const p = prettyPlatform(s.platform);
+		if (p) parts.push(p);
+		return parts.length === 0 ? t('settings.sessions.unknownDevice') : parts.join(' · ');
+	}
+
+	function prettyPlatform(p: string | null): string | null {
+		if (!p) return null;
+		switch (p.toLowerCase()) {
+			case 'ios': return 'iOS';
+			case 'macos': return 'macOS';
+			case 'android': return 'Android';
+			case 'windows': return 'Windows';
+			case 'linux': return 'Linux';
+			case 'telegram': return 'Telegram';
+			case 'unknown':
+			case 'other': return null;
+			default: return p;
+		}
+	}
+
 	// ── Account ──────────────────────────────────────────────────────────────
 
 	async function handleLogout(): Promise<void> {
@@ -171,6 +238,7 @@
 	onMount(() => {
 		loadTfaStatus();
 		stravaStore.load();
+		loadSessions();
 	});
 </script>
 
@@ -447,6 +515,95 @@
 					<button class="link-btn" onclick={handleStravaConnect}>{t('settings.integrations.connect')}</button>
 				{/if}
 			</div>
+		</section>
+
+		<!-- Sessions -->
+		<section class="section sessions">
+			<div class="setting-row">
+				<div class="setting-info col">
+					<p class="section-label">{t('settings.sections.sessions')}</p>
+					<span class="setting-sub">{t('settings.sessions.subtitle')}</span>
+				</div>
+				<button class="link-btn" disabled={sessionsLoading} onclick={loadSessions} title={t('settings.sessions.refresh')}>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+						stroke-linecap="round" stroke-linejoin="round" class="refresh-icon"
+						class:spinning={sessionsLoading} aria-hidden="true">
+						<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
+						<path d="M21 3v5h-5" />
+						<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
+						<path d="M3 21v-5h5" />
+					</svg>
+				</button>
+			</div>
+
+			{#if sessionsError}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{sessionsError}</p>
+			{/if}
+
+			{#if sessionsLoading && sessions.length === 0}
+				<div class="session-skel-list">
+					{#each Array(2) as _, i (i)}
+						<div class="session-skel"></div>
+					{/each}
+				</div>
+			{:else if sessions.length === 0}
+				<p class="hint">{t('settings.sessions.empty')}</p>
+			{:else}
+				<ul class="session-list">
+					{#each sessions as session (session.id)}
+						<li class="session" class:current={session.current}
+							in:fly|local={{ y: 6, duration: 220 }}>
+							<div class="session-icon" aria-hidden="true">
+								<DeviceIcon platform={session.platform} />
+							</div>
+							<div class="session-body">
+								<div class="session-line-1">
+									<span class="session-device">{sessionDevice(session)}</span>
+									{#if session.current}
+										<span class="session-badge current-badge">{t('settings.sessions.current')}</span>
+									{:else if session.countryCode}
+										<span class="session-badge country">{session.countryCode}</span>
+									{/if}
+								</div>
+								<div class="session-line-2">
+									<span class="session-loc">{sessionLocation(session)}</span>
+								</div>
+								<div class="session-line-3">
+									<span>{t('settings.sessions.signedIn')} · {formatRelativeTime(session.createdAt)}</span>
+									<span class="dot-sep" aria-hidden="true">·</span>
+									<span>{t('settings.sessions.lastSeen')} · {formatRelativeTime(session.lastSeenAt)}</span>
+								</div>
+							</div>
+							{#if !session.current}
+								<div class="session-action">
+									{#if confirmRevokeId === session.id}
+										<div class="inline-actions" in:fly={{ x: 4, duration: 140 }}>
+											<button
+												class="link-btn danger"
+												disabled={revokingId === session.id}
+												onclick={() => handleRevokeSession(session.id)}
+											>
+												{revokingId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
+											</button>
+											<button
+												class="link-btn"
+												disabled={revokingId === session.id}
+												onclick={() => (confirmRevokeId = null)}
+											>
+												{t('common.cancel')}
+											</button>
+										</div>
+									{:else}
+										<button class="link-btn danger" onclick={() => (confirmRevokeId = session.id)}>
+											{t('settings.sessions.revoke')}
+										</button>
+									{/if}
+								</div>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</section>
 
 		<!-- Account -->
@@ -895,6 +1052,183 @@
 		border-radius: 0.375rem;
 		padding: 0.375rem 0.625rem;
 		letter-spacing: 0.04em;
+	}
+
+	/* ── Sessions ─────────────────────────────────────────────────────────── */
+
+	.session-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.session {
+		display: grid;
+		grid-template-columns: auto 1fr auto;
+		align-items: center;
+		gap: 0.875rem;
+		padding: 0.75rem 0.5rem;
+		border-radius: 0.625rem;
+		background: transparent;
+		border: none;
+		transition: background-color 0.18s ease;
+	}
+
+	.session + .session {
+		border-top: 1px solid var(--divider-faint);
+	}
+
+	.session:hover {
+		background: var(--surface-tint-faint);
+	}
+
+	.session.current {
+		background: transparent;
+	}
+
+	.session-icon {
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.625rem;
+		background: var(--surface-tint-medium);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		color: var(--text-strong);
+		transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+	}
+
+	.session.current .session-icon {
+		color: #10b981;
+		background: rgba(16, 185, 129, 0.12);
+	}
+
+	.session:hover .session-icon {
+		transform: scale(1.04);
+	}
+
+	.session-body {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.1875rem;
+	}
+
+	.session-line-1 {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.session-device {
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: var(--color-text-primary);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.session-badge {
+		font-size: 0.625rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		padding: 0.125rem 0.4375rem;
+		border-radius: 999px;
+		text-transform: uppercase;
+		flex-shrink: 0;
+	}
+
+	.session-badge.current-badge {
+		background: rgba(16, 185, 129, 0.14);
+		color: #10b981;
+	}
+
+	.session-badge.country {
+		background: var(--surface-tint-medium);
+		color: var(--text-strong);
+	}
+
+	.session-line-2 {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		color: var(--color-text-secondary);
+	}
+
+	.session-loc {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.session-line-3 {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+	}
+
+	.session-action {
+		display: flex;
+		align-items: center;
+		flex-shrink: 0;
+	}
+
+	.sessions .setting-row .link-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 1.75rem;
+		height: 1.75rem;
+		border-radius: 999px;
+		color: var(--color-text-secondary);
+	}
+
+	.sessions .setting-row .link-btn:hover:not(:disabled) {
+		color: var(--color-text-primary);
+		background: var(--surface-tint-soft);
+		opacity: 1;
+	}
+
+	.refresh-icon {
+		width: 0.9375rem;
+		height: 0.9375rem;
+		transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+	}
+
+	.refresh-icon.spinning {
+		animation: spin 0.9s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+
+	.session-skel-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.session-skel {
+		height: 4.25rem;
+		border-radius: 0.75rem;
+		background: var(--color-skeleton);
+		animation: pulse 1.4s ease-in-out infinite;
+	}
+
+	@media (max-width: 520px) {
+		.session-line-3 {
+			flex-wrap: wrap;
+		}
 	}
 
 	/* ── Skeleton ─────────────────────────────────────────────────────────── */
