@@ -35,9 +35,18 @@ public class AuthSessionRepositoryImpl
     }
 
     @Override
-    public boolean existsActiveByDeviceIdHash(String deviceIdHash) {
+    public Optional<AuthSession> findActiveByIdAndUserId(UUID sessionId, UUID userId) {
+        return find(
+                "id = ?1 AND user.id = ?2 AND revokedAt IS NULL",
+                sessionId,
+                userId
+        ).firstResultOptional();
+    }
+
+    @Override
+    public boolean existsByDeviceIdHash(String deviceIdHash) {
         if (deviceIdHash == null) return false;
-        return count("deviceIdHash = ?1 AND revokedAt IS NULL", deviceIdHash) > 0;
+        return count("deviceIdHash = ?1", deviceIdHash) > 0;
     }
 
     @Override

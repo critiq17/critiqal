@@ -4,17 +4,21 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.RequestScoped;
 
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 import java.security.MessageDigest;
-import java.util.Base64;
+import java.util.HexFormat;
 
 @RequestScoped
 public class RequestMetadataResolver {
 
     private static final String HEADER_CF_IP = "CF-Connecting-IP";
     private static final String HEADER_CF_COUNTRY = "CF-IPCountry";
+    private static final String HEADER_CF_CITY = "CF-IPCity";
     private static final String HEADER_XFF = "X-Forwarded-For";
     private static final String HEADER_DEVICE_ID = "X-Device-Id";
     private static final int MAX_UA_LENGTH = 512;
+    private static final int MAX_CITY_LENGTH = 128;
+    private static final HexFormat HEX = HexFormat.of();
 
     private final RoutingContext routingContext;
 
@@ -32,7 +36,7 @@ public class RequestMetadataResolver {
         return new RequestMetadata(
                 hash(rawIp),
                 countryCode,
-                null,
+                truncate(req.getHeader(HEADER_CF_CITY), MAX_CITY_LENGTH),
                 userAgent,
                 detectPlatform(userAgent),
                 hash(rawDeviceId)
@@ -62,7 +66,7 @@ public class RequestMetadataResolver {
         if (ua.contains("iphone") || ua.contains("ipad")) return "ios";
         if (ua.contains("windows")) return "windows";
         if (ua.contains("macintosh") || ua.contains("mac os x")) return "macos";
-        if (ua.contains("limux")) return "linux";
+        if (ua.contains("linux")) return "linux";
         return "other";
     }
 
@@ -82,8 +86,8 @@ public class RequestMetadataResolver {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
             var bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(bytes);
-        } catch (Exception e) {
+            return HEX.formatHex(bytes);
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("Hash failed", e);
         }
     }

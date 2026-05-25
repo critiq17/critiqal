@@ -1,4 +1,5 @@
 package org.critiqal.api.auth;
+
 import io.quarkus.security.Authenticated;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
@@ -26,19 +27,19 @@ import org.critiqal.infra.auth.session.SessionFactoryCookie;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 @Path("/api/auth")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class AuthResource {
-
-
     private final UserService userService;
     private final SessionService sessions;
     private final SessionFactoryCookie cookies;
     private final CurrentUser currentUser;
     private final TotpService totpService;
-    private final AuthChallengeService  authChallengeService;
+    private final AuthChallengeService authChallengeService;
     private final DeviceGuard deviceGuard;
     private final RequestMetadataResolver metadataResolver;
     private final AuthSessionRepository authSessionRepo;
@@ -141,42 +142,36 @@ public class AuthResource {
 
         List<SessionDto> dtos = sessions.getSessions(currentUser.id())
                 .stream()
-                .map(s -> SessionDto.from(s, s.sessionIdHash.equals(currentHash)))
+                .map(session -> SessionDto.from(session, Objects.equals(session.sessionIdHash, currentHash)))
                 .toList();
 
         return Response.ok(dtos).build();
     }
 
     @DELETE @Path("/sessions/{id}") @Consumes(MediaType.WILDCARD) @Authenticated
-    public Response revokeSession(@PathParam("id") String sessionId) {
-        var owner = sessions.resolve(sessionId);
-        if (owner.isEmpty() || !owner.get().equals(currentUser.id()))
-            return Response.status(403).build(  );
-        sessions.destroy(sessionId);
+    public Response revokeSession(@PathParam("id") UUID sessionId) {
+        if (!sessions.revoke(currentUser.id(), sessionId)) {
+            return Response.status(403).build();
+        }
         return Response.noContent().build();
     }
 
     private void sendNewDeviceAlertIfNeeded(
-            java.util.UUID userId, String email, boolean  emailVerified) {
+            UUID userId, String email, boolean emailVerified) {
         if (email == null || !emailVerified) return;
 
         var meta = metadataResolver.resolve();
-        if(meta.deviceIdHash() == null) return;
+        if (meta.deviceIdHash() == null) return;
 
-        if(authSessionRepo.existsByDeviceIdHashAndUserId(meta.deviceIdHash(), userId)) return;
-
-        var location = meta.countryCode() != null
-                ? meta.platform() + " . " + meta.countryCode()
-                : meta.platform();
+        if (authSessionRepo.existsByDeviceIdHashAndUserId(meta.deviceIdHash(), userId)) return;
 
         try {
             emailService.sendSecurityAlert(
                     email,
                     "New login detected - Critiqal",
-                    "A new login was detected on your Critiqal account from " + location +
-                            ". If this was you, no action needed. If not, revoke this " +
-                            "session immediately is Settings -> Sessions."
+                    LoginAlertFormatter.buildMessage(meta)
             );
-        } catch (Exception e){}
+        } catch (Exception ignored) {
+        }
     }
 }

@@ -12,8 +12,8 @@ CREATE TABLE auth_sessions (
     last_seen_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     revoked_at TIMESTAMP WITH TIME ZONE,
     CONSTRAINT pk_auth_sessions PRIMARY KEY (id),
-    CONSTRAINT fk_auth_sessions_user PRIMARY KEY (user_id)
-                           REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_auth_sessions_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX idx_auth_sessions_sid_hash

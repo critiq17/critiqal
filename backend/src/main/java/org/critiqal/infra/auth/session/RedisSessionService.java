@@ -5,6 +5,7 @@ import io.quarkus.redis.datasource.value.GetExArgs;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.context.ContextNotActiveException;
+import jakarta.enterprise.inject.IllegalProductException;
 import org.critiqal.domain.auth.session.AuthSession;
 import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.auth.session.repository.AuthSessionRepository;
@@ -17,7 +18,11 @@ import org.jboss.logging.Logger;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 
 @ApplicationScoped
 public class RedisSessionService implements SessionService {
@@ -53,27 +58,30 @@ public class RedisSessionService implements SessionService {
     public String create(UUID userId) {
         Objects.requireNonNull(userId, "userId");
         var sid = generateId();
+        var sessionHash = RequestMetadataResolver.hash(sid);
 
-        commands.setex(SESSION_KEY_PREFIX + sid, ttl.toSeconds(), userId.toString());
+        commands.setex(sessionKey(sessionHash), ttl.toSeconds(), userId.toString());
 
-        saveAuditRecord(userId, sid, resolveMetadataSafely());
+        saveAuditRecord(userId, sessionHash, resolveMetadataSafely());
 
         return sid;
     }
 
     @Override
     public Optional<UUID> resolve(String sessionId) {
-        if (sessionId != null || sessionId.isBlank()) return Optional.empty();
+        if (sessionId == null || sessionId.isBlank()) return Optional.empty();
+
+        var sessionHash = RequestMetadataResolver.hash(sessionId);
 
         var value = commands.getex(
-                SESSION_KEY_PREFIX + sessionId,
+                sessionKey(sessionHash),
                 new GetExArgs().ex(ttl.toSeconds())
         );
         if (value == null) return Optional.empty();
 
         try {
             var userId = UUID.fromString(value);
-            touchLastSeen(sessionId);
+            touchLastSeen(sessionHash);
             return Optional.of(userId);
         } catch (IllegalArgumentException e) {
             return Optional.empty();
@@ -83,9 +91,17 @@ public class RedisSessionService implements SessionService {
     @Override
     public void destroy(String sessionId) {
         if (sessionId == null || sessionId.isBlank()) return;
-        commands.getdel(SESSION_KEY_PREFIX + sessionId);
-        commands.getdel(TOUCHED_KEY_PREFIX + sessionId);
-        revokeAuditRecord(sessionId);
+        destroyBySessionHash(RequestMetadataResolver.hash(sessionId));
+    }
+
+    @Override
+    public boolean revoke(UUID userId, UUID authSessionId) {
+        return auditRepo.findActiveByIdAndUserId(authSessionId, userId)
+                .map(session -> {
+                    destroyBySessionHash(session.sessionIdHash);
+                    return true;
+                })
+                .orElse(false);
     }
 
     @Override
@@ -93,14 +109,14 @@ public class RedisSessionService implements SessionService {
         return auditRepo.findActiveByUserId(userId);
     }
 
-    private void saveAuditRecord(UUID userId, String rawSid, RequestMetadata metadata) {
+    private void saveAuditRecord(UUID userId, String sessionHash, RequestMetadata metadata) {
         try {
             var user = userRepo.findByIdOptional(userId).orElse(null);
             if (user == null) return;
 
             var record = new AuthSession();
             record.user = user;
-            record.sessionIdHash = RequestMetadataResolver.hash(rawSid);
+            record.sessionIdHash = sessionHash;
             record.deviceIdHash = metadata.deviceIdHash();
             record.ipHash = metadata.ipHash();
             record.countryCode = metadata.countryCode();
@@ -114,24 +130,29 @@ public class RedisSessionService implements SessionService {
         }
     }
 
-    private void touchLastSeen(String rawSid) {
-        var touchKey = TOUCHED_KEY_PREFIX + rawSid;
-        if (commands.getdel(touchKey) != null) return;
+    private void touchLastSeen(String sessionHash) {
+        var touchKey = touchKey(sessionHash);
+        if (commands.get(touchKey) != null) return;
 
         commands.setex(touchKey, TOUCH_TTL_SECONDS, "1");
 
         try {
-            var hash = RequestMetadataResolver.hash(rawSid);
-            auditRepo.updateLastSeen(hash, Instant.now());
+            auditRepo.updateLastSeen(sessionHash, Instant.now());
         } catch (Exception e) {
             log.debugf("Failed to update last_seen for session: %s", e.getMessage());
         }
     }
 
-    private void revokeAuditRecord(String rawSid) {
+    private void destroyBySessionHash(String sessionHash) {
+        if (sessionHash == null || sessionHash.isBlank()) return;
+        commands.getdel(sessionKey(sessionHash));
+        commands.getdel(touchKey(sessionHash));
+        revokeAuditRecord(sessionHash);
+    }
+
+    private void revokeAuditRecord(String sessionHash) {
         try {
-            var hash = RequestMetadataResolver.hash(rawSid);
-            auditRepo.revoke(hash, Instant.now());
+            auditRepo.revoke(sessionHash, Instant.now());
         } catch (Exception e) {
             log.debugf("Failed to revoke auth_session audit record: %s", e.getMessage());
         }
@@ -140,7 +161,7 @@ public class RedisSessionService implements SessionService {
     private RequestMetadata resolveMetadataSafely() {
         try {
             return metadataResolver.resolve();
-        } catch (ContextNotActiveException e) {
+        } catch (ContextNotActiveException | IllegalProductException e) {
             return RequestMetadata.EMPTY;
         }
     }
@@ -149,5 +170,13 @@ public class RedisSessionService implements SessionService {
         var bytes = new byte[RANDOM_BYTES];
         random.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String sessionKey(String sessionHash) {
+        return SESSION_KEY_PREFIX + sessionHash;
+    }
+
+    private String touchKey(String sessionHash) {
+        return TOUCHED_KEY_PREFIX + sessionHash;
     }
 }

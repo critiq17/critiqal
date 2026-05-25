@@ -44,6 +44,45 @@ describe('apiClient', () => {
     expect(headers).not.toHaveProperty('Authorization');
   });
 
+  it('sends X-Device-Id on requests and persists it locally', async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiClient.get('/api/posts');
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    const deviceId = headers['X-Device-Id'];
+
+    expect(deviceId).toMatch(/^[a-f0-9]{64}$/);
+    expect(localStorage.getItem('critiqal_device_id')).toBe(deviceId);
+  });
+
+  it('reuses the same persisted X-Device-Id across requests', async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiClient.get('/api/posts');
+    await apiClient.get('/api/posts');
+
+    const [, firstInit] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    const [, secondInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    const firstHeaders = firstInit.headers as Record<string, string>;
+    const secondHeaders = secondInit.headers as Record<string, string>;
+
+    expect(firstHeaders['X-Device-Id']).toBe(secondHeaders['X-Device-Id']);
+  });
+
   it('triggers the onUnauthorized handler on a 401 response', async () => {
     const handler = vi.fn();
     registerUnauthorizedHandler(handler);

@@ -15,11 +15,13 @@ public interface AuthSessionRepository {
 
     List<AuthSession> findActiveByUserId(UUID userId);
 
+    Optional<AuthSession> findActiveByIdAndUserId(UUID sessionId, UUID userId);
+
     /**
      * Multi-account guard: returns true if the device has been used to create
-     * ANY account. Device ID must be pre-hashed
+     * ANY account. Device ID must be pre-hashed.
      */
-    boolean existsActiveByDeviceIdHash(String deviceIdHash);
+    boolean existsByDeviceIdHash(String deviceIdHash);
 
     /**
      * New-device login alert: returns true if the device has been seen for
