@@ -77,7 +77,7 @@ public class RequestMetadataResolver {
         return value.length() > maxLen ? value.substring(0, maxLen) : value;
     }
 
-    static String hash(String value) {
+    public static String hash(String value) {
         if (value == null || value.isBlank()) return null;
         try {
             var digest = MessageDigest.getInstance("SHA-256");

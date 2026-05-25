@@ -6,7 +6,7 @@ public record RequestMetadata(
         String city,
         String userAgent,
         String platform,
-        String deviceHash
+        String deviceIdHash
 ) {
     public static final RequestMetadata EMPTY =
             new RequestMetadata(null, null, null, null, null, null);
