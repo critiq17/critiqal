@@ -1,4 +1,5 @@
 import { ApiError } from '$lib/types';
+import { getDeviceId } from '$lib/deviceId';
 
 // Empty string = relative URLs (proxied via Vite dev server or same-origin in prod)
 const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
@@ -35,6 +36,8 @@ function buildHeaders(options: { json?: boolean } = {}): Record<string, string> 
   if (shouldBypassTunnelWarning()) {
     headers['ngrok-skip-browser-warning'] = 'true';
   }
+
+  headers['X-Device-Id'] = getDeviceId();
 
   return headers;
 }
