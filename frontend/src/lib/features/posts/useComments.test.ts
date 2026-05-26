@@ -10,6 +10,14 @@ vi.mock('$lib/services', () => ({
   },
 }));
 
+vi.mock('$lib/stores/auth.store.svelte', () => ({
+  authStore: { isAuthenticated: true },
+}));
+
+vi.mock('$lib/stores/auth-gate.store.svelte', () => ({
+  authGate: { open: vi.fn() },
+}));
+
 import { postService } from '$lib/services';
 import { UseComments } from './useComments.svelte';
 

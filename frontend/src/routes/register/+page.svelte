@@ -3,18 +3,14 @@
 	import { fly } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { authService } from '$lib/services/auth.service';
-	import { emailVerificationService } from '$lib/services/email-verification.service';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { ApiError } from '$lib/types';
 	import PasswordStrengthIndicator from '$lib/components/PasswordStrengthIndicator.svelte';
 	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
 	import { t } from '$lib/i18n';
 
-	type Step = 'register' | 'onboarding';
-
-	let step = $state<Step>('register');
-
-	// ── Register ─────────────────────────────────────────────────────────────
 	let username = $state('');
+	let email = $state('');
 	let password = $state('');
 	let isSubmitting = $state(false);
 	let error = $state('');
@@ -43,18 +39,24 @@
 		isSubmitting = true;
 		error = '';
 		try {
-			const user = await authService.register({ username, password });
+			const user = await authService.register({
+				username: username.trim(),
+				password,
+				email: email.trim(),
+			});
 			await authStore.login(user);
 			if (user.emailVerified) {
 				goto('/');
 			} else {
-				step = 'onboarding';
+				verifyEmailStore.start(email.trim());
+				goto('/verify-email');
 			}
 		} catch (err: unknown) {
 			if (err instanceof ApiError) {
-				error = err.message?.toLowerCase().includes('already taken')
-					? t('auth.register.usernameTakenError')
-					: err.message || t('common.somethingWentWrong');
+				const msg = err.message?.toLowerCase() ?? '';
+				if (msg.includes('already taken')) error = t('auth.register.usernameTakenError');
+				else if (msg.includes('email')) error = t('auth.errors.emailTaken');
+				else error = err.message || t('common.somethingWentWrong');
 			} else {
 				error = t('common.somethingWentWrong');
 			}
@@ -62,27 +64,6 @@
 		} finally {
 			isSubmitting = false;
 		}
-	}
-
-	// ── Onboarding ───────────────────────────────────────────────────────────
-	let emailInput = $state('');
-	let emailSubmitting = $state(false);
-
-	async function handleAddEmail(): Promise<void> {
-		if (!emailInput.trim()) return;
-		emailSubmitting = true;
-		try {
-			await emailVerificationService.setEmail({ email: emailInput });
-		} catch {
-			// non-blocking — user can always add email later in settings
-		} finally {
-			emailSubmitting = false;
-			goto('/');
-		}
-	}
-
-	function skip(): void {
-		goto('/');
 	}
 </script>
 
@@ -93,100 +74,77 @@
 
 <div class="page">
 	<StarfieldBackdrop />
-	{#if step === 'register'}
-		<div class="card" aria-label={t('auth.register.title')} in:fly={{ y: 10, duration: 220 }}>
-			<div class="card-header">
-				<span class="logo">critiqal</span>
-				<p class="subtitle">{t('auth.register.subtitle')}</p>
-			</div>
-
-			{#if error}
-				{#key shakeKey}
-					<div class="error shake" role="alert">{error}</div>
-				{/key}
-			{/if}
-
-			<form class="form" onsubmit={(e) => { e.preventDefault(); handleRegister(); }}>
-				<div class="field">
-					<label for="username" class="field-label">{t('auth.register.username')}</label>
-					<input
-						id="username"
-						type="text"
-						class="field-input"
-						bind:value={username}
-						autocomplete="username"
-						required
-						minlength={3}
-						maxlength={30}
-						disabled={isSubmitting}
-					/>
-				</div>
-
-				<div class="field">
-					<label for="password" class="field-label">{t('auth.register.password')}</label>
-					<input
-						id="password"
-						type="password"
-						class="field-input"
-						bind:value={password}
-						autocomplete="new-password"
-						required
-						minlength={8}
-						disabled={isSubmitting}
-						placeholder="••••••••"
-						oninput={() => { passwordTouched = true; }}
-					/>
-					<PasswordStrengthIndicator {password} />
-					{#if showPasswordHint}
-						<p class="field-hint">{t('auth.register.passwordHint')}</p>
-					{/if}
-				</div>
-
-				<button type="submit" class="submit-btn" disabled={isSubmitting}>
-					{isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
-				</button>
-			</form>
-
-			<p class="switch-link">{t('auth.register.haveAccount')} <a href="/login">{t('auth.register.signIn')}</a></p>
+	<div class="card" aria-label={t('auth.register.title')} in:fly={{ y: 10, duration: 220 }}>
+		<div class="card-header">
+			<span class="logo">critiqal</span>
+			<p class="subtitle">{t('auth.register.subtitle')}</p>
 		</div>
 
-	{:else}
-		<div class="card" aria-label={t('auth.onboarding.title')} in:fly={{ y: 10, duration: 220 }}>
-			<div class="card-header">
-				<div class="onboarding-icon" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="20" height="20">
-						<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-						<circle cx="12" cy="7" r="4"/>
-					</svg>
-				</div>
-				<p class="onboarding-title">{t('auth.onboarding.title')}</p>
-				<p class="onboarding-sub">{t('auth.onboarding.subtitle')}</p>
+		{#if error}
+			{#key shakeKey}
+				<div class="error shake" role="alert">{error}</div>
+			{/key}
+		{/if}
+
+		<form class="form" onsubmit={(e) => { e.preventDefault(); handleRegister(); }}>
+			<div class="field">
+				<label for="username" class="field-label">{t('auth.register.username')}</label>
+				<input
+					id="username"
+					type="text"
+					class="field-input"
+					bind:value={username}
+					autocomplete="username"
+					autocapitalize="none"
+					spellcheck={false}
+					required
+					minlength={3}
+					maxlength={30}
+					disabled={isSubmitting}
+				/>
 			</div>
 
-			<form class="form" onsubmit={(e) => { e.preventDefault(); handleAddEmail(); }}>
-				<div class="field">
-					<label for="email" class="field-label">{t('auth.onboarding.emailLabel')}</label>
-					<input
-						id="email"
-						type="email"
-						class="field-input"
-						bind:value={emailInput}
-						autocomplete="email"
-						disabled={emailSubmitting}
-						placeholder={t('auth.onboarding.emailPlaceholder')}
-					/>
-				</div>
+			<div class="field">
+				<label for="email" class="field-label">{t('auth.register.email')}</label>
+				<input
+					id="email"
+					type="email"
+					class="field-input"
+					bind:value={email}
+					autocomplete="email"
+					required
+					disabled={isSubmitting}
+					placeholder="you@example.com"
+				/>
+			</div>
 
-				<button type="submit" class="submit-btn" disabled={emailSubmitting || emailInput.trim().length === 0}>
-					{emailSubmitting ? t('auth.onboarding.submitting') : t('auth.onboarding.submit')}
-				</button>
-			</form>
+			<div class="field">
+				<label for="password" class="field-label">{t('auth.register.password')}</label>
+				<input
+					id="password"
+					type="password"
+					class="field-input"
+					bind:value={password}
+					autocomplete="new-password"
+					required
+					minlength={8}
+					disabled={isSubmitting}
+					placeholder="••••••••"
+					oninput={() => { passwordTouched = true; }}
+				/>
+				<PasswordStrengthIndicator {password} />
+				{#if showPasswordHint}
+					<p class="field-hint">{t('auth.register.passwordHint')}</p>
+				{/if}
+			</div>
 
-			<button type="button" class="skip-btn" onclick={skip} disabled={emailSubmitting}>
-				{t('auth.onboarding.skip')}
+			<button type="submit" class="submit-btn" disabled={isSubmitting}>
+				{isSubmitting ? t('auth.register.submitting') : t('auth.register.submit')}
 			</button>
-		</div>
-	{/if}
+		</form>
+
+		<p class="switch-link">{t('auth.register.haveAccount')} <a href="/login">{t('auth.register.signIn')}</a></p>
+	</div>
 </div>
 
 <style>
@@ -234,37 +192,6 @@
 		font-size: 0.875rem;
 		color: var(--color-text-muted);
 		margin: 0;
-	}
-
-	/* ── Onboarding header ──────────────────────────────────────────────── */
-
-	.onboarding-icon {
-		width: 2.75rem;
-		height: 2.75rem;
-		border-radius: 50%;
-		background: var(--color-surface-raised);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: var(--color-text-muted);
-		margin-bottom: 0.25rem;
-	}
-
-	.onboarding-title {
-		font-size: 1rem;
-		font-weight: 700;
-		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
-		margin: 0;
-		text-align: center;
-	}
-
-	.onboarding-sub {
-		font-size: 0.8125rem;
-		color: var(--color-text-muted);
-		margin: 0;
-		text-align: center;
-		line-height: 1.5;
 	}
 
 	/* ── Form ───────────────────────────────────────────────────────────── */
@@ -320,21 +247,6 @@
 	.submit-btn:hover:not(:disabled) { opacity: 0.85; }
 	.submit-btn:active:not(:disabled) { transform: scale(0.97); }
 	.submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.skip-btn {
-		background: none;
-		border: none;
-		font-size: 0.875rem;
-		color: var(--color-text-muted);
-		font-family: inherit;
-		cursor: pointer;
-		padding: 0;
-		text-align: center;
-		transition: color 0.15s ease;
-	}
-
-	.skip-btn:hover:not(:disabled) { color: var(--color-text-primary); }
-	.skip-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 	/* ── Feedback ───────────────────────────────────────────────────────── */
 

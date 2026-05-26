@@ -111,8 +111,6 @@
 >
 	{#if authStore.isLoading}
 		<div class="loading-screen"></div>
-	{:else if !authStore.isAuthenticated}
-		<MobileAuthScreen />
 	{:else}
 		<div class="mobile-content" bind:this={contentEl}>
 			<!-- Tabs are lazily mounted on first activation, then kept in DOM. -->
@@ -123,12 +121,24 @@
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
 				{#if mountedTabs.has('explore') && MobileExplore}
-					<MobileExplore isActive={tabStore.active === 'explore'} />
+					{#if authStore.isAuthenticated}
+						<MobileExplore isActive={tabStore.active === 'explore'} />
+					{:else}
+						<div class="guest-tab">
+							<MobileAuthScreen />
+						</div>
+					{/if}
 				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
 				{#if mountedTabs.has('profile') && MobileProfile}
-					<MobileProfile />
+					{#if authStore.isAuthenticated}
+						<MobileProfile />
+					{:else}
+						<div class="guest-tab">
+							<MobileAuthScreen />
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -223,6 +233,12 @@
 		opacity: 1;
 		visibility: visible;
 		transform: translateY(0);
+	}
+
+	.guest-tab {
+		height: 100%;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

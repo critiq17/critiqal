@@ -6,9 +6,18 @@ const BASE_URL: string = import.meta.env.VITE_API_URL ?? '';
 const REQUEST_TIMEOUT_MS = 15000;
 
 let onUnauthorized: (() => void) | null = null;
+let onEmailVerificationRequired: (() => void) | null = null;
 
 export function registerUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
+}
+
+export function registerEmailVerificationRequiredHandler(handler: () => void): void {
+  onEmailVerificationRequired = handler;
+}
+
+function isEmailVerificationError(message: string): boolean {
+  return message.toLowerCase().includes('email verification');
 }
 
 function isTunnelHost(hostname: string): boolean {
@@ -105,6 +114,9 @@ async function parseResponse<T>(
       typeof data === 'object' && data !== null && 'message' in data
         ? String((data as Record<string, unknown>).message)
         : response.statusText;
+    if (response.status === 403 && isEmailVerificationError(message)) {
+      onEmailVerificationRequired?.();
+    }
     throw new ApiError(response.status, message);
   }
 

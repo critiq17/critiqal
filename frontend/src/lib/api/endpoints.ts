@@ -7,6 +7,7 @@ export const API = {
     me: '/api/auth/me',
     setEmail: '/api/auth/email',
     verifyEmail: '/api/auth/email/verify',
+    resendVerification: '/api/auth/email/resend',
     recovery: {
       request: '/api/auth/recovery/request',
       reset: '/api/auth/recovery/reset',

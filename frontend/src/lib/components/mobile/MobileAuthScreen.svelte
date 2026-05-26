@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import PasswordStrengthIndicator from '$lib/components/PasswordStrengthIndicator.svelte';
 	import { authService } from '$lib/services/auth.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import {
 		ApiError,
@@ -15,6 +17,7 @@
 
 	let activeMode = $state<AuthMode>('login');
 	let username = $state('');
+	let email = $state('');
 	let password = $state('');
 	let challengeToken = $state<string | null>(null);
 	let totpCode = $state('');
@@ -28,7 +31,9 @@
 		loading ||
 			(challengeToken
 				? totpCode.trim().length === 0
-				: username.trim().length === 0 || password.length === 0)
+				: username.trim().length === 0 ||
+				  password.length === 0 ||
+				  (activeMode === 'register' && email.trim().length === 0))
 	);
 	const passwordScore = $derived(computeScore(password));
 	const showPasswordHint = $derived(
@@ -39,6 +44,7 @@
 		if (mode === activeMode) return;
 		activeMode = mode;
 		username = '';
+		email = '';
 		password = '';
 		challengeToken = null;
 		totpCode = '';
@@ -115,9 +121,19 @@
 				}
 				await authStore.login(result);
 			} else {
-				const req: RegisterRequest = { username, password };
+				const req: RegisterRequest = {
+					username: username.trim(),
+					password,
+					email: email.trim(),
+				};
 				const user = await authService.register(req);
 				await authStore.login(user);
+				getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
+				if (!user.emailVerified) {
+					verifyEmailStore.start(email.trim());
+					await goto('/verify-email');
+					return;
+				}
 			}
 
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
@@ -194,6 +210,25 @@
 							}}
 						/>
 					</div>
+
+					{#if activeMode === 'register'}
+						<div class="field">
+							<label for="mobile-auth-email" class="field-label">{t('auth.register.email')}</label>
+							<input
+								id="mobile-auth-email"
+								type="email"
+								class="field-input"
+								bind:value={email}
+								autocomplete="email"
+								autocapitalize="none"
+								spellcheck={false}
+								required
+								disabled={loading}
+								placeholder="you@example.com"
+								oninput={() => { if (error) error = ''; }}
+							/>
+						</div>
+					{/if}
 
 					<div class="field">
 						<label for="mobile-auth-password" class="field-label">{t('auth.login.password')}</label>

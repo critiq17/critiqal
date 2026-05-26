@@ -5,9 +5,14 @@
 	import { onMount } from 'svelte';
 	import { onNavigate, goto } from '$app/navigation';
 	import { reducedMotion } from '$lib/ui/reducedMotion.svelte';
-	import { registerUnauthorizedHandler } from '$lib/api/client';
+	import {
+		registerUnauthorizedHandler,
+		registerEmailVerificationRequiredHandler,
+	} from '$lib/api/client';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { i18n } from '$lib/i18n';
 	import LanguageOverlay from '$lib/i18n/LanguageOverlay.svelte';
+	import SignUpPromptModal from '$lib/components/SignUpPromptModal.svelte';
 
 	// Keep <html lang> in sync with the active locale — screen readers,
 	// hyphenation, and CJK fallback chains all depend on it.
@@ -50,6 +55,13 @@
 		isMobile = isTelegramMiniApp();
 		authStore.init();
 
+		registerEmailVerificationRequiredHandler(() => {
+			const user = authStore.user;
+			const pending = user?.pendingEmail ?? user?.email ?? null;
+			if (pending) verifyEmailStore.start(pending);
+			void goto('/verify-email');
+		});
+
 		registerUnauthorizedHandler(() => {
 			// Don't fire during init() — that path already handles auth failure itself.
 			if (authStore.isInitializing) return;
@@ -72,6 +84,7 @@
 {/if}
 
 <LanguageOverlay />
+<SignUpPromptModal />
 
 <style>
 	:global(*),
