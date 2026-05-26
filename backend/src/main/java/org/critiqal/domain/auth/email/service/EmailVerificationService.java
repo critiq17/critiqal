@@ -4,5 +4,6 @@ import java.util.UUID;
 
 public interface EmailVerificationService {
     void sendEmailVerification(UUID userId, String email);
-    void verify(String rawToken);
+    void verify(UUID userId, String rawCode);
+    void resendVerification(UUID userId);
 }

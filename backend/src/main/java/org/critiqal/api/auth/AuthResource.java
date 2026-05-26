@@ -14,6 +14,7 @@ import org.critiqal.api.auth.response.SessionDto;
 import org.critiqal.api.auth.response.TwoFactorChallengeResponse;
 import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.domain.auth.email.service.EmailService;
+import org.critiqal.domain.auth.email.service.EmailVerificationService;
 import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.auth.session.repository.AuthSessionRepository;
 import org.critiqal.domain.auth.totp.service.TotpService;
@@ -21,10 +22,12 @@ import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
 import org.critiqal.infra.auth.AuthChallengeService;
+import org.critiqal.infra.auth.RateLimiter;
 import org.critiqal.infra.auth.metadata.DeviceGuard;
 import org.critiqal.infra.auth.metadata.RequestMetadataResolver;
 import org.critiqal.infra.auth.session.SessionFactoryCookie;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +47,8 @@ public class AuthResource {
     private final RequestMetadataResolver metadataResolver;
     private final AuthSessionRepository authSessionRepo;
     private final EmailService emailService;
+    private final RateLimiter rateLimiter;
+    private final EmailVerificationService verifyService;
 
     public AuthResource(UserService userService,
                         SessionService sessions,
@@ -54,7 +59,8 @@ public class AuthResource {
                         DeviceGuard deviceGuard,
                         RequestMetadataResolver metadataResolver,
                         AuthSessionRepository authSessionRepo,
-                        EmailService emailService) {
+                        EmailService emailService, RateLimiter rateLimiter,
+    EmailVerificationService verifyService) {
         this.userService = userService;
         this.sessions = sessions;
         this.cookies = cookies;
@@ -65,15 +71,21 @@ public class AuthResource {
         this.metadataResolver = metadataResolver;
         this.authSessionRepo = authSessionRepo;
         this.emailService = emailService;
+        this.rateLimiter = rateLimiter;
+        this.verifyService = verifyService;
     }
 
     @POST @Path("/register")
     public Response register(RegisterRequest req) {
         var meta = metadataResolver.resolve();
-
         deviceGuard.assertCanRegister(meta.deviceIdHash());
 
+        if (meta.ipHash() != null) {
+            rateLimiter.check(RateLimiter.key("register-ip", meta.ipHash()), 5, Duration.ofHours(1));
+        }
         var user = userService.register(Username.of(req.username()), req.password());
+
+        verifyService.sendEmailVerification(user.id, req.email());
         var sid = sessions.create(user.id);
         return Response.status(201)
                 .entity(UserDTO.from(user))

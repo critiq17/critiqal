@@ -6,6 +6,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.like.response.LikeResponse;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.like.service.PostLikeServiceImpl;
 
 import java.util.UUID;
@@ -24,6 +25,7 @@ public class PostLikeResource {
 
     @POST
     @Authenticated
+    @RequireVerifiedEmail
     public Response toggle(@PathParam("postId") UUID postId) {
         var result = likeService.toggle(postId, currentUser.id());
         return Response.ok(new LikeResponse(result.liked(), result.count())).build();

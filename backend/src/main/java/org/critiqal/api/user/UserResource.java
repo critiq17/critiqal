@@ -5,6 +5,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.like.service.PostLikeServiceImpl;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.shared.pagination.Page;
@@ -71,6 +72,7 @@ public class UserResource {
     @POST
     @Path("/{id}/follow")
     @Authenticated
+    @RequireVerifiedEmail
     @Consumes(MediaType.WILDCARD)
     public Response follow(@PathParam("id") UUID targetId) {
         UUID followerId = currentUser.id();
