@@ -10,11 +10,13 @@ import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.repository.UserRepository;
 import org.critiqal.domain.user.service.UserService;
+import org.critiqal.infra.auth.RateLimiter;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
@@ -31,8 +33,9 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     private final UserRepository userRepo;
     private final UserService userService;
     private final EmailService emailService;
+    private final RateLimiter rateLimiter;
     private final String appBaseUrl;
-    private final int expiryHours;
+    private final int expiryMinutes;
     private final SecureRandom random = new SecureRandom();
 
     public EmailVerificationServiceImpl(
@@ -40,14 +43,16 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             UserRepository userRepo,
             UserService userService,
             EmailService emailService,
+            RateLimiter rateLimiter,
             @ConfigProperty(name = "app.base-url") String appBaseUrl,
-            @ConfigProperty(name = "auth.token.email-verify-expiry-hours", defaultValue = "24") int expiryHours) {
+            @ConfigProperty(name = "auth.token.email-verify-expiry-minutes", defaultValue = "15") int expiryMinutes) {
         this.tokenRepo = repo;
         this.userRepo = userRepo;
         this.userService = userService;
         this.emailService = emailService;
+        this.rateLimiter = rateLimiter;
         this.appBaseUrl = appBaseUrl;
-        this.expiryHours = expiryHours;
+        this.expiryMinutes = expiryMinutes;
     }
 
     @Override
@@ -58,14 +63,14 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
         var normalizedEmail = email.trim().toLowerCase();
 
+        rateLimiter.check(RateLimiter.key("email-verify", normalizedEmail), 5, Duration.ofHours(1));
         // Persist the pending email + token in its own committed transaction.
         // Mail delivery is external I/O and must not run inside a DB transaction
         // — a delivery failure should not discard the saved pending state.
-        var rawToken = QuarkusTransaction.requiringNew()
+        var rawCode = QuarkusTransaction.requiringNew()
                 .call(() -> persistPendingEmail(userId, normalizedEmail));
 
-        var url = appBaseUrl + "/verify-email?token=" + rawToken;
-        emailService.sendEmailVerification(normalizedEmail, url);
+        emailService.sendEmailVerificationCode(normalizedEmail, rawCode);
     }
 
     private String persistPendingEmail(UUID userId, String normalizedEmail) {
@@ -86,7 +91,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         token.tokenHash = hashToken(rawToken);
         token.type = VerificationTokenType.EMAIL_VERIFY;
         token.email = normalizedEmail;
-        token.expiresAt = Instant.now().plus(expiryHours, ChronoUnit.HOURS);
+        token.expiresAt = Instant.now().plus(expiryMinutes, ChronoUnit.MINUTES);
         tokenRepo.save(token);
 
         return rawToken;
@@ -94,27 +99,52 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
 
     @Override
     @Transactional
-    public void verify(String rawToken) {
-        var hash = hashToken(rawToken);
+    public void verify(UUID userId, String rawCode) {
+        if (rawCode == null || rawCode.isBlank()) {
+            throw new DomainException("Verification code is required");
+        }
+
+        var hash = hashToken(rawCode.strip());
         var token = tokenRepo.findByTokenHashAndType(hash, VerificationTokenType.EMAIL_VERIFY)
-                .orElseThrow(() -> new DomainException("Invalid verification link"));
+                .orElseThrow(() -> new DomainException("Invalid verification code"));
+
+        if (!token.user.id.equals(userId)) {
+            throw new DomainException("Invalid verification code");
+        }
 
         if (!token.isValid()) {
-            throw new DomainException("Verification link has expired or already been used");
+            throw new DomainException("Verification code has expired");
         }
 
         token.usedAt = Instant.now();
-
         var user = token.user;
         user.email = token.email;
         user.emailVerified = true;
         user.pendingEmail = null;
     }
 
+    @Override
+    public void resendVerification(UUID userId) {
+        var user = userService.getById(userId);
+        if (user.emailVerified) {
+            throw new ConflictException("Email is already verified");
+        }
+
+        if (user.pendingEmail == null) {
+            throw new DomainException("No pending email to verify");
+        }
+        sendEmailVerification(userId, user.pendingEmail);
+    }
+
     static String generateSecureToken() {
         var bytes = new byte[32];
         new SecureRandom().nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String generateVerificationCode() {
+        int code = random.nextInt(900_000) + 100_000;
+        return String.valueOf(code);
     }
 
     static String hashToken(String raw) {

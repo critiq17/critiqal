@@ -1,81 +1,207 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { onMount, onDestroy } from 'svelte';
+	import { fly, fade } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { ApiError } from '$lib/types';
+	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
 	import { t } from '$lib/i18n';
 
-	type VerifyState = 'loading' | 'success' | 'error';
+	const RESEND_COOLDOWN_S = 30;
 
-	const token = $page.url.searchParams.get('token') ?? '';
+	let code = $state('');
+	let submitting = $state(false);
+	let resending = $state(false);
+	let error = $state('');
+	let success = $state(false);
+	let info = $state('');
+	let cooldown = $state(0);
+	let shakeKey = $state(0);
 
-	let verifyState = $state<VerifyState>('loading');
-	let errorMessage = $state('');
+	let cooldownTimer: ReturnType<typeof setInterval> | null = null;
+	let inputEl: HTMLInputElement | null = $state(null);
 
-	const backHref = $derived(authStore.isAuthenticated ? '/settings' : '/login');
+	const pending = $derived(verifyEmailStore.current);
+	const canSubmit = $derived(code.length === 6 && !submitting && !success);
 
-	onMount(async () => {
-		if (!token) {
-			errorMessage = t('auth.verifyEmail.invalidToken');
-			verifyState = 'error';
-			return;
-		}
+	function startCooldown(): void {
+		cooldown = RESEND_COOLDOWN_S;
+		if (cooldownTimer) clearInterval(cooldownTimer);
+		cooldownTimer = setInterval(() => {
+			cooldown = Math.max(0, cooldown - 1);
+			if (cooldown === 0 && cooldownTimer) {
+				clearInterval(cooldownTimer);
+				cooldownTimer = null;
+			}
+		}, 1000);
+	}
 
+	function handleCodeInput(value: string): void {
+		const digits = value.replace(/\D/g, '').slice(0, 6);
+		code = digits;
+		if (error) error = '';
+		if (digits.length === 6) void handleVerify();
+	}
+
+	async function handleVerify(): Promise<void> {
+		if (!canSubmit) return;
+		submitting = true;
+		error = '';
 		try {
-			await emailVerificationService.verifyEmail({ token });
-			verifyState = 'success';
+			await emailVerificationService.verifyEmail({ code });
+			success = true;
+			verifyEmailStore.clear();
+			await authStore.refresh();
+			setTimeout(() => goto('/'), 900);
 		} catch (err: unknown) {
-			errorMessage =
-				err instanceof ApiError && err.message
-					? err.message
-					: t('auth.verifyEmail.invalidToken');
-			verifyState = 'error';
+			if (err instanceof ApiError) {
+				if (err.message?.toLowerCase().includes('expired')) {
+					error = t('auth.verifyEmail.expired');
+				} else {
+					error = t('auth.verifyEmail.invalidCode');
+				}
+			} else {
+				error = t('common.somethingWentWrong');
+			}
+			shakeKey += 1;
+			code = '';
+		} finally {
+			submitting = false;
 		}
+	}
+
+	async function handleResend(): Promise<void> {
+		if (resending || cooldown > 0) return;
+		resending = true;
+		error = '';
+		try {
+			await emailVerificationService.resend();
+			verifyEmailStore.refresh();
+			info = t('auth.verifyEmail.resent');
+			startCooldown();
+			setTimeout(() => { info = ''; }, 2500);
+		} catch (err: unknown) {
+			error = err instanceof ApiError ? err.message : t('common.somethingWentWrong');
+		} finally {
+			resending = false;
+		}
+	}
+
+	function handleChangeEmail(): void {
+		verifyEmailStore.clear();
+		void authStore.logout();
+		goto('/register');
+	}
+
+	function handleVisibility(): void {
+		// User just returned to the tab — re-read sessionStorage in case the
+		// state was written by another tab/instance, and don't reset form.
+		if (document.visibilityState === 'visible') {
+			verifyEmailStore.reload();
+		}
+	}
+
+	onMount(() => {
+		verifyEmailStore.reload();
+		// Auto-start cooldown so the user can't instantly spam resend after register
+		startCooldown();
+		document.addEventListener('visibilitychange', handleVisibility);
+		setTimeout(() => inputEl?.focus(), 50);
+	});
+
+	onDestroy(() => {
+		document.removeEventListener('visibilitychange', handleVisibility);
+		if (cooldownTimer) clearInterval(cooldownTimer);
 	});
 </script>
 
 <svelte:head>
 	<title>{t('auth.verifyEmail.title')} — Critiqal</title>
-	<meta name="description" content="Verify your email address" />
 </svelte:head>
 
 <div class="page">
-	<div class="card" aria-live="polite">
-		<div class="card-header">
-			<span class="logo-text">critiqal</span>
-		</div>
+	<StarfieldBackdrop />
 
-		{#if verifyState === 'loading'}
-			<div class="loading-state">
-				<div class="spinner" aria-label={t('auth.verifyEmail.verifying')}></div>
-				<p class="state-text">{t('auth.verifyEmail.verifying')}</p>
-			</div>
-		{:else if verifyState === 'success'}
-			<div class="result-state">
-				<div class="state-icon state-icon-success" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="22" height="22">
-						<polyline points="20 6 9 17 4 12" />
+	<div class="card" in:fly={{ y: 12, duration: 260 }}>
+		{#if success}
+			<div class="success" in:fade={{ duration: 200 }}>
+				<div class="success-star" aria-hidden="true">
+					<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+						<path d="M12 2l2.39 7.36H22l-6.18 4.49L18.21 22 12 17.27 5.79 22l2.39-8.15L2 9.36h7.61z"/>
 					</svg>
 				</div>
-				<p class="state-title">{t('auth.verifyEmail.success')}</p>
-				<a href={backHref} class="action-btn">
-					{authStore.isAuthenticated ? t('nav.settings') : t('nav.signIn')}
-				</a>
+				<p class="title">{t('auth.verifyEmail.success')}</p>
 			</div>
+		{:else if !pending && !authStore.isAuthenticated}
+			<div class="header">
+				<span class="logo">critiqal</span>
+				<p class="subtitle">{t('auth.verifyEmail.noPending')}</p>
+			</div>
+			<a class="btn primary" href="/login">{t('nav.signIn')}</a>
 		{:else}
-			<div class="result-state">
-				<div class="state-icon state-icon-error" aria-hidden="true">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
-						<line x1="18" y1="6" x2="6" y2="18" />
-						<line x1="6" y1="6" x2="18" y2="18" />
-					</svg>
-				</div>
-				<p class="state-title">{t('auth.verifyEmail.fail')}</p>
-				<p class="state-text">{errorMessage}</p>
-				<a href={backHref} class="action-btn">
-					{authStore.isAuthenticated ? t('nav.settings') : t('nav.signIn')}
-				</a>
+			<div class="header">
+				<span class="logo">critiqal</span>
+				<p class="title">{t('auth.verifyEmail.codeTitle')}</p>
+				{#if pending}
+					<p class="subtitle">
+						{t('auth.verifyEmail.codeSubtitle')}
+						<strong>{pending.email}</strong>
+					</p>
+				{/if}
+			</div>
+
+			{#if error}
+				{#key shakeKey}
+					<div class="error shake" role="alert">{error}</div>
+				{/key}
+			{/if}
+
+			{#if info}
+				<div class="info" in:fade={{ duration: 150 }}>{info}</div>
+			{/if}
+
+			<form onsubmit={(e) => { e.preventDefault(); void handleVerify(); }} class="form">
+				<input
+					bind:this={inputEl}
+					class="code-input"
+					inputmode="numeric"
+					autocomplete="one-time-code"
+					pattern="[0-9]*"
+					maxlength="6"
+					value={code}
+					oninput={(e) => handleCodeInput((e.target as HTMLInputElement).value)}
+					placeholder={t('auth.verifyEmail.codePlaceholder')}
+					aria-label={t('auth.verifyEmail.codeTitle')}
+					disabled={submitting}
+				/>
+
+				<button type="submit" class="btn primary" disabled={!canSubmit}>
+					{submitting ? t('auth.verifyEmail.verifying') : t('auth.verifyEmail.verify')}
+				</button>
+			</form>
+
+			<p class="hint">{t('auth.verifyEmail.checkSpam')}</p>
+
+			<div class="actions">
+				<button
+					type="button"
+					class="link-btn"
+					onclick={handleResend}
+					disabled={resending || cooldown > 0}
+				>
+					{#if resending}
+						{t('auth.verifyEmail.resending')}
+					{:else if cooldown > 0}
+						{t('auth.verifyEmail.resendIn').replace('{seconds}', String(cooldown))}
+					{:else}
+						{t('auth.verifyEmail.resend')}
+					{/if}
+				</button>
+				<button type="button" class="link-btn muted" onclick={handleChangeEmail}>
+					{t('auth.verifyEmail.changeEmail')}
+				</button>
 			</div>
 		{/if}
 	</div>
@@ -88,10 +214,14 @@
 		align-items: center;
 		justify-content: center;
 		padding: 1.5rem;
-		background-color: var(--color-bg);
+		background: var(--color-bg);
+		position: relative;
+		overflow: hidden;
 	}
 
 	.card {
+		position: relative;
+		z-index: 1;
 		width: 100%;
 		max-width: 22rem;
 		background: var(--color-surface);
@@ -100,120 +230,179 @@
 		padding: 2.5rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1.5rem;
-		animation: cardFadeIn 0.25s ease-out;
+		gap: 1.25rem;
 	}
 
-	.card-header {
+	.header {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		gap: 0.4rem;
+		text-align: center;
 	}
 
-	.logo-text {
-		font-size: 1.25rem;
+	.logo {
+		font-size: 1.125rem;
 		font-weight: 700;
 		color: var(--color-text-primary);
 		letter-spacing: -0.03em;
-	}
-
-	.loading-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	.spinner {
-		width: 2rem;
-		height: 2rem;
-		border: 2px solid var(--color-border);
-		border-top-color: var(--color-text-primary);
-		border-radius: 50%;
-		animation: spin 0.7s linear infinite;
-	}
-
-	.result-state {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 0.75rem;
-		text-align: center;
-	}
-
-	.state-icon {
-		width: 3rem;
-		height: 3rem;
-		border-radius: 50%;
-		display: flex;
-		align-items: center;
-		justify-content: center;
 		margin-bottom: 0.25rem;
 	}
 
-	.state-icon-success {
-		background: rgba(16, 185, 129, 0.12);
-		color: #10b981;
-	}
-
-	.state-icon-error {
-		background: rgba(224, 82, 82, 0.1);
-		color: var(--color-accent);
-	}
-
-	.state-title {
+	.title {
 		font-size: 1rem;
 		font-weight: 700;
 		color: var(--color-text-primary);
-		letter-spacing: -0.01em;
 		margin: 0;
 	}
 
-	.state-text {
+	.subtitle {
 		font-size: 0.875rem;
 		color: var(--color-text-muted);
-		line-height: 1.5;
 		margin: 0;
+		line-height: 1.45;
 	}
 
-	.action-btn {
-		margin-top: 0.5rem;
+	.subtitle strong {
+		color: var(--color-text-secondary);
+		font-weight: 600;
+		word-break: break-all;
+	}
+
+	.form {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.code-input {
 		width: 100%;
-		padding: 0.625rem 1rem;
+		background: var(--color-surface-raised);
+		border: 1px solid var(--color-border);
+		border-radius: 0.625rem;
+		padding: 1rem;
+		font-size: 1.75rem;
+		font-weight: 600;
+		letter-spacing: 0.4em;
+		text-align: center;
+		color: var(--color-text-primary);
+		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+		outline: none;
+		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	}
+
+	.code-input:focus {
+		border-color: rgba(240, 240, 240, 0.3);
+		box-shadow: 0 0 0 3px rgba(240, 240, 240, 0.06);
+	}
+
+	.code-input:disabled { opacity: 0.55; }
+
+	.btn {
+		width: 100%;
+		padding: 0.7rem 1rem;
 		border-radius: 0.5rem;
-		background-color: var(--color-text-primary);
-		color: var(--color-bg);
+		border: none;
 		font-size: 0.9375rem;
 		font-weight: 600;
 		font-family: inherit;
+		cursor: pointer;
 		text-decoration: none;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: opacity 0.15s ease, transform 0.1s ease;
+	}
+
+	.btn.primary {
+		background: var(--color-text-primary);
+		color: var(--color-bg);
+	}
+
+	.btn.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+	.btn.primary:not(:disabled):hover { opacity: 0.88; }
+	.btn.primary:not(:disabled):active { transform: scale(0.98); }
+
+	.hint {
+		font-size: 0.8125rem;
+		color: var(--color-text-muted);
 		text-align: center;
-		display: block;
-		transition:
-			background-color 0.15s ease,
-			transform 0.1s ease;
+		margin: 0;
 	}
 
-	.action-btn:hover {
-		background-color: var(--color-text-muted);
+	.actions {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
 	}
 
-	.action-btn:active {
-		transform: scale(0.97);
+	.link-btn {
+		background: none;
+		border: none;
+		color: var(--color-text-primary);
+		font-family: inherit;
+		font-size: 0.875rem;
+		font-weight: 500;
+		cursor: pointer;
+		padding: 0.25rem 0;
+		transition: opacity 0.15s ease;
 	}
 
-	@keyframes cardFadeIn {
-		from {
-			opacity: 0;
-			transform: translateY(0.5rem);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
+	.link-btn.muted { color: var(--color-text-muted); }
+	.link-btn:hover:not(:disabled) { opacity: 0.75; }
+	.link-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.error {
+		background: rgba(224, 82, 82, 0.08);
+		border: 1px solid rgba(224, 82, 82, 0.2);
+		border-radius: 0.5rem;
+		padding: 0.6rem 0.85rem;
+		font-size: 0.875rem;
+		color: var(--color-accent);
 	}
 
-	@keyframes spin {
-		to { transform: rotate(360deg); }
+	.info {
+		background: rgba(120, 200, 140, 0.08);
+		border: 1px solid rgba(120, 200, 140, 0.18);
+		border-radius: 0.5rem;
+		padding: 0.6rem 0.85rem;
+		font-size: 0.875rem;
+		color: #8fcf9b;
+		text-align: center;
+	}
+
+	.success {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.85rem;
+		padding: 0.5rem 0;
+	}
+
+	.success-star {
+		width: 4rem;
+		height: 4rem;
+		border-radius: 50%;
+		background: radial-gradient(circle at center, rgba(255, 220, 120, 0.18), transparent 70%);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #ffd56b;
+		animation: starPulse 1.1s ease-out;
+	}
+
+	@keyframes starPulse {
+		0%   { transform: scale(0.4); opacity: 0; }
+		60%  { transform: scale(1.1); opacity: 1; }
+		100% { transform: scale(1); }
+	}
+
+	.shake { animation: shake 0.3s ease-out; }
+	@keyframes shake {
+		0%, 100% { transform: translateX(0); }
+		20% { transform: translateX(-4px); }
+		40% { transform: translateX(4px); }
+		60% { transform: translateX(-3px); }
+		80% { transform: translateX(2px); }
 	}
 </style>

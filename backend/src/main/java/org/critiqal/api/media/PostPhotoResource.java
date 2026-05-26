@@ -5,6 +5,7 @@ import jakarta.ws.rs.*;
 import jakarta.transaction.Transactional;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.response.PostDTO;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.post_photo.service.PostPhotoService;
 import jakarta.ws.rs.core.MediaType;
@@ -20,6 +21,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/media")
+@RequireVerifiedEmail
 public class PostPhotoResource {
 
     private final MediaService mediaService;

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { mobileAuth } from '$lib/stores/mobile-auth.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
 	import { navStack } from '$lib/stores/nav-stack.store.svelte';
 	import { closeCompose, composeStore } from '$lib/stores/compose.store.svelte';
@@ -111,8 +113,6 @@
 >
 	{#if authStore.isLoading}
 		<div class="loading-screen"></div>
-	{:else if !authStore.isAuthenticated}
-		<MobileAuthScreen />
 	{:else}
 		<div class="mobile-content" bind:this={contentEl}>
 			<!-- Tabs are lazily mounted on first activation, then kept in DOM. -->
@@ -123,12 +123,24 @@
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'explore'}>
 				{#if mountedTabs.has('explore') && MobileExplore}
-					<MobileExplore isActive={tabStore.active === 'explore'} />
+					{#if authStore.isAuthenticated}
+						<MobileExplore isActive={tabStore.active === 'explore'} />
+					{:else}
+						<div class="guest-tab">
+							<MobileAuthScreen />
+						</div>
+					{/if}
 				{/if}
 			</div>
 			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
 				{#if mountedTabs.has('profile') && MobileProfile}
-					<MobileProfile />
+					{#if authStore.isAuthenticated}
+						<MobileProfile />
+					{:else}
+						<div class="guest-tab">
+							<MobileAuthScreen />
+						</div>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -137,6 +149,12 @@
 		{/if}
 	{/if}
 </div>
+
+{#if mobileAuth.isOpen && !authStore.isAuthenticated}
+	<div class="mobile-auth-overlay" transition:fly={{ y: 40, duration: 280 }}>
+		<MobileAuthScreen initialMode={mobileAuth.initialMode} onClose={() => mobileAuth.close()} />
+	</div>
+{/if}
 
 <OverlayHost />
 
@@ -223,6 +241,21 @@
 		opacity: 1;
 		visibility: visible;
 		transform: translateY(0);
+	}
+
+	.guest-tab {
+		height: 100%;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.mobile-auth-overlay {
+		position: fixed;
+		inset: 0;
+		z-index: 1100;
+		background: var(--color-bg);
+		display: flex;
+		flex-direction: column;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

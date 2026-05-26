@@ -7,6 +7,7 @@ import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.request.AddCommentRequest;
 import org.critiqal.api.post.response.CommentDTO;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.comment.service.CommentService;
 import org.critiqal.domain.like.service.CommentLikeServiceImpl;
@@ -36,6 +37,7 @@ public class CommentResource {
     @POST
     @Path("/{id}/comments")
     @Authenticated
+    @RequireVerifiedEmail
     public Response addComment(@PathParam("id") UUID postId,
                                AddCommentRequest req) {
         var comment = commentService.addComment(currentUser.id(), postId, req.content());
@@ -54,6 +56,7 @@ public class CommentResource {
     @POST
     @Path("/{id}/comments/{commentId}/replies")
     @Authenticated
+    @RequireVerifiedEmail
     public Response addReply(@PathParam("id") UUID postId,
                              @PathParam("commentId") UUID commentId,
                              AddCommentRequest req) {

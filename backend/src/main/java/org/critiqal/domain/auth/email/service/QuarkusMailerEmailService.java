@@ -17,15 +17,16 @@ public class QuarkusMailerEmailService implements EmailService {
     }
 
     @Override
-    public void sendEmailVerification(String to, String verificationUrl) {
+    public void sendEmailVerificationCode(String to, String code) {
         send(to,
-                "Verify your email — Critiqal",
-                buildEmail(
-                        "Confirm your email",
-                        "You're one step away. Click the button below to verify your email address. The link expires in 24 hours.",
-                        verificationUrl,
-                        "Verify email",
-                        "If you didn't add this email to your Critiqal account, you can ignore this message."));
+                "Your verification code - Critiqal",
+                buildCodeEmail(
+                        "Verify your email",
+                        "Enter this code in the app. It expires in 15 minutes.",
+                        code,
+                        "If you didn't request this, ignore this message."
+                )
+        );
     }
 
     @Override
@@ -52,6 +53,17 @@ public class QuarkusMailerEmailService implements EmailService {
             log.errorf("Failed to send email to %s (subject: %s): %s", to, subject, e.getMessage());
             throw new RuntimeException("Email delivery failed", e);
         }
+    }
+
+    private String buildCodeEmail(String title, String body, String code, String footer) {
+        return """
+        <!DOCTYPE html>...
+        <div style="font-size:48px;font-weight:800;letter-spacing:0.1em;
+                    color:#eaeaea;text-align:center;padding:24px 0">
+          %s
+        </div>
+        ...
+        """.formatted(code);
     }
 
     private String buildEmail(String title, String body, String url, String btnText, String footer) {

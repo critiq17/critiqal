@@ -10,4 +10,8 @@ export const emailVerificationService = {
   verifyEmail(req: VerifyEmailRequest): Promise<{ message: string }> {
     return apiClient.post<{ message: string }>(API.auth.verifyEmail, req);
   },
+
+  resend(): Promise<{ message: string }> {
+    return apiClient.post<{ message: string }>(API.auth.resendVerification, {});
+  },
 };
