@@ -2,6 +2,8 @@
 	import { fade, scale } from 'svelte/transition';
 	import { goto } from '$app/navigation';
 	import { authGate } from '$lib/stores/auth-gate.store.svelte';
+	import { mobileAuth } from '$lib/stores/mobile-auth.store.svelte';
+	import { isTelegramMiniApp } from '$lib/telegram';
 	import { t } from '$lib/i18n';
 
 	const reasonText = $derived.by(() => {
@@ -17,12 +19,14 @@
 
 	function goLogin(): void {
 		authGate.close();
-		void goto('/login');
+		if (isTelegramMiniApp()) mobileAuth.openWith('login');
+		else void goto('/login');
 	}
 
 	function goRegister(): void {
 		authGate.close();
-		void goto('/register');
+		if (isTelegramMiniApp()) mobileAuth.openWith('register');
+		else void goto('/register');
 	}
 
 	function dismiss(): void {

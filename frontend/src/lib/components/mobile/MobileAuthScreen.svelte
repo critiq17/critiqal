@@ -15,7 +15,14 @@
 
 	type AuthMode = 'login' | 'register';
 
-	let activeMode = $state<AuthMode>('login');
+	interface Props {
+		initialMode?: AuthMode;
+		onClose?: () => void;
+	}
+
+	let { initialMode = 'login', onClose }: Props = $props();
+
+	let activeMode = $state<AuthMode>(initialMode);
 	let username = $state('');
 	let email = $state('');
 	let password = $state('');
@@ -146,6 +153,19 @@
 </script>
 
 <div class="auth-page">
+	{#if onClose}
+		<button
+			type="button"
+			class="close-btn"
+			aria-label={t('common.close')}
+			onclick={() => onClose?.()}
+		>
+			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+				<line x1="18" y1="6" x2="6" y2="18" />
+				<line x1="6" y1="6" x2="18" y2="18" />
+			</svg>
+		</button>
+	{/if}
 	<div class="auth-shell">
 		<div class="auth-card" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
 			<div class="card-header">
@@ -300,6 +320,7 @@
 
 <style>
 	.auth-page {
+		position: relative;
 		height: 100%;
 		background: var(--color-bg);
 		overflow-y: auto;
@@ -307,6 +328,31 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 	}
+
+	.close-btn {
+		position: absolute;
+		top: calc(var(--tg-content-top, env(safe-area-inset-top, 0px)) + 0.85rem);
+		right: 1rem;
+		z-index: 5;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+	}
+
+	.close-btn:hover {
+		background: var(--color-surface-raised);
+		color: var(--color-text-primary);
+	}
+
+	.close-btn:active { transform: scale(0.95); }
 
 	.auth-shell {
 		min-height: 100%;

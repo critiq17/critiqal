@@ -19,6 +19,13 @@ public class RateLimiter {
         this.keys = ds.key(String.class);
     }
 
+    // Required so a normal-scoped CDI proxy (and test subclasses) can be
+    // generated. Never invoked at runtime by the container.
+    protected RateLimiter() {
+        this.val = null;
+        this.keys = null;
+    }
+
     public void check(String key, int max, Duration window) {
         var raw = val.get(key);
         var current = raw == null ? 0 : Integer.parseInt(raw);
