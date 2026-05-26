@@ -1,5 +1,8 @@
 import { postService } from '$lib/services/post.service';
 import { mediaService } from '$lib/services/media.service';
+import { authStore } from '$lib/stores/auth.store.svelte';
+import { authGate } from '$lib/stores/auth-gate.store.svelte';
+import { ApiError } from '$lib/types';
 import type { Post, PostPhoto } from '$lib/types';
 
 interface SubmitOptions {
@@ -69,6 +72,11 @@ export class UseComposer {
   }
 
   async submit(options: SubmitOptions = {}): Promise<Post | null> {
+    if (!authStore.isAuthenticated) {
+      authGate.open('compose');
+      return null;
+    }
+
     const content = this.text.trim();
     if (!content || this.loading || this.overLimit) return null;
 
@@ -79,6 +87,14 @@ export class UseComposer {
     try {
       newPost = await postService.create({ content });
     } catch (err: unknown) {
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        // Auth lapsed between opening composer and submit, or email not
+        // verified. Swallow the raw status and steer the user to the right
+        // recovery surface instead of dumping "401" onto the UI.
+        if (err.status === 401) authGate.open('compose');
+        this.loading = false;
+        return null;
+      }
       this.errorMessage = err instanceof Error ? err.message : 'Failed to post. Try again.';
       this.loading = false;
       return null;

@@ -4,6 +4,7 @@
  */
 import { userService, mediaService } from '$lib/services';
 import { authStore } from '$lib/stores/auth.store.svelte';
+import { authGate } from '$lib/stores/auth-gate.store.svelte';
 import { profileCache } from '$lib/stores/profile-cache.store.svelte';
 import type { User, Post } from '$lib/types';
 
@@ -237,7 +238,11 @@ export class UseProfilePage {
   }
 
   async toggleFollow(): Promise<void> {
-    if (!authStore.isAuthenticated || !this.profile || this.isFollowLoading) return;
+    if (!authStore.isAuthenticated) {
+      authGate.open('follow');
+      return;
+    }
+    if (!this.profile || this.isFollowLoading) return;
 
     const currentUser = authStore.user!;
     const wasFollowing = this.isFollowing;

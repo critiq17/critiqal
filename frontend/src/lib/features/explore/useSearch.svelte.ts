@@ -1,4 +1,6 @@
 import { postService, userService } from '$lib/services';
+import { authStore } from '$lib/stores/auth.store.svelte';
+import { authGate } from '$lib/stores/auth-gate.store.svelte';
 import type { Post, User } from '$lib/types';
 
 export type ExploreTab = 'posts' | 'people';
@@ -100,6 +102,10 @@ export class UseSearch {
   }
 
   async toggleFollow(user: User): Promise<void> {
+    if (!authStore.isAuthenticated) {
+      authGate.open('follow');
+      return;
+    }
     const isFollowing = this.followStates.get(user.id) ?? false;
     this.followStates = new Map(this.followStates).set(user.id, !isFollowing);
     try {

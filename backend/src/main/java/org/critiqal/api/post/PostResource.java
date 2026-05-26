@@ -7,6 +7,7 @@ import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.post.request.CreatePostRequest;
 import org.critiqal.api.post.response.PostDTO;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.like.service.PostLikeServiceImpl;
 import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.post.Post;
@@ -66,6 +67,7 @@ public class PostResource {
 
     @POST
     @Authenticated
+    @RequireVerifiedEmail
     public Response createPost(CreatePostRequest req) {
         UUID authorId = currentUser.id();
         var post = postService.createPost(authorId, req.content());
@@ -77,6 +79,7 @@ public class PostResource {
     @DELETE
     @Path("/{id}")
     @Authenticated
+    @RequireVerifiedEmail
     public Response deletePost(@PathParam("id") UUID id) {
         postService.deletePost(id, currentUser.id());
         mediaService.deleteAllPostPhotos(id);

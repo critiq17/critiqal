@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import PasswordStrengthIndicator from '$lib/components/PasswordStrengthIndicator.svelte';
 	import { authService } from '$lib/services/auth.service';
 	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import {
 		ApiError,
@@ -13,8 +15,16 @@
 
 	type AuthMode = 'login' | 'register';
 
-	let activeMode = $state<AuthMode>('login');
+	interface Props {
+		initialMode?: AuthMode;
+		onClose?: () => void;
+	}
+
+	let { initialMode = 'login', onClose }: Props = $props();
+
+	let activeMode = $state<AuthMode>(initialMode);
 	let username = $state('');
+	let email = $state('');
 	let password = $state('');
 	let challengeToken = $state<string | null>(null);
 	let totpCode = $state('');
@@ -28,7 +38,9 @@
 		loading ||
 			(challengeToken
 				? totpCode.trim().length === 0
-				: username.trim().length === 0 || password.length === 0)
+				: username.trim().length === 0 ||
+				  password.length === 0 ||
+				  (activeMode === 'register' && email.trim().length === 0))
 	);
 	const passwordScore = $derived(computeScore(password));
 	const showPasswordHint = $derived(
@@ -39,6 +51,7 @@
 		if (mode === activeMode) return;
 		activeMode = mode;
 		username = '';
+		email = '';
 		password = '';
 		challengeToken = null;
 		totpCode = '';
@@ -115,9 +128,19 @@
 				}
 				await authStore.login(result);
 			} else {
-				const req: RegisterRequest = { username, password };
+				const req: RegisterRequest = {
+					username: username.trim(),
+					password,
+					email: email.trim(),
+				};
 				const user = await authService.register(req);
 				await authStore.login(user);
+				getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
+				if (!user.emailVerified) {
+					verifyEmailStore.start(email.trim());
+					await goto('/verify-email');
+					return;
+				}
 			}
 
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
@@ -130,6 +153,19 @@
 </script>
 
 <div class="auth-page">
+	{#if onClose}
+		<button
+			type="button"
+			class="close-btn"
+			aria-label={t('common.close')}
+			onclick={() => onClose?.()}
+		>
+			<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+				<line x1="18" y1="6" x2="6" y2="18" />
+				<line x1="6" y1="6" x2="18" y2="18" />
+			</svg>
+		</button>
+	{/if}
 	<div class="auth-shell">
 		<div class="auth-card" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
 			<div class="card-header">
@@ -194,6 +230,25 @@
 							}}
 						/>
 					</div>
+
+					{#if activeMode === 'register'}
+						<div class="field">
+							<label for="mobile-auth-email" class="field-label">{t('auth.register.email')}</label>
+							<input
+								id="mobile-auth-email"
+								type="email"
+								class="field-input"
+								bind:value={email}
+								autocomplete="email"
+								autocapitalize="none"
+								spellcheck={false}
+								required
+								disabled={loading}
+								placeholder="you@example.com"
+								oninput={() => { if (error) error = ''; }}
+							/>
+						</div>
+					{/if}
 
 					<div class="field">
 						<label for="mobile-auth-password" class="field-label">{t('auth.login.password')}</label>
@@ -265,6 +320,7 @@
 
 <style>
 	.auth-page {
+		position: relative;
 		height: 100%;
 		background: var(--color-bg);
 		overflow-y: auto;
@@ -272,6 +328,31 @@
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
 	}
+
+	.close-btn {
+		position: absolute;
+		top: calc(var(--tg-content-top, env(safe-area-inset-top, 0px)) + 0.85rem);
+		right: 1rem;
+		z-index: 5;
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 50%;
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text-secondary);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+	}
+
+	.close-btn:hover {
+		background: var(--color-surface-raised);
+		color: var(--color-text-primary);
+	}
+
+	.close-btn:active { transform: scale(0.95); }
 
 	.auth-shell {
 		min-height: 100%;

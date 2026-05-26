@@ -15,7 +15,7 @@ class AuthControllerIT {
     void register_validData_returns201WithCookieAndUser() {
         given()
             .contentType(JSON)
-            .body("{\"username\":\"newuser_auth\",\"password\":\"pass123\"}")
+            .body("{\"username\":\"newuser_auth\",\"password\":\"pass123\",\"email\":\"newuser_auth@test.local\"}")
         .when().post("/api/auth/register")
         .then()
             .statusCode(201)
@@ -26,7 +26,7 @@ class AuthControllerIT {
 
     @Test
     void register_duplicateUsername_returns409() {
-        var body = "{\"username\":\"duplicate_user\",\"password\":\"pass123\"}";
+        var body = "{\"username\":\"duplicate_user\",\"password\":\"pass123\",\"email\":\"duplicate_user@test.local\"}";
 
         given().contentType(JSON).body(body)
                 .when().post("/api/auth/register")
@@ -39,7 +39,7 @@ class AuthControllerIT {
     @Test
     void login_validCredentials_returnsCookie() {
         given().contentType(JSON)
-                .body("{\"username\":\"login_valid_user\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"login_valid_user\",\"password\":\"pass123\",\"email\":\"login_valid_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
 
@@ -56,7 +56,7 @@ class AuthControllerIT {
     @Test
     void login_wrongPassword_returns401() {
         given().contentType(JSON)
-                .body("{\"username\":\"wrong_pass_user\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"wrong_pass_user\",\"password\":\"pass123\",\"email\":\"wrong_pass_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
 
@@ -77,7 +77,7 @@ class AuthControllerIT {
     @Test
     void me_validCookie_returnsUser() {
         var sid = given().contentType(JSON)
-                .body("{\"username\":\"me_user\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"me_user\",\"password\":\"pass123\",\"email\":\"me_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");
@@ -102,7 +102,7 @@ class AuthControllerIT {
     @Test
     void revokeSession_ownSession_returns204() {
         var sid = given().contentType(JSON)
-                .body("{\"username\":\"revoke_user\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"revoke_user\",\"password\":\"pass123\",\"email\":\"revoke_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");
@@ -127,13 +127,13 @@ class AuthControllerIT {
     @Test
     void revokeSession_otherUserSession_returns403() {
         var aliceSid = given().contentType(JSON)
-                .body("{\"username\":\"alice_revoke\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"alice_revoke\",\"password\":\"pass123\",\"email\":\"alice_revoke@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");
 
         var bobSid = given().contentType(JSON)
-                .body("{\"username\":\"bob_revoke\",\"password\":\"pass123\"}")
+                .body("{\"username\":\"bob_revoke\",\"password\":\"pass123\",\"email\":\"bob_revoke@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");

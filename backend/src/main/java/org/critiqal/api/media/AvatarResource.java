@@ -5,6 +5,7 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.service.UserService;
@@ -18,6 +19,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/media")
+@RequireVerifiedEmail
 public class AvatarResource {
 
     private final MediaService mediaService;

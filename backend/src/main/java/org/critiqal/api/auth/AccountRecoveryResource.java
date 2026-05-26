@@ -49,10 +49,20 @@ public class AccountRecoveryResource {
         return Response.ok(Map.of("message", "Verification email sent")).build();
     }
 
-    @POST @Path("/email/verify") @Consumes(MediaType.APPLICATION_JSON)
+    @POST @Path("/email/verify") @Consumes(MediaType.APPLICATION_JSON) @Authenticated
     public Response verifyEmail(VerifyEmailRequest req) {
-        verifyService.verify(req.token());
+        verifyService.verify(currentUser.id(), req.code());
         return Response.ok(Map.of("message", "Email verified")).build();
+    }
+
+    @POST @Path("/email/resend") @Authenticated @Consumes(MediaType.WILDCARD)
+    public Response resendVerification() {
+        rateLimiter.check(
+                RateLimiter.key("email-verify-resend", currentUser.id().toString()),
+                5, Duration.ofHours(1)
+        );
+        verifyService.resendVerification(currentUser.id());
+        return Response.ok(Map.of("message", "Verification code sent")).build();
     }
 
     @POST @Path("/recovery/request") @Consumes(MediaType.APPLICATION_JSON)

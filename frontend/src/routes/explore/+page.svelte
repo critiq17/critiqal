@@ -5,6 +5,8 @@
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import ExplorePostsTab from '$lib/components/explore/ExplorePostsTab.svelte';
 	import ExplorePeopleTab from '$lib/components/explore/ExplorePeopleTab.svelte';
+	import { authStore } from '$lib/stores/auth.store.svelte';
+	import { authGate } from '$lib/stores/auth-gate.store.svelte';
 	import { t } from '$lib/i18n';
 
 	const DEBOUNCE_MS = 300;
@@ -39,6 +41,11 @@
 	}
 
 	$effect(() => {
+		if (!authStore.isAuthenticated && query.trim().length > 0) {
+			authGate.open('search');
+			query = '';
+			return;
+		}
 		scheduleOrFetch(query, activeTab);
 	});
 

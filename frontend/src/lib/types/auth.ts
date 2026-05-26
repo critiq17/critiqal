@@ -16,6 +16,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   username: string;
   password: string;
+  email: string;
 }
 
 export interface TwoFactorVerifyRequest {
@@ -53,7 +54,7 @@ export interface SetEmailRequest {
 }
 
 export interface VerifyEmailRequest {
-  token: string;
+  code: string;
 }
 
 // Recovery

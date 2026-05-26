@@ -25,13 +25,7 @@ public class UserJourneyIT {
 
     @Test @Order(1)
     void step1_register() {
-        sid = given()
-                .contentType(JSON)
-                .body("{\"username\":\"journey_user\",\"password\":\"pass123\"}")
-                .when().post("/api/auth/register")
-                .then().statusCode(201)
-                .extract().cookie(TestAuthHelper.COOKIE);
-
+        sid = TestAuthHelper.registerAndGetSessionCookie("journey_user");
         assertNotNull(sid);
     }
 
