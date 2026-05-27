@@ -30,6 +30,19 @@ public class QuarkusMailerEmailService implements EmailService {
     }
 
     @Override
+    public void sendLoginCode(String to, String code) {
+        send(to,
+                "Your sign-in code - Critiqal",
+                buildCodeEmail(
+                        "Sign in to Critiqal",
+                        "Enter this code to finish signing in. It expires in 10 minutes.",
+                        code,
+                        "If this wasn't you, change your password immediately."
+                )
+        );
+    }
+
+    @Override
     public void sendPasswordReset(String to, String resetUrl) {
         send(to,
                 "Reset your password — Critiqal",

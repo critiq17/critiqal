@@ -11,7 +11,7 @@
 	import { t } from '$lib/i18n';
 	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
 
-	type AuthMode = 'credentials' | 'totp' | 'recovery';
+	type AuthMode = 'credentials' | 'totp' | 'email' | 'recovery';
 	type Step = 'auth' | 'onboarding';
 
 	let step = $state<Step>('auth');
@@ -22,6 +22,7 @@
 	let password = $state('');
 	let challengeToken = $state<string | null>(null);
 	let totpCode = $state('');
+	let emailCode = $state('');
 	let recoveryCode = $state('');
 	let isSubmitting = $state(false);
 	let error = $state('');
@@ -30,7 +31,9 @@
 	function mapError(err: unknown): string {
 		if (err instanceof ApiError) {
 			if (err.isUnauthorized) {
-				if (mode === 'totp' || mode === 'recovery') return t('auth.errors.invalid2FA');
+				if (mode === 'totp' || mode === 'email' || mode === 'recovery') {
+					return t('auth.errors.invalid2FA');
+				}
 				return t('auth.errors.invalidCredentials');
 			}
 			return err.message || t('common.somethingWentWrong');
@@ -53,7 +56,7 @@
 	}
 
 	function resetChallenge(): void {
-		challengeToken = null; totpCode = ''; recoveryCode = '';
+		challengeToken = null; totpCode = ''; emailCode = ''; recoveryCode = '';
 		mode = 'credentials'; error = '';
 	}
 
@@ -63,6 +66,13 @@
 		try {
 			if (mode === 'totp' && challengeToken) {
 				const user = await authService.verifyTwoFactor({ challengeToken, code: totpCode });
+				await authStore.login(user);
+				await routeAfterLogin(user);
+				return;
+			}
+
+			if (mode === 'email' && challengeToken) {
+				const user = await authService.verifyEmailLogin({ challengeToken, code: emailCode });
 				await authStore.login(user);
 				await routeAfterLogin(user);
 				return;
@@ -78,8 +88,13 @@
 			const result = await authService.login({ username, password });
 			if (isTwoFactorChallenge(result)) {
 				challengeToken = result.challengeToken;
-				totpCode = '';
-				mode = 'totp';
+				if (result.method === 'EMAIL') {
+					emailCode = '';
+					mode = 'email';
+				} else {
+					totpCode = '';
+					mode = 'totp';
+				}
 				return;
 			}
 
@@ -130,6 +145,8 @@
 				<p class="subtitle">
 					{#if mode === 'totp'}
 						{t('auth.login.twoFactorHint')}
+					{:else if mode === 'email'}
+						{t('auth.login.emailCodeHint')}
 					{:else if mode === 'recovery'}
 						{t('auth.login.recoveryPlaceholder')}
 					{:else}
@@ -159,6 +176,22 @@
 							required
 							disabled={isSubmitting}
 							placeholder={t('auth.login.twoFactorPlaceholder')}
+						/>
+					</div>
+				{:else if mode === 'email'}
+					<div class="field">
+						<label for="email-code" class="field-label">{t('auth.login.emailCodeTitle')}</label>
+						<input
+							id="email-code"
+							type="text"
+							class="field-input"
+							bind:value={emailCode}
+							autocomplete="one-time-code"
+							inputmode="numeric"
+							maxlength="6"
+							required
+							disabled={isSubmitting}
+							placeholder={t('auth.login.emailCodePlaceholder')}
 						/>
 					</div>
 				{:else if mode === 'recovery'}
@@ -191,6 +224,7 @@
 					class="submit-btn"
 					disabled={isSubmitting || (
 						mode === 'totp' ? totpCode.trim().length !== 6 :
+						mode === 'email' ? emailCode.trim().length !== 6 :
 						mode === 'recovery' ? !username.trim() || !recoveryCode.trim() :
 						!username.trim() || !password
 					)}
@@ -203,6 +237,10 @@
 						onclick={() => { mode = 'recovery'; totpCode = ''; error = ''; }}>
 						{t('auth.login.useRecovery')}
 					</button>
+					<button type="button" class="ghost-btn" disabled={isSubmitting} onclick={resetChallenge}>
+						{t('common.back')}
+					</button>
+				{:else if mode === 'email'}
 					<button type="button" class="ghost-btn" disabled={isSubmitting} onclick={resetChallenge}>
 						{t('common.back')}
 					</button>
