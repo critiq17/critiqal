@@ -85,7 +85,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         var user = userService.getById(userId);
         user.pendingEmail = normalizedEmail;
 
-        var rawToken = generateSecureToken();
+        var rawToken = generateVerificationCode();
         var token = new VerificationToken();
         token.user = user;
         token.tokenHash = hashToken(rawToken);
@@ -134,12 +134,6 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new DomainException("No pending email to verify");
         }
         sendEmailVerification(userId, user.pendingEmail);
-    }
-
-    static String generateSecureToken() {
-        var bytes = new byte[32];
-        new SecureRandom().nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String generateVerificationCode() {
