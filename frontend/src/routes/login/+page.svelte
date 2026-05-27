@@ -6,6 +6,8 @@
 	import { recoveryService } from '$lib/services/recovery.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
 	import { ApiError, isTwoFactorChallenge } from '$lib/types';
+	import type { User } from '$lib/types';
+	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { t } from '$lib/i18n';
 	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
 
@@ -37,6 +39,19 @@
 		return t('common.somethingWentWrong');
 	}
 
+	async function routeAfterLogin(user: User): Promise<void> {
+		if (user.emailVerified) {
+			await goto('/');
+			return;
+		}
+		if (user.pendingEmail) {
+			verifyEmailStore.start(user.pendingEmail);
+			await goto('/verify-email');
+			return;
+		}
+		step = 'onboarding';
+	}
+
 	function resetChallenge(): void {
 		challengeToken = null; totpCode = ''; recoveryCode = '';
 		mode = 'credentials'; error = '';
@@ -49,14 +64,14 @@
 			if (mode === 'totp' && challengeToken) {
 				const user = await authService.verifyTwoFactor({ challengeToken, code: totpCode });
 				await authStore.login(user);
-				await goto('/');
+				await routeAfterLogin(user);
 				return;
 			}
 
 			if (mode === 'recovery') {
 				const user = await recoveryService.useRecoveryCode({ username, recoveryCode });
 				await authStore.login(user);
-				await goto('/');
+				await routeAfterLogin(user);
 				return;
 			}
 
@@ -69,11 +84,7 @@
 			}
 
 			await authStore.login(result);
-			if (result.emailVerified) {
-				goto('/');
-			} else {
-				step = 'onboarding';
-			}
+			await routeAfterLogin(result);
 		} catch (err: unknown) {
 			error = mapError(err);
 			shakeKey++;
@@ -87,15 +98,18 @@
 	let emailSubmitting = $state(false);
 
 	async function handleAddEmail(): Promise<void> {
-		if (!emailInput.trim()) return;
+		const value = emailInput.trim();
+		if (!value) return;
 		emailSubmitting = true;
 		try {
-			await emailVerificationService.setEmail({ email: emailInput });
+			await emailVerificationService.setEmail({ email: value });
+			verifyEmailStore.start(value);
+			await goto('/verify-email');
 		} catch {
 			// non-blocking
+			await goto('/');
 		} finally {
 			emailSubmitting = false;
-			goto('/');
 		}
 	}
 
