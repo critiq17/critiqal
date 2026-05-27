@@ -20,6 +20,19 @@ function isEmailVerificationError(message: string): boolean {
   return message.toLowerCase().includes('email verification');
 }
 
+function extractErrorMessage(data: unknown, fallback: string): string {
+  if (typeof data === 'object' && data !== null) {
+    const record = data as Record<string, unknown>;
+    if (typeof record.error === 'string' && record.error.trim() !== '') {
+      return record.error;
+    }
+    if (typeof record.message === 'string' && record.message.trim() !== '') {
+      return record.message;
+    }
+  }
+  return fallback;
+}
+
 function isTunnelHost(hostname: string): boolean {
   return (
     hostname.includes('ngrok-free.app') ||
@@ -110,10 +123,7 @@ async function parseResponse<T>(
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === 'object' && data !== null && 'message' in data
-        ? String((data as Record<string, unknown>).message)
-        : response.statusText;
+    const message = extractErrorMessage(data, response.statusText);
     if (response.status === 403 && isEmailVerificationError(message)) {
       onEmailVerificationRequired?.();
     }

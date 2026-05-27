@@ -58,13 +58,9 @@ class UserControllerIT {
 
     @Test
     void follow_self_returns400() {
-        var selfId = TestAuthHelper.registerAndGetUserId("follow_self_user");
-        var sid = given()
-            .contentType(JSON)
-            .body("{\"username\":\"follow_self_user\",\"password\":\"pass123\"}")
-        .when().post("/api/auth/login")
-        .then().statusCode(200)
-        .extract().cookie(TestAuthHelper.COOKIE);
+        var response = TestAuthHelper.registerAndGetResponse("follow_self_user");
+        var selfId = UUID.fromString(response.jsonPath().getString("id"));
+        var sid = response.getCookie(TestAuthHelper.COOKIE);
 
         given()
             .cookie(TestAuthHelper.COOKIE, sid)
