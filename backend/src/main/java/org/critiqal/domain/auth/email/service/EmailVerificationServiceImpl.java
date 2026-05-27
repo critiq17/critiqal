@@ -56,12 +56,16 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     }
 
     @Override
-    public void sendEmailVerification(UUID userId, String email) {
-        if (email == null || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
-            throw new DomainException("Invalid email address");
-        }
+    public void assertEmailAvailable(String email) {
+        var normalized = normalize(email);
+        userRepo.findByEmail(normalized).ifPresent(existing -> {
+            throw new ConflictException("Email is already in use");
+        });
+    }
 
-        var normalizedEmail = email.trim().toLowerCase();
+    @Override
+    public void sendEmailVerification(UUID userId, String email) {
+        var normalizedEmail = normalize(email);
 
         rateLimiter.check(RateLimiter.key("email-verify", normalizedEmail), 5, Duration.ofHours(1));
         // Persist the pending email + token in its own committed transaction.
@@ -134,6 +138,13 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new DomainException("No pending email to verify");
         }
         sendEmailVerification(userId, user.pendingEmail);
+    }
+
+    private static String normalize(String email) {
+        if (email == null || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
+            throw new DomainException("Invalid email address");
+        }
+        return email.trim().toLowerCase();
     }
 
     private String generateVerificationCode() {

@@ -83,6 +83,8 @@ public class AuthResource {
         if (meta.ipHash() != null) {
             rateLimiter.check(RateLimiter.key("register-ip", meta.ipHash()), 5, Duration.ofHours(1));
         }
+        // Validate email up front so a duplicate/invalid address doesn't leave an orphan user row.
+        verifyService.assertEmailAvailable(req.email());
         var user = userService.register(Username.of(req.username()), req.password());
 
         verifyService.sendEmailVerification(user.id, req.email());
@@ -113,6 +115,7 @@ public class AuthResource {
         }
 
         sendNewDeviceAlertIfNeeded(user.id, user.email, user.emailVerified);
+        issueVerificationCodeIfPending(user);
 
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(user.id))).build();
     }
@@ -131,7 +134,19 @@ public class AuthResource {
 
         var user = userService.getById(userId);
         sendNewDeviceAlertIfNeeded(userId, user.email, user.emailVerified);
+        issueVerificationCodeIfPending(user);
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(userId))).build();
+    }
+
+    // After login, if the account has a pending email that wasn't verified yet,
+    // send a fresh code so the user can finish the flow without re-registering.
+    // Best-effort: a delivery hiccup must not break login.
+    private void issueVerificationCodeIfPending(org.critiqal.domain.user.User user) {
+        if (user.emailVerified || user.pendingEmail == null) return;
+        try {
+            verifyService.resendVerification(user.id);
+        } catch (Exception ignored) {
+        }
     }
 
     @POST @Path("/logout") @Consumes(MediaType.WILDCARD) @Authenticated
