@@ -4,6 +4,7 @@ import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.keys.KeyCommands;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.critiqal.domain.shared.exception.DomainException;
 
 import java.time.Duration;
@@ -14,13 +15,15 @@ public class RateLimiter {
     private final ValueCommands<String, String> val;
     private final KeyCommands<String> keys;
 
+    @Inject
     public RateLimiter(RedisDataSource ds) {
         this.val = ds.value(String.class);
         this.keys = ds.key(String.class);
     }
 
-    // Required so a normal-scoped CDI proxy (and test subclasses) can be
-    // generated. Never invoked at runtime by the container.
+    // Required so the normal-scoped CDI proxy (and test subclasses) can be generated.
+    // @Inject above tells ArC to use the RedisDataSource ctor for the real bean instance;
+    // without it ArC silently picks this no-arg ctor and `val` stays null.
     protected RateLimiter() {
         this.val = null;
         this.keys = null;
