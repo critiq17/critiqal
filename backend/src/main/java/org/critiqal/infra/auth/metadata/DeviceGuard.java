@@ -16,7 +16,7 @@ public class DeviceGuard {
     public void assertCanRegister(String deviceIdHash) {
         if (deviceIdHash == null) return;
         if (authSessionRepository.existsByDeviceIdHash(deviceIdHash)) {
-            throw new ConflictException("device_already_used");
+            throw new ConflictException("This device is already linked to an account. Sign in instead.");
         }
     }
 }

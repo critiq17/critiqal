@@ -83,6 +83,8 @@ public class AuthResource {
         if (meta.ipHash() != null) {
             rateLimiter.check(RateLimiter.key("register-ip", meta.ipHash()), 5, Duration.ofHours(1));
         }
+        // Validate email up front so a duplicate/invalid address doesn't leave an orphan user row.
+        verifyService.assertEmailAvailable(req.email());
         var user = userService.register(Username.of(req.username()), req.password());
 
         verifyService.sendEmailVerification(user.id, req.email());
@@ -94,8 +96,9 @@ public class AuthResource {
     }
 
     /**
-     * 200 - login success (cookie)
-     * 202 - required 2FA {challengeToken, method}
+     * 200 - login success (cookie) — only for accounts that don't yet have a verified email
+     *       (frontend still gates them on the verify-email page).
+     * 202 - required second factor {challengeToken, method=TOTP|EMAIL}
      * 401 - incorrect data
      */
     @POST @Path("/login")
@@ -112,7 +115,23 @@ public class AuthResource {
                     .build();
         }
 
+        // Verified email = mandatory email OTP as a second factor on every sign-in.
+        // Without this, anyone with a leaked password could log in silently.
+        if (user.emailVerified && user.email != null) {
+            try {
+                verifyService.sendLoginCode(user.id);
+            } catch (DomainException e) {
+                return Response.status(401).entity(Map.of("error", e.getMessage())).build();
+            }
+            return Response.status(202)
+                    .entity(new TwoFactorChallengeResponse(authChallengeService.create(user.id), "EMAIL"))
+                    .build();
+        }
+
+        // No verified email yet — issue session so the frontend can drive the
+        // verify-email flow (existing UX) and emit a fresh code if one is pending.
         sendNewDeviceAlertIfNeeded(user.id, user.email, user.emailVerified);
+        issueVerificationCodeIfPending(user);
 
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(user.id))).build();
     }
@@ -131,7 +150,36 @@ public class AuthResource {
 
         var user = userService.getById(userId);
         sendNewDeviceAlertIfNeeded(userId, user.email, user.emailVerified);
+        issueVerificationCodeIfPending(user);
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(userId))).build();
+    }
+
+    @POST @Path("/login/email")
+    public Response loginWithEmail(TwoFactorVerifyRequest req) {
+        var userId = authChallengeService.consume(req.challengeToken()).orElse(null);
+        if (userId == null)
+            return Response.status(401).entity(Map.of("error", "Invalid or expired challenge")).build();
+
+        try {
+            verifyService.verifyLoginCode(userId, req.code());
+        } catch (DomainException e) {
+            return Response.status(401).entity(Map.of("error", e.getMessage())).build();
+        }
+
+        var user = userService.getById(userId);
+        sendNewDeviceAlertIfNeeded(userId, user.email, user.emailVerified);
+        return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(userId))).build();
+    }
+
+    // After login, if the account has a pending email that wasn't verified yet,
+    // send a fresh code so the user can finish the flow without re-registering.
+    // Best-effort: a delivery hiccup must not break login.
+    private void issueVerificationCodeIfPending(org.critiqal.domain.user.User user) {
+        if (user.emailVerified || user.pendingEmail == null) return;
+        try {
+            verifyService.resendVerification(user.id);
+        } catch (Exception ignored) {
+        }
     }
 
     @POST @Path("/logout") @Consumes(MediaType.WILDCARD) @Authenticated

@@ -126,13 +126,15 @@
 
 	<div class="card" in:fly={{ y: 12, duration: 260 }}>
 		{#if success}
-			<div class="success" in:fade={{ duration: 200 }}>
+			<div class="success" in:fade={{ duration: 240 }}>
 				<div class="success-star" aria-hidden="true">
-					<svg viewBox="0 0 24 24" width="36" height="36" fill="currentColor">
+					<span class="halo"></span>
+					<span class="ring"></span>
+					<svg class="star" viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
 						<path d="M12 2l2.39 7.36H22l-6.18 4.49L18.21 22 12 17.27 5.79 22l2.39-8.15L2 9.36h7.61z"/>
 					</svg>
 				</div>
-				<p class="title">{t('auth.verifyEmail.success')}</p>
+				<p class="success-title">{t('auth.verifyEmail.success')}</p>
 			</div>
 		{:else if !pending && !authStore.isAuthenticated}
 			<div class="header">
@@ -375,26 +377,90 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 0.85rem;
-		padding: 0.5rem 0;
+		gap: 1.1rem;
+		padding: 1rem 0 0.25rem;
 	}
 
 	.success-star {
-		width: 4rem;
-		height: 4rem;
-		border-radius: 50%;
-		background: radial-gradient(circle at center, rgba(255, 220, 120, 0.18), transparent 70%);
+		position: relative;
+		width: 5rem;
+		height: 5rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #ffd56b;
-		animation: starPulse 1.1s ease-out;
+		isolation: isolate;
 	}
 
-	@keyframes starPulse {
+	.success-star .halo {
+		position: absolute;
+		inset: -25%;
+		border-radius: 50%;
+		background: radial-gradient(circle at center,
+			rgba(224, 82, 82, 0.32) 0%,
+			rgba(224, 82, 82, 0.12) 35%,
+			transparent 70%);
+		filter: blur(2px);
+		opacity: 0;
+		animation: haloBreathe 2.6s ease-in-out 0.45s infinite;
+	}
+
+	.success-star .ring {
+		position: absolute;
+		inset: 0;
+		border-radius: 50%;
+		border: 1.5px solid rgba(224, 82, 82, 0.55);
+		opacity: 0;
+		transform: scale(0.4);
+		animation: ringExpand 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+	}
+
+	.success-star .star {
+		position: relative;
+		z-index: 1;
+		color: var(--color-accent);
+		filter: drop-shadow(0 0 12px rgba(224, 82, 82, 0.55));
+		transform-origin: center;
+		opacity: 0;
+		animation:
+			starEnter 0.7s cubic-bezier(0.34, 1.4, 0.5, 1) forwards,
+			starGlow 2.6s ease-in-out 0.7s infinite;
+	}
+
+	.success-title {
+		font-size: 1rem;
+		font-weight: 600;
+		color: var(--color-text-primary);
+		margin: 0;
+		letter-spacing: -0.005em;
+		opacity: 0;
+		animation: titleRise 0.5s ease-out 0.3s forwards;
+	}
+
+	@keyframes starEnter {
+		0%   { transform: scale(0.2) rotate(-25deg); opacity: 0; }
+		55%  { transform: scale(1.15) rotate(4deg); opacity: 1; }
+		100% { transform: scale(1) rotate(0deg); opacity: 1; }
+	}
+
+	@keyframes starGlow {
+		0%, 100% { filter: drop-shadow(0 0 10px rgba(224, 82, 82, 0.45)); }
+		50%      { filter: drop-shadow(0 0 18px rgba(224, 82, 82, 0.75)); }
+	}
+
+	@keyframes haloBreathe {
+		0%, 100% { transform: scale(0.85); opacity: 0.55; }
+		50%      { transform: scale(1.05); opacity: 0.95; }
+	}
+
+	@keyframes ringExpand {
 		0%   { transform: scale(0.4); opacity: 0; }
-		60%  { transform: scale(1.1); opacity: 1; }
-		100% { transform: scale(1); }
+		35%  { opacity: 0.9; }
+		100% { transform: scale(1.9); opacity: 0; }
+	}
+
+	@keyframes titleRise {
+		from { transform: translateY(4px); opacity: 0; }
+		to   { transform: translateY(0);    opacity: 1; }
 	}
 
 	.shake { animation: shake 0.3s ease-out; }

@@ -4,6 +4,7 @@ import java.util.UUID;
 
 public interface EmailService {
     void sendEmailVerificationCode(String to, String code);
+    void sendLoginCode(String to, String code);
     void sendPasswordReset(String to, String resetUrl);
     void sendSecurityAlert(String to, String subject, String message);
 }

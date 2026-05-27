@@ -1,8 +1,10 @@
 import type { User } from './user';
 
+export type TwoFactorMethod = 'TOTP' | 'EMAIL';
+
 export interface TwoFactorChallenge {
   challengeToken: string;
-  method: 'TOTP' | string;
+  method: TwoFactorMethod;
 }
 
 export type LoginResponse = User | TwoFactorChallenge;

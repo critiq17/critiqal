@@ -3,6 +3,7 @@ export const API = {
     register: '/api/auth/register',
     login: '/api/auth/login',
     login2fa: '/api/auth/login/2fa',
+    loginEmail: '/api/auth/login/email',
     logout: '/api/auth/logout',
     me: '/api/auth/me',
     setEmail: '/api/auth/email',
