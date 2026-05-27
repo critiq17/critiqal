@@ -38,7 +38,7 @@ class DeviceGuardIT {
                 .body("{\"username\":\"device_conflict_2\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(409)
-                .body("error", equalTo("device_already_used"));
+                .body("error", equalTo("This device is already linked to an account. Sign in instead."));
     }
 
     @Test
@@ -65,7 +65,7 @@ class DeviceGuardIT {
                 .body("{\"username\":\"device_conflict_4\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(409)
-                .body("error", equalTo("device_already_used"));
+                .body("error", equalTo("This device is already linked to an account. Sign in instead."));
     }
 
     @Test
