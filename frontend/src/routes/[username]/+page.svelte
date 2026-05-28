@@ -26,6 +26,20 @@
 	const isOwnProfile = $derived(authStore.user?.username === username);
 	const SKELETON_COUNT = 3;
 
+	// Header frost interpolates over the first 80px of scroll inside .col-center.
+	let centerEl: HTMLElement | null = $state(null);
+	let headerProgress = $state(0);
+	let headerTicking = false;
+	function onCenterScroll(): void {
+		if (headerTicking) return;
+		headerTicking = true;
+		requestAnimationFrame(() => {
+			const top = centerEl?.scrollTop ?? 0;
+			headerProgress = Math.min(1, Math.max(0, top / 80));
+			headerTicking = false;
+		});
+	}
+
 	type ModalTab = 'followers' | 'following';
 	let modalOpen = $state(false);
 	let modalTab = $state<ModalTab>('followers');
@@ -91,8 +105,13 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label="Profile">
-		<header class="page-header">
+	<main
+		class="col-center"
+		aria-label="Profile"
+		bind:this={centerEl}
+		onscroll={onCenterScroll}
+	>
+		<header class="page-header" style="--header-progress: {headerProgress}">
 			<h1 class="page-title">{displayName}</h1>
 			{#if profilePage.profile}
 				<span class="post-count-label">
@@ -210,7 +229,7 @@
 				</div>
 			{/if}
 
-			<div class="tabs-wrap">
+			<div class="tabs-wrap" style="--header-progress: {headerProgress}">
 				<ProfileTabs tabs={tabs} activeId="posts" />
 			</div>
 		{/if}
@@ -310,20 +329,25 @@
 		padding: 1.25rem 0 1rem;
 		position: sticky;
 		top: 0;
-		background: linear-gradient(
-			to bottom,
-			var(--color-bg) 0%,
-			rgba(12, 12, 12, 0.85) 55%,
-			rgba(12, 12, 12, 0) 100%
-		);
-		backdrop-filter: blur(12px) saturate(150%);
-		-webkit-backdrop-filter: blur(12px) saturate(150%);
-		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
-		mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
 		z-index: 10;
 		display: flex;
 		align-items: baseline;
 		gap: 0.625rem;
+	}
+
+	.page-header::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: linear-gradient(to right, transparent, var(--glass-border), transparent);
+		opacity: var(--header-progress, 0);
+		pointer-events: none;
 	}
 
 	.page-title {
@@ -436,21 +460,29 @@
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
-		transition: background-color 0.15s ease, transform 0.1s ease;
+		border: none;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 	}
 
 	.btn:active:not(:disabled) {
 		transform: scale(0.96);
 	}
 
+	/* Inset shadow border avoids layout shift between rest/hover. */
 	.btn-outline {
 		background: none;
 		color: var(--color-text-primary);
-		border: 1px solid var(--color-border);
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 	}
 
 	.btn-outline:hover {
-		background-color: var(--color-surface-raised);
+		background-color: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 	}
 
 	.strava-slot {
@@ -462,9 +494,9 @@
 		padding: 0 2rem;
 		position: sticky;
 		top: 3.625rem;
-		background-color: rgba(12, 12, 12, 0.72);
-		backdrop-filter: blur(16px) saturate(180%);
-		-webkit-backdrop-filter: blur(16px) saturate(180%);
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
 		z-index: 9;
 	}
 
@@ -496,17 +528,24 @@
 		margin-top: 0.75rem;
 		padding: 0.5rem 1.25rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-border);
-		background: none;
+		border: none;
+		background: var(--surface-tint-subtle);
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 		color: var(--color-text-primary);
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s ease, transform 0.1s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 	}
 
 	.retry-btn:hover {
-		background-color: var(--color-surface-raised);
+		background-color: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 	}
 
 	.retry-btn:active {
@@ -586,6 +625,14 @@
 		.skeleton-line {
 			animation: none;
 		}
+		.btn,
+		.retry-btn {
+			transition:
+				background-color var(--duration-micro) var(--ease-out-quart),
+				box-shadow var(--duration-micro) var(--ease-out-quart);
+		}
+		.btn:active,
+		.retry-btn:active { transform: none; }
 	}
 
 	@media (max-width: 900px) {

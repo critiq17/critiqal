@@ -23,9 +23,10 @@
 	const profile = new UseProfilePage(username);
 
 	let scrollEl = $state<HTMLDivElement | undefined>(undefined);
-	let scrolled = $state(false);
+	let headerProgress = $state(0);
 	function onScroll(): void {
-		scrolled = (scrollEl?.scrollTop ?? 0) > 8;
+		const top = scrollEl?.scrollTop ?? 0;
+		headerProgress = Math.min(1, Math.max(0, top / 80));
 	}
 
 	async function handleToggleFollow(): Promise<void> {
@@ -39,7 +40,7 @@
 </script>
 
 <div class="overlay-scroll" bind:this={scrollEl} onscroll={onScroll}>
-	<CollapsingHeader title={profile.profile?.name ?? username} {scrolled} />
+	<CollapsingHeader title={profile.profile?.name ?? username} progress={headerProgress} />
 	{#if profile.profileState === 'loading' && !profile.profile}
 		<div class="loading-state" aria-busy="true">
 			<div class="skel skel-avatar"></div>

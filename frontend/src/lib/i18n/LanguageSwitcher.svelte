@@ -48,6 +48,7 @@
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 0;
+		width: 100%;
 		padding: 0.3125rem;
 		border-radius: 1rem;
 		background: var(--glass-bg-soft);
@@ -59,6 +60,7 @@
 			0 2px 8px rgba(0, 0, 0, 0.18);
 		overflow: hidden;
 		isolation: isolate;
+		box-sizing: border-box;
 	}
 
 	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {

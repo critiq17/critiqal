@@ -74,7 +74,7 @@
 
 <div class="page">
 	<StarfieldBackdrop />
-	<div class="card" aria-label={t('auth.register.title')} in:fly={{ y: 10, duration: 220 }}>
+	<div class="card glass glass-strong" aria-label={t('auth.register.title')} in:fly={{ y: 10, duration: 220 }}>
 		<div class="card-header">
 			<span class="logo">critiqal</span>
 			<p class="subtitle">{t('auth.register.subtitle')}</p>
@@ -164,13 +164,15 @@
 		z-index: 1;
 		width: 100%;
 		max-width: 22rem;
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: 0.75rem;
+		border-radius: 1rem;
 		padding: 2.5rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			0 1px 2px rgba(0, 0, 0, 0.06),
+			0 24px 48px -16px rgba(0, 0, 0, 0.35);
 		animation: fadeUp 0.25s ease-out;
 	}
 
@@ -215,24 +217,48 @@
 	.field-input {
 		width: 100%;
 		background: var(--color-surface-raised);
-		border: 1px solid var(--color-border);
-		border-radius: 0.5rem;
-		padding: 0.625rem 0.75rem;
+		border: none;
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-soft),
+			inset 0 0 0 1px var(--glass-border),
+			0 1px 2px rgba(0, 0, 0, 0.08);
+		border-radius: 0.625rem;
+		padding: 0.7rem 0.85rem;
 		font-size: 0.9375rem;
 		color: var(--color-text-primary);
 		font-family: inherit;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
 		outline: none;
+		transition:
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			background-color var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.field-input::placeholder { color: var(--color-text-muted); opacity: 0.5; }
-	.field-input:focus { border-color: rgba(240, 240, 240, 0.25); box-shadow: 0 0 0 3px rgba(240, 240, 240, 0.04); }
+
+	.field-input:hover:not(:disabled):not(:focus) {
+		background: var(--color-surface-elevated, var(--color-surface-raised));
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-medium),
+			inset 0 0 0 1px var(--surface-tint-medium),
+			0 2px 6px rgba(0, 0, 0, 0.12);
+	}
+
+	.field-input:focus {
+		background: var(--color-surface-elevated, var(--color-surface-raised));
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			inset 0 0 0 1.5px var(--color-text-primary),
+			0 0 0 4px rgba(255, 255, 255, 0.05),
+			0 4px 12px rgba(0, 0, 0, 0.18);
+	}
+
 	.field-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
 	.submit-btn {
 		width: 100%;
-		padding: 0.625rem 1rem;
-		border-radius: 0.5rem;
+		padding: 0.75rem 1rem;
+		border-radius: 0.625rem;
 		border: none;
 		background: var(--color-text-primary);
 		color: var(--color-bg);
@@ -240,11 +266,24 @@
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
-		transition: opacity 0.15s ease, transform 0.1s ease;
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.15),
+			0 1px 2px rgba(0, 0, 0, 0.1),
+			0 6px 16px -4px rgba(0, 0, 0, 0.2);
+		transition:
+			transform var(--duration-press) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			opacity var(--duration-micro) var(--ease-out-quart);
 		margin-top: 0.25rem;
 	}
 
-	.submit-btn:hover:not(:disabled) { opacity: 0.85; }
+	.submit-btn:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow:
+			inset 0 1px 0 rgba(255, 255, 255, 0.2),
+			0 2px 4px rgba(0, 0, 0, 0.12),
+			0 10px 24px -6px rgba(0, 0, 0, 0.28);
+	}
 	.submit-btn:active:not(:disabled) { transform: scale(0.97); }
 	.submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 

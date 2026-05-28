@@ -22,13 +22,15 @@
 	let isRefreshing = $state(false);
 
 	// Brand title in the transparent TG header strip frosts in on scroll.
-	let headerScrolled = $state(false);
+	// Progress 0..1 (over the first 80px of scroll) drives a smooth glass fade.
+	let headerProgress = $state(0);
 	let headerTicking = false;
 	function onContainerScroll(): void {
 		if (headerTicking) return;
 		headerTicking = true;
 		requestAnimationFrame(() => {
-			headerScrolled = (containerEl?.scrollTop ?? 0) > 16;
+			const top = containerEl?.scrollTop ?? 0;
+			headerProgress = Math.min(1, Math.max(0, top / 80));
 			headerTicking = false;
 		});
 	}
@@ -144,7 +146,11 @@
 {/if}
 
 <!-- Brand title sits inside the transparent TG header — centered between Close and action buttons -->
-<div class="feed-header-title" class:scrolled={headerScrolled} aria-hidden="true">
+<div
+	class="feed-header-title"
+	style="--header-progress: {headerProgress}"
+	aria-hidden="true"
+>
 	<span class="feed-header-brand">critiqal</span>
 </div>
 
@@ -195,7 +201,9 @@
 <style>
 	/* ── Header brand title — lives in the transparent TG header strip ─────────── */
 	/* top = device status bar height; height = TG header bar height (~44px).
-	   pointer-events: none so TG's native Close / action buttons remain tappable. */
+	   pointer-events: none so TG's native Close / action buttons remain tappable.
+	   Background, blur and divider all interpolate against --header-progress
+	   instead of a binary scrolled class — no resize jump on scroll. */
 	.feed-header-title {
 		position: fixed;
 		top: env(safe-area-inset-top, 0px);
@@ -207,16 +215,21 @@
 		justify-content: center;
 		pointer-events: none;
 		z-index: 5;
-		background: transparent;
-		border-bottom: 1px solid transparent;
-		transition: background 0.22s ease, border-color 0.22s ease;
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
 	}
 
-	.feed-header-title.scrolled {
-		background: var(--glass-bg);
-		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		border-bottom-color: var(--glass-border);
+	.feed-header-title::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: linear-gradient(to right, transparent, var(--glass-border), transparent);
+		opacity: var(--header-progress, 0);
+		pointer-events: none;
 	}
 
 	.feed-header-brand {
