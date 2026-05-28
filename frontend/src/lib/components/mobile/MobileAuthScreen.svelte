@@ -9,7 +9,8 @@
 		ApiError,
 		isTwoFactorChallenge,
 		type LoginRequest,
-		type RegisterRequest
+		type RegisterRequest,
+		type TwoFactorMethod
 	} from '$lib/types';
 	import { t } from '$lib/i18n';
 
@@ -27,6 +28,7 @@
 	let email = $state('');
 	let password = $state('');
 	let challengeToken = $state<string | null>(null);
+	let challengeMethod = $state<TwoFactorMethod>('TOTP');
 	let totpCode = $state('');
 	let error = $state('');
 	let loading = $state(false);
@@ -54,6 +56,7 @@
 		email = '';
 		password = '';
 		challengeToken = null;
+		challengeMethod = 'TOTP';
 		totpCode = '';
 		error = '';
 		passwordTouched = false;
@@ -95,6 +98,7 @@
 
 	function resetChallenge(): void {
 		challengeToken = null;
+		challengeMethod = 'TOTP';
 		totpCode = '';
 		error = '';
 	}
@@ -112,7 +116,10 @@
 
 		try {
 			if (challengeToken) {
-				const user = await authService.verifyTwoFactor({ challengeToken, code: totpCode });
+				const user =
+					challengeMethod === 'EMAIL'
+						? await authService.verifyEmailLogin({ challengeToken, code: totpCode })
+						: await authService.verifyTwoFactor({ challengeToken, code: totpCode });
 				await authStore.login(user);
 				getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
 				return;
@@ -123,6 +130,7 @@
 				const result = await authService.login(req);
 				if (isTwoFactorChallenge(result)) {
 					challengeToken = result.challengeToken;
+					challengeMethod = result.method;
 					totpCode = '';
 					return;
 				}
@@ -172,7 +180,9 @@
 				<span class="logo-text">critiqal</span>
 				<p class="subtitle">
 					{#if challengeToken}
-						{t('auth.login.twoFactorHint')}
+						{challengeMethod === 'EMAIL'
+							? t('auth.login.emailCodeHint')
+							: t('auth.login.twoFactorHint')}
 					{:else}
 						{activeMode === 'login' ? t('auth.login.subtitle') : t('auth.register.subtitle')}
 					{/if}
@@ -193,7 +203,11 @@
 			}}>
 				{#if challengeToken}
 					<div class="field">
-						<label for="mobile-auth-code" class="field-label">{t('auth.login.twoFactorTitle')}</label>
+						<label for="mobile-auth-code" class="field-label">
+							{challengeMethod === 'EMAIL'
+								? t('auth.login.emailCodeTitle')
+								: t('auth.login.twoFactorTitle')}
+						</label>
 						<input
 							id="mobile-auth-code"
 							type="text"
@@ -204,7 +218,9 @@
 							pattern={'[0-9]{6}'}
 							required
 							disabled={loading}
-							placeholder={t('auth.login.twoFactorPlaceholder')}
+							placeholder={challengeMethod === 'EMAIL'
+								? t('auth.login.emailCodePlaceholder')
+								: t('auth.login.twoFactorPlaceholder')}
 							oninput={() => {
 								if (error) error = '';
 							}}

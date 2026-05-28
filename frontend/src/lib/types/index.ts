@@ -5,6 +5,7 @@ export type {
   LoginRequest,
   RegisterRequest,
   TwoFactorChallenge,
+  TwoFactorMethod,
   TwoFactorVerifyRequest,
   TotpSetupResponse,
   ConfirmTotpRequest,
