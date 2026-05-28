@@ -21,6 +21,20 @@
 	// them immediately and revalidate in the background.
 	const showSkeleton = $derived(!feedCacheStore.hasData && error === null);
 
+	// Header frost interpolates over the first 80px of scroll inside .col-center.
+	let centerEl: HTMLElement | null = $state(null);
+	let headerProgress = $state(0);
+	let headerTicking = false;
+	function onCenterScroll(): void {
+		if (headerTicking) return;
+		headerTicking = true;
+		requestAnimationFrame(() => {
+			const top = centerEl?.scrollTop ?? 0;
+			headerProgress = Math.min(1, Math.max(0, top / 80));
+			headerTicking = false;
+		});
+	}
+
 	onMount(() => {
 		// Stale-while-revalidate: returns instantly if fresh, otherwise refetches.
 		feedCacheStore.load();
@@ -59,8 +73,13 @@
 		<LeftSidebar />
 	</div>
 
-	<main class="col-center" aria-label={t('nav.feed')}>
-		<header class="feed-header">
+	<main
+		class="col-center"
+		aria-label={t('nav.feed')}
+		bind:this={centerEl}
+		onscroll={onCenterScroll}
+	>
+		<header class="feed-header" style="--header-progress: {headerProgress}">
 			<h1 class="feed-title">{t('nav.feed')}</h1>
 		</header>
 
@@ -148,15 +167,24 @@
 		margin-bottom: -0.75rem;
 		position: sticky;
 		top: 0;
-		/* Theme-aware glass via the shared tokens (.glass would add a border;
-		   we want the seamless mask-faded edge, so we inline the surface but
-		   reuse the same tokens for both themes). */
-		background: var(--glass-bg-soft);
-		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		-webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
-		mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+		/* Background, blur and divider all interpolate against --header-progress
+		   instead of a binary scrolled class — no resize jump on scroll. */
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
 		z-index: 10;
+	}
+
+	.feed-header::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: linear-gradient(to right, transparent, var(--glass-border), transparent);
+		opacity: var(--header-progress, 0);
+		pointer-events: none;
 	}
 
 	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -207,21 +235,37 @@
 		margin-top: 0.75rem;
 		padding: 0.5rem 1.25rem;
 		border-radius: 0.5rem;
-		border: 1px solid var(--color-border);
-		background: none;
+		border: none;
+		background: var(--surface-tint-subtle);
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 		color: var(--color-text-primary);
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
-		transition: background-color 0.15s ease, transform 0.1s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 	}
 
 	.retry-btn:hover {
-		background-color: var(--color-surface-raised);
+		background-color: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 	}
 
 	.retry-btn:active {
 		transform: scale(0.97);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.retry-btn {
+			transition:
+				background-color var(--duration-micro) var(--ease-out-quart),
+				box-shadow var(--duration-micro) var(--ease-out-quart);
+		}
+		.retry-btn:active { transform: none; }
 	}
 
 	@media (max-width: 900px) {

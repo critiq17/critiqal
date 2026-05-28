@@ -124,7 +124,7 @@
 <div class="page">
 	<StarfieldBackdrop />
 
-	<div class="card" in:fly={{ y: 12, duration: 260 }}>
+	<div class="card glass glass-strong" in:fly={{ y: 12, duration: 260 }}>
 		{#if success}
 			<div class="success" in:fade={{ duration: 240 }}>
 				<div class="success-star" aria-hidden="true">
@@ -226,13 +226,15 @@
 		z-index: 1;
 		width: 100%;
 		max-width: 22rem;
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: 0.75rem;
+		border-radius: 1rem;
 		padding: 2.5rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			0 1px 2px rgba(0, 0, 0, 0.06),
+			0 24px 48px -16px rgba(0, 0, 0, 0.35);
 	}
 
 	.header {
@@ -280,8 +282,12 @@
 	.code-input {
 		width: 100%;
 		background: var(--color-surface-raised);
-		border: 1px solid var(--color-border);
-		border-radius: 0.625rem;
+		border: none;
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-soft),
+			inset 0 0 0 1px var(--glass-border),
+			0 1px 2px rgba(0, 0, 0, 0.08);
+		border-radius: 0.75rem;
 		padding: 1rem;
 		font-size: 1.75rem;
 		font-weight: 600;
@@ -290,12 +296,26 @@
 		color: var(--color-text-primary);
 		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
 		outline: none;
-		transition: border-color 0.15s ease, box-shadow 0.15s ease;
+		transition:
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			background-color var(--duration-micro) var(--ease-out-quart);
+	}
+
+	.code-input:hover:not(:disabled):not(:focus) {
+		background: var(--color-surface-elevated, var(--color-surface-raised));
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-medium),
+			inset 0 0 0 1px var(--surface-tint-medium),
+			0 2px 6px rgba(0, 0, 0, 0.12);
 	}
 
 	.code-input:focus {
-		border-color: rgba(240, 240, 240, 0.3);
-		box-shadow: 0 0 0 3px rgba(240, 240, 240, 0.06);
+		background: var(--color-surface-elevated, var(--color-surface-raised));
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			inset 0 0 0 1.5px var(--color-text-primary),
+			0 0 0 4px rgba(255, 255, 255, 0.05),
+			0 4px 12px rgba(0, 0, 0, 0.18);
 	}
 
 	.code-input:disabled { opacity: 0.55; }

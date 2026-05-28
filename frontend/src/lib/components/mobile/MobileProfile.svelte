@@ -30,11 +30,12 @@
 	// container and its sticky header stay put, so the gesture never
 	// fights native scroll or forces per-frame sticky recalculation.
 	let pullSurfaceEl = $state<HTMLDivElement | undefined>(undefined);
-	// Compact name-header is invisible at the top and frosts in on scroll.
-	let scrolled = $state(false);
+	// Compact name-header fades in over the first 80px of scroll (0..1 progress).
+	let headerProgress = $state(0);
 
 	function onScroll(): void {
-		scrolled = (containerEl?.scrollTop ?? 0) > 8;
+		const top = containerEl?.scrollTop ?? 0;
+		headerProgress = Math.min(1, Math.max(0, top / 80));
 	}
 
 	const tabs = $derived([
@@ -158,7 +159,7 @@
 		</div>
 	{/if}
 
-	<CollapsingHeader title={displayName} {scrolled} />
+	<CollapsingHeader title={displayName} progress={headerProgress} />
 
 	<div class="pull-surface" bind:this={pullSurfaceEl}>
 	{#if profile.isLoading && !profile.profile}
@@ -342,8 +343,10 @@
 		background: var(--glass-bg-soft);
 		backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
 		-webkit-backdrop-filter: blur(calc(var(--glass-blur) + 8px)) saturate(var(--glass-saturate));
-		border: 1px solid var(--glass-border);
-		box-shadow: inset 0 1px 0 var(--glass-highlight);
+		border: none;
+		box-shadow:
+			inset 0 0 0 1px var(--glass-border),
+			inset 0 1px 0 var(--glass-highlight);
 		cursor: pointer;
 		color: var(--text-secondary-2);
 		width: 2.2rem;
@@ -353,7 +356,11 @@
 		justify-content: center;
 		border-radius: 9999px;
 		-webkit-tap-highlight-color: transparent;
-		transition: transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.15s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			transform var(--duration-press) var(--ease-out-quart),
+			color var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.settings-btn svg {
@@ -362,13 +369,12 @@
 	}
 
 	.settings-btn:active {
-		transform: scale(0.88);
-		transition-duration: 0.07s;
+		transform: scale(0.92);
 		color: var(--color-text-primary);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.settings-btn { transition: color 0.15s ease; }
+		.settings-btn { transition: color var(--duration-micro) var(--ease-out-quart); }
 		.settings-btn:active { transform: none; }
 	}
 
@@ -498,18 +504,25 @@
 		font-weight: 600;
 		font-family: inherit;
 		cursor: pointer;
-		transition: background-color 0.15s ease, transform 0.1s ease;
+		border: none;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 		-webkit-tap-highlight-color: transparent;
 	}
 
 	.btn-outline {
 		background: none;
 		color: var(--tg-theme-text-color, #f0f0f0);
-		border: 1px solid var(--surface-tint-strong);
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 	}
 
 	.btn-outline:active:not(:disabled) {
 		background: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 		transform: scale(0.97);
 	}
 
@@ -584,13 +597,18 @@
 	.retry-btn {
 		padding: 0.5rem 1.25rem;
 		border-radius: 0.625rem;
-		border: 1px solid var(--surface-tint-strong);
+		border: none;
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 		background: none;
 		color: var(--color-text-primary, #f0f0f0);
 		font-size: 0.875rem;
 		font-weight: 500;
 		cursor: pointer;
 		font-family: inherit;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			opacity var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.retry-btn:active {

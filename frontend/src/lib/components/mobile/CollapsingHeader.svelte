@@ -2,17 +2,20 @@
 	// Shared profile/settings header: a centered title that rides high between
 	// the native Telegram header buttons, invisible at rest and frosting into
 	// glass on scroll. Place it as the FIRST child inside the scroll container
-	// (it is position: sticky) and drive `scrolled` from that container's
-	// scroll position. Back is handled by the native Telegram BackButton.
+	// (it is position: sticky) and drive `progress` from that container's
+	// scroll position (0..1). Back is handled by the native Telegram BackButton.
 	interface Props {
 		title: string;
-		scrolled: boolean;
+		progress: number;
 	}
 
-	let { title, scrolled }: Props = $props();
+	let { title, progress }: Props = $props();
 </script>
 
-<header class="collapsing-header" class:scrolled>
+<header
+	class="collapsing-header"
+	style="--header-progress: {progress}"
+>
 	<h1 class="collapsing-header__title">{title}</h1>
 </header>
 
@@ -29,16 +32,21 @@
 					var(--tg-content-top, var(--tg-content-safe-area-inset-top, env(safe-area-inset-top, 6px)))
 			)
 			3rem 0.55rem;
-		background: transparent;
-		border-bottom: 1px solid transparent;
-		transition: background 0.25s ease, border-color 0.25s ease;
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
 	}
 
-	.collapsing-header.scrolled {
-		background: var(--glass-bg);
-		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
-		border-bottom-color: var(--glass-border);
+	.collapsing-header::after {
+		content: '';
+		position: absolute;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: 1px;
+		background: linear-gradient(to right, transparent, var(--glass-border), transparent);
+		opacity: var(--header-progress, 0);
+		pointer-events: none;
 	}
 
 	.collapsing-header__title {

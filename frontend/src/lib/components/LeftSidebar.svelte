@@ -19,7 +19,9 @@
 	// but vertical. Measured from the active nav link relative to the nav element.
 	let navEl: HTMLElement | undefined = $state();
 	const linkEls: HTMLAnchorElement[] = [];
-	let ind = $state({ y: 0, h: 0, ready: false });
+	// transform-only sizing: indicator is rendered at REF_H and scaled.
+	const REF_H = 40;
+	let ind = $state({ y: 0, sy: 1, ready: false });
 
 	// NEVER read `ind` here. This runs inside an $effect; reading the same
 	// $state it writes creates a self-dependency → effect_update_depth_exceeded
@@ -28,8 +30,8 @@
 	function measureIndicator(): void {
 		const active = linkEls.find((el) => el?.dataset.active === 'true');
 		ind = active
-			? { y: active.offsetTop, h: active.offsetHeight, ready: true }
-			: { y: 0, h: 0, ready: false };
+			? { y: active.offsetTop, sy: active.offsetHeight / REF_H, ready: true }
+			: { y: 0, sy: 1, ready: false };
 	}
 
 	// Re-measure whenever the route changes (effects run post-DOM-update).
@@ -59,8 +61,8 @@
 			class="nav-indicator glass"
 			class:ready={ind.ready}
 			aria-hidden="true"
-			style:height="{ind.h}px"
-			style:transform="translateY({ind.y}px)"
+			style:height="{REF_H}px"
+			style:transform="translateY({ind.y}px) scaleY({ind.sy})"
 		></span>
 
 		<a
@@ -193,8 +195,9 @@
 		position: relative;
 	}
 
-	/* Single shared glass pill that glides between nav links — same spring
-	   feel as the mobile dock indicator, just vertical. */
+	/* Single shared glass pill that glides between nav links. transform-only
+	   sizing (translateY + scaleY) avoids height-transition jitter.
+	   transform-origin: top is required — scaling from center would shift y. */
 	.nav-indicator {
 		position: absolute;
 		top: 0;
@@ -204,11 +207,11 @@
 		opacity: 0;
 		pointer-events: none;
 		z-index: 0;
-		will-change: transform, height;
+		transform-origin: top center;
+		will-change: transform;
 		transition:
-			transform 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
-			height 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
-			opacity 0.2s ease;
+			transform var(--duration-spring) var(--ease-overshoot),
+			opacity var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.nav-indicator.ready {
@@ -225,7 +228,11 @@
 		text-decoration: none;
 		font-size: 0.9375rem;
 		font-weight: 500;
-		transition: color 0.18s ease, transform 0.12s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			color var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 		position: relative;
 		z-index: 1;
 	}
@@ -248,11 +255,6 @@
 		height: 1.1875rem;
 		flex-shrink: 0;
 		stroke-width: 1.75;
-		transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-	}
-
-	.nav-link-active .nav-icon {
-		transform: scale(1.06);
 	}
 
 	.sidebar-bottom {
@@ -265,13 +267,14 @@
 		gap: 0.625rem;
 		padding: 0.625rem;
 		border-radius: 1rem;
-		transition: transform 0.16s ease, box-shadow 0.2s ease;
+		transition: box-shadow var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.profile-card:hover {
-		transform: translateY(-1px);
-		box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight),
-			0 0 0 1px var(--glass-highlight);
+		box-shadow:
+			var(--glass-shadow),
+			inset 0 1px 0 var(--glass-highlight),
+			inset 0 0 0 1px var(--glass-highlight);
 	}
 
 	.profile-card-link {
@@ -342,13 +345,18 @@
 		border-radius: 0.5rem;
 		display: flex;
 		align-items: center;
-		transition: color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			color var(--duration-micro) var(--ease-out-quart),
+			background-color var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 		flex-shrink: 0;
 	}
 
 	.logout-btn:hover {
 		color: var(--color-text-primary);
-		background-color: rgba(255, 255, 255, 0.06);
+		background-color: var(--surface-tint-soft);
 	}
 
 	.logout-btn:active {
@@ -383,10 +391,13 @@
 		font-size: 0.875rem;
 		font-weight: 600;
 		text-decoration: none;
+		transform-origin: center;
+		will-change: transform;
 		transition:
-			background-color 0.15s ease,
-			color 0.15s ease,
-			transform 0.1s ease;
+			background-color var(--duration-micro) var(--ease-out-quart),
+			color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 	}
 
 	.btn:active {
@@ -402,19 +413,35 @@
 		background-color: var(--color-text-muted);
 	}
 
+	/* No permanent border on .btn-secondary — minimal at rest, brighten via
+	   inset shadow on hover/focus so layout never shifts. */
 	.btn-secondary {
-		background-color: rgba(255, 255, 255, 0.04);
+		background-color: var(--surface-tint-subtle);
 		color: var(--color-text-primary);
-		border: 1px solid var(--glass-border);
 	}
 
-	.btn-secondary:hover {
-		background-color: rgba(255, 255, 255, 0.08);
+	.btn-secondary:hover,
+	.btn-secondary:focus-visible {
+		background-color: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--glass-border);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.nav-indicator {
-			transition: opacity 0.2s ease;
+			transition: opacity var(--duration-micro) var(--ease-out-quart);
+		}
+		.nav-link,
+		.btn,
+		.logout-btn {
+			transition:
+				color var(--duration-micro) var(--ease-out-quart),
+				background-color var(--duration-micro) var(--ease-out-quart),
+				box-shadow var(--duration-micro) var(--ease-out-quart);
+		}
+		.nav-link:active,
+		.btn:active,
+		.logout-btn:active {
+			transform: none;
 		}
 	}
 

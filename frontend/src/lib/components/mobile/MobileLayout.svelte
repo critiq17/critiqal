@@ -19,6 +19,11 @@
 
 	let colorScheme = $state<'light' | 'dark' | null>(null);
 
+	// True while the on-screen keyboard is up. The fixed BottomNav otherwise
+	// floats above the keyboard and covers form submit buttons. We detect via
+	// visualViewport (web standard) and Telegram's viewportHeight as fallback.
+	let keyboardOpen = $state(false);
+
 	// Lazy tab mounting: each tab is mounted once on first activation and kept mounted after.
 	let mountedTabs = $state(new Set<string>(['feed']));
 
@@ -99,6 +104,37 @@
 			const tg = getTelegramWebApp();
 			colorScheme = tg?.colorScheme ?? null;
 		}
+
+		// Keyboard detection. Two signals, whichever fires first wins:
+		//  - visualViewport.height drops by ~150px+ when the OS keyboard is up
+		//  - Telegram's viewportHeight diverges from viewportStableHeight
+		const KEYBOARD_THRESHOLD = 150;
+		const tg = getTelegramWebApp();
+
+		function updateFromViewport(): void {
+			const vv = window.visualViewport;
+			if (!vv) return;
+			keyboardOpen = window.innerHeight - vv.height > KEYBOARD_THRESHOLD;
+		}
+
+		function updateFromTelegram(): void {
+			if (!tg) return;
+			const stable = tg.viewportStableHeight ?? tg.viewportHeight;
+			if (!stable || !tg.viewportHeight) return;
+			keyboardOpen = stable - tg.viewportHeight > KEYBOARD_THRESHOLD;
+		}
+
+		const vv = window.visualViewport;
+		vv?.addEventListener('resize', updateFromViewport);
+		updateFromViewport();
+
+		tg?.onEvent?.('viewportChanged', updateFromTelegram);
+		updateFromTelegram();
+
+		return () => {
+			vv?.removeEventListener('resize', updateFromViewport);
+			tg?.offEvent?.('viewportChanged', updateFromTelegram);
+		};
 	});
 </script>
 
@@ -144,7 +180,7 @@
 				{/if}
 			</div>
 		</div>
-		{#if !sheetStore.anyOpen}
+		{#if !sheetStore.anyOpen && !keyboardOpen}
 			<BottomNav />
 		{/if}
 	{/if}

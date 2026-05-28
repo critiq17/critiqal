@@ -5,30 +5,107 @@
   import { openCompose } from '$lib/stores/compose.store.svelte';
   import { getTelegramWebApp } from '$lib/telegram';
   import { elasticDrag } from '$lib/actions/elasticDrag';
+  import { reducedMotion } from '$lib/ui/reducedMotion.svelte';
   import { t } from '$lib/i18n';
 
   let navEl: HTMLElement | undefined = $state();
-  // Refs to the three real tab buttons, keyed by tab. The compose button is
-  // an action, not a tab, so it never owns the indicator.
+  let indEl: HTMLSpanElement | undefined = $state();
   const tabEls: Partial<Record<MobileTab, HTMLButtonElement>> = {};
 
-  // Geometry of the sliding glass pill, measured from the active tab button
-  // relative to the nav (which is the offset parent: position: fixed).
-  let ind = $state({ x: 0, y: 0, w: 0, h: 0, ready: false });
+  const REF_W = 100;
+
+  // Spring physics for the active-tab indicator. Target values come from
+  // the measured button; the spring integrates toward them and clamps
+  // against the nav's inner walls so overshoot can never leave the pill —
+  // any energy past a wall is absorbed (soft thud), the rest springs back.
+  const K = 280; // stiffness
+  const C = 18;  // damping
+  const WALL_ABSORB = 0.28; // 0 = perfectly inelastic, 1 = full bounce
+
+  let ready = $state(false);
+  let curX = 0, curY = 0, curSx = 1, curH = 0;
+  let velX = 0, velY = 0, velSx = 0;
+  let tgtX = 0, tgtY = 0, tgtSx = 1, tgtH = 0;
+  let lastT = 0;
+  let raf = 0;
+
+  function applyTransform(): void {
+    if (!indEl) return;
+    indEl.style.transform = `translate(${curX}px, ${curY}px) scaleX(${curSx})`;
+    indEl.style.height = `${curH}px`;
+  }
+
+  function step(now: number): void {
+    if (!indEl || !navEl) {
+      raf = 0;
+      return;
+    }
+    const dt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+
+    velX += (-K * (curX - tgtX) - C * velX) * dt;
+    velY += (-K * (curY - tgtY) - C * velY) * dt;
+    velSx += (-K * (curSx - tgtSx) - C * velSx) * dt;
+
+    curX += velX * dt;
+    curY += velY * dt;
+    curSx += velSx * dt;
+    curH += (tgtH - curH) * Math.min(dt * 14, 1);
+
+    // Wall collision: keep the indicator strictly within the nav padding-box.
+    // offsetLeft already starts at the padding edge, so x=0 is the inner-left
+    // wall and clientWidth - visualW is the inner-right wall.
+    const visualW = curSx * REF_W;
+    const minX = 0;
+    const maxX = navEl.clientWidth - visualW;
+    if (curX < minX) {
+      curX = minX;
+      if (velX < 0) velX = -velX * WALL_ABSORB;
+    } else if (curX > maxX) {
+      curX = maxX;
+      if (velX > 0) velX = -velX * WALL_ABSORB;
+    }
+
+    applyTransform();
+
+    const dist = Math.abs(curX - tgtX) + Math.abs(curY - tgtY) + Math.abs(curSx - tgtSx) * REF_W;
+    const vel = Math.abs(velX) + Math.abs(velY) + Math.abs(velSx) * REF_W;
+    if (dist > 0.4 || vel > 2) {
+      raf = requestAnimationFrame(step);
+    } else {
+      curX = tgtX; curY = tgtY; curSx = tgtSx; curH = tgtH;
+      velX = velY = velSx = 0;
+      applyTransform();
+      raf = 0;
+    }
+  }
 
   function measureIndicator(): void {
     const el = tabEls[tabStore.active];
     if (!el) return;
-    ind = {
-      x: el.offsetLeft,
-      y: el.offsetTop,
-      w: el.offsetWidth,
-      h: el.offsetHeight,
-      ready: true
-    };
+    tgtX = el.offsetLeft;
+    tgtY = el.offsetTop;
+    tgtSx = el.offsetWidth / REF_W;
+    tgtH = el.offsetHeight;
+    if (!ready) {
+      curX = tgtX; curY = tgtY; curSx = tgtSx; curH = tgtH;
+      velX = velY = velSx = 0;
+      applyTransform();
+      ready = true;
+      return;
+    }
+    if (reducedMotion.value) {
+      curX = tgtX; curY = tgtY; curSx = tgtSx; curH = tgtH;
+      velX = velY = velSx = 0;
+      applyTransform();
+      return;
+    }
+    if (!raf) {
+      lastT = performance.now();
+      raf = requestAnimationFrame(step);
+    }
   }
 
-  // Re-measure whenever the active tab changes (effects run post-DOM-update).
   $effect(() => {
     void tabStore.active;
     measureIndicator();
@@ -38,7 +115,10 @@
     measureIndicator();
     const ro = new ResizeObserver(() => measureIndicator());
     if (navEl) ro.observe(navEl);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (raf) cancelAnimationFrame(raf);
+    };
   });
 
   function selectTab(tab: MobileTab): void {
@@ -58,19 +138,19 @@
   aria-label={t('nav.feed')}
   use:elasticDrag={{
     axis: 'free',
-    stretch: 0.17,
+    stretch: 0.34,
+    pinned: true,
     stretchOrigin: 'center',
-    stiffness: 240,
-    damping: 13
+    stiffness: 180,
+    damping: 10
   }}
 >
   <span
+    bind:this={indEl}
     class="indicator"
-    class:ready={ind.ready}
+    class:ready
     aria-hidden="true"
-    style:width="{ind.w}px"
-    style:height="{ind.h}px"
-    style:transform="translate({ind.x}px, {ind.y}px)"
+    style:width="{REF_W}px"
   ></span>
 
   <button
@@ -101,7 +181,6 @@
     </svg>
   </button>
 
-  <!-- Centre compose button — not a tab, an action -->
   <button class="compose-btn" aria-label={t('post.composeTitle')} onclick={handleCompose}>
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 20h9"/>
@@ -127,48 +206,52 @@
 <style>
   .nav-pill {
     position: fixed;
-    /* In fullscreen mode use --tg-content-bottom for Telegram UI overlap at bottom.
-       Falls back to Telegram SDK CSS var, then device safe area. */
     bottom: calc(16px + var(--tg-content-bottom, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
-    /* Transform-free centering — elasticDrag owns `transform`. */
     left: 0;
     right: 0;
     margin-inline: auto;
     width: fit-content;
     min-width: 200px;
     border-radius: 32px;
-    /* A touch more transparent than the default glass-soft so the dock reads
-       like the Telegram example. Blur still comes from .glass-soft. Uses the
-       theme-aware glass token so it inverts cleanly in light theme. */
-    background: var(--glass-bg-soft);
+    /* More transparent than default glass-soft — the menu reads as a thin
+       frosted film, not a panel. backdrop-filter inherited from .glass. */
+    background: rgba(20, 20, 22, 0.32);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 12px 32px -8px rgba(0, 0, 0, 0.45),
+      0 2px 6px rgba(0, 0, 0, 0.25);
     padding: 9px 16px;
-    touch-action: none;
+    z-index: 100;
     display: flex;
     gap: 10px;
     align-items: center;
-    z-index: 100;
+    touch-action: none;
+    transform-origin: center;
+    will-change: transform;
   }
 
-  /* Single shared glass pill that slides between tabs. Positioned relative to
-     the nav padding box and moved via transform for a smooth spring glide. */
+  /* Sliding pill behind the active tab. Spring-driven via rAF in the script:
+     CSS transition only animates the opacity fade-in. left/top stay 0 —
+     offsetLeft/offsetTop already include the nav's padding, so adding any
+     here would double-count and shift the indicator off the icon. */
   .indicator {
     position: absolute;
     top: 0;
     left: 0;
     border-radius: 20px;
-    background: var(--surface-tint-medium);
+    background: rgba(255, 255, 255, 0.22);
     box-shadow:
-      inset 0 1px 0 var(--surface-tint-strong),
-      inset 0 0 0 0.5px var(--surface-tint-soft);
+      inset 0 1px 0 rgba(255, 255, 255, 0.32),
+      inset 0 0 0 0.5px rgba(255, 255, 255, 0.12),
+      0 2px 6px rgba(0, 0, 0, 0.22);
     opacity: 0;
     pointer-events: none;
     z-index: 0;
-    will-change: transform, width;
-    transition:
-      transform 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
-      width 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
-      height 0.42s cubic-bezier(0.34, 1.4, 0.5, 1),
-      opacity 0.2s ease;
+    transform-origin: left center;
+    will-change: transform;
+    transition: opacity var(--duration-micro) var(--ease-out-quart);
   }
 
   .indicator.ready {
@@ -188,15 +271,16 @@
     justify-content: center;
     min-width: 48px;
     min-height: 48px;
+    transform-origin: center;
+    will-change: transform;
+    transition: transform var(--duration-press) var(--ease-out-quart);
     -webkit-tap-highlight-color: transparent;
   }
 
   .tab-btn svg {
     width: 26px;
     height: 26px;
-    transition:
-      stroke 0.18s ease,
-      transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: stroke var(--duration-micro) var(--ease-out-quart);
   }
 
   .tab-btn.active svg {
@@ -207,13 +291,24 @@
     stroke: var(--text-quaternary);
   }
 
-  .tab-btn:active svg {
-    transform: scale(0.9);
+  .tab-btn:active {
+    transform: scale(0.92);
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .nav-pill {
+      transform: none !important;
+    }
     .indicator {
-      transition: opacity 0.2s ease;
+      transition: opacity var(--duration-micro) var(--ease-out-quart);
+    }
+    .tab-btn,
+    .compose-btn {
+      transition: none;
+    }
+    .tab-btn:active,
+    .compose-btn:active {
+      transform: none;
     }
   }
 
@@ -230,16 +325,17 @@
     min-height: 48px;
     justify-content: center;
     flex-shrink: 0;
-    /* Slightly brighter than inactive tabs to give it subtle prominence
-       without being the jarring accent-colour button it was before */
     color: var(--text-secondary-2);
-    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
-                color 0.15s ease;
+    transform-origin: center;
+    will-change: transform;
+    transition:
+      transform var(--duration-press) var(--ease-out-quart),
+      color var(--duration-micro) var(--ease-out-quart);
     -webkit-tap-highlight-color: transparent;
   }
 
   .compose-btn:active {
-    transform: scale(0.88);
+    transform: scale(0.92);
     color: var(--color-text-primary);
   }
 </style>

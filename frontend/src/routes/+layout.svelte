@@ -148,6 +148,14 @@
 		--transition-base: 250ms ease;
 		--transition-slow: 400ms ease;
 
+		/* Unified motion tokens — keep timings consistent across all surfaces.
+		   ease-overshoot is for the SLIDING INDICATOR only, never for press. */
+		--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+		--ease-overshoot: cubic-bezier(0.34, 1.4, 0.5, 1);
+		--duration-micro: 140ms;
+		--duration-press: 90ms;
+		--duration-spring: 280ms;
+
 		/* Glass surface system — medium intensity, Telegram-iOS style.
 		   One source of truth: surfaces opt in with class="glass". */
 		--glass-blur: 24px;

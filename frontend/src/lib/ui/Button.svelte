@@ -43,12 +43,12 @@
 		border-radius: var(--radius-md);
 		font-weight: 600;
 		cursor: pointer;
-		/* Springy press: snappy scale-down on press, elastic overshoot back
-		   on release (the bouncy cubic-bezier). Pure CSS — no per-button JS. */
+		transform-origin: center;
+		will-change: transform;
 		transition:
-			opacity var(--transition-fast),
-			background var(--transition-fast),
-			transform 0.34s cubic-bezier(0.34, 1.56, 0.64, 1);
+			opacity var(--duration-micro) var(--ease-out-quart),
+			background-color var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 		white-space: nowrap;
 	}
 
@@ -56,11 +56,14 @@
 	.btn:active:not(:disabled) {
 		opacity: 0.85;
 		transform: scale(0.94);
-		transition-duration: 0.34s, 0.34s, 0.07s;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.btn { transition: opacity var(--transition-fast), background var(--transition-fast); }
+		.btn {
+			transition:
+				opacity var(--duration-micro) var(--ease-out-quart),
+				background-color var(--duration-micro) var(--ease-out-quart);
+		}
 		.btn:active:not(:disabled) { transform: none; }
 	}
 
