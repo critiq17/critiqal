@@ -16,6 +16,7 @@ interface TelegramWebApp {
   platform: string;
   initData: string;
   viewportHeight: number;
+  viewportStableHeight?: number;
   safeAreaInset: SafeAreaInset;
   contentSafeAreaInset: SafeAreaInset;
   onEvent(event: string, handler: (params?: unknown) => void): void;

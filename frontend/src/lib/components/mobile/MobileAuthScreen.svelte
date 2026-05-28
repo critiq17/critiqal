@@ -167,7 +167,7 @@
 		</button>
 	{/if}
 	<div class="auth-shell">
-		<div class="auth-card" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
+		<div class="auth-card glass glass-strong" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
 			<div class="card-header">
 				<span class="logo-text">critiqal</span>
 				<p class="subtitle">
@@ -337,19 +337,27 @@
 		width: 2.25rem;
 		height: 2.25rem;
 		border-radius: 50%;
-		border: 1px solid var(--color-border);
+		border: none;
 		background: var(--color-surface);
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 		color: var(--color-text-secondary);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
-		transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+		transform-origin: center;
+		will-change: transform;
+		transition:
+			background-color var(--duration-micro) var(--ease-out-quart),
+			color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			transform var(--duration-press) var(--ease-out-quart);
 	}
 
 	.close-btn:hover {
 		background: var(--color-surface-raised);
 		color: var(--color-text-primary);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 	}
 
 	.close-btn:active { transform: scale(0.95); }
@@ -368,14 +376,15 @@
 	.auth-card {
 		width: 100%;
 		max-width: 21.8rem;
-		background: var(--color-surface);
-		border: 1px solid var(--surface-tint-soft);
-		border-radius: 1rem;
+		border-radius: 1.1rem;
 		padding: 2.4rem 1.55rem 1.7rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.35rem;
-		box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			0 1px 2px rgba(0, 0, 0, 0.06),
+			0 24px 48px -16px rgba(0, 0, 0, 0.35);
 	}
 
 	.card-header {
@@ -432,18 +441,21 @@
 		width: 100%;
 		height: 3.2rem;
 		background: var(--color-surface);
-		border: 1px solid var(--surface-tint-subtle);
-		border-radius: 0.72rem;
+		border: none;
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-soft),
+			inset 0 0 0 1px var(--glass-border),
+			0 1px 2px rgba(0, 0, 0, 0.08);
+		border-radius: 0.85rem;
 		padding: 0 0.9rem;
 		font-size: 1rem;
 		color: var(--color-text-primary);
 		font-family: inherit;
-		transition:
-			border-color 0.16s ease,
-			box-shadow 0.16s ease,
-			background-color 0.16s ease;
 		outline: none;
 		box-sizing: border-box;
+		transition:
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			background-color var(--duration-micro) var(--ease-out-quart);
 	}
 
 	.field-input::placeholder {
@@ -451,9 +463,12 @@
 	}
 
 	.field-input:focus {
-		border-color: #c92a2a;
-		box-shadow: 0 0 0 3px rgba(201, 42, 42, 0.18);
 		background: var(--color-surface-raised);
+		box-shadow:
+			inset 0 1px 0 var(--surface-tint-strong),
+			inset 0 0 0 1.5px var(--color-text-primary),
+			0 0 0 4px rgba(255, 255, 255, 0.05),
+			0 4px 12px rgba(0, 0, 0, 0.18);
 	}
 
 	.field-input:disabled {
@@ -505,7 +520,8 @@
 		width: 100%;
 		height: 3rem;
 		border-radius: 0.72rem;
-		border: 1px solid var(--surface-tint-strong);
+		border: none;
+		box-shadow: inset 0 0 0 1px var(--divider-soft);
 		background: transparent;
 		color: var(--color-text-primary);
 		font-size: 0.94rem;
@@ -513,9 +529,14 @@
 		font-family: inherit;
 		cursor: pointer;
 		transition:
-			background-color 0.15s ease,
-			border-color 0.15s ease,
-			opacity 0.15s ease;
+			background-color var(--duration-micro) var(--ease-out-quart),
+			box-shadow var(--duration-micro) var(--ease-out-quart),
+			opacity var(--duration-micro) var(--ease-out-quart);
+	}
+
+	.ghost-btn:hover:not(:disabled) {
+		background: var(--surface-tint-soft);
+		box-shadow: inset 0 0 0 1px var(--divider-strong);
 	}
 
 	.ghost-btn:disabled {
