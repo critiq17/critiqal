@@ -40,9 +40,11 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 10px;
+		width: min(100%, 280px);
+		box-sizing: border-box;
+		margin: 0 auto;
 		text-align: center;
-		padding: 4px 4px 8px;
-		max-width: 260px;
+		padding: 6px 12px 12px;
 	}
 
 	.badge-detail__head {
@@ -77,5 +79,22 @@
 		margin: 0;
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
+	}
+
+	@media (max-width: 640px) {
+		.badge-detail {
+			width: min(100%, 320px);
+			gap: 12px;
+			padding: 10px 20px calc(22px + env(safe-area-inset-bottom));
+		}
+
+		.badge-detail__name {
+			font-size: 1.1rem;
+		}
+
+		.badge-detail__desc {
+			max-width: 100%;
+			font-size: 0.9rem;
+		}
 	}
 </style>

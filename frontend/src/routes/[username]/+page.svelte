@@ -19,7 +19,7 @@
 	import ProfileTabs from '$lib/components/profile/ProfileTabs.svelte';
 	import ProfileEmptyPosts from '$lib/components/profile/ProfileEmptyPosts.svelte';
 	import FollowersModal from '$lib/components/profile/FollowersModal.svelte';
-	import BadgeRow from '$lib/components/badges/BadgeRow.svelte';
+	import BadgePillRow from '$lib/components/badges/BadgePillRow.svelte';
 
 	let username = $state($page.params.username as string);
 	let profilePage = $state(new UseProfilePage($page.params.username as string));
@@ -214,7 +214,7 @@
 						{/if}
 
 						{#if profilePage.profile.badges && profilePage.profile.badges.length > 0}
-							<BadgeRow badges={profilePage.profile.badges} size="md" />
+							<BadgePillRow badges={profilePage.profile.badges} />
 						{/if}
 
 						<ProfileInlineStats

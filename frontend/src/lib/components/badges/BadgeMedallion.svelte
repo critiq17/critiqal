@@ -19,11 +19,12 @@
 	let meta = $derived(badgeMeta(code));
 	let style = $derived(tierStyle(meta.tier));
 	let px = $derived(PX[size]);
-	let glyphPx = $derived(Math.round(px * 0.52));
+	let glyphPx = $derived(Math.round(px * (meta.glyph === 'helmet' ? 0.58 : 0.52)));
 </script>
 
 <span
 	class="medallion {size}"
+	class:surface-glass={meta.surface === 'glass'}
 	style:width="{px}px"
 	style:height="{px}px"
 	style:--accent={style.accent}
@@ -61,10 +62,37 @@
 		height: 100%;
 		border-radius: var(--radius-full);
 		background: var(--face);
-		color: rgba(20, 18, 30, 0.62);
-		/* Subtle top highlight for a glassy, minted look. */
+		/* Engraved glyph: dark and low-key; reads as struck metal, not print. */
+		color: rgba(16, 14, 22, 0.82);
+		/* Restrained rim light + inner shadow for a minted, recessed face. */
 		box-shadow:
-			inset 0 1px 2px rgba(255, 255, 255, 0.55),
-			inset 0 -3px 6px rgba(0, 0, 0, 0.18);
+			inset 0 1px 1px rgba(255, 255, 255, 0.32),
+			inset 0 -3px 7px rgba(0, 0, 0, 0.28);
+	}
+
+	.surface-glass {
+		background: linear-gradient(
+			145deg,
+			rgba(255, 255, 255, 0.52),
+			color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.2)) 52%,
+			rgba(34, 40, 52, 0.36)
+		);
+		box-shadow:
+			0 0 0 1px rgba(255, 255, 255, 0.16),
+			0 8px 24px var(--glow),
+			inset 0 1px 0 rgba(255, 255, 255, 0.55);
+	}
+
+	.surface-glass .face {
+		background:
+			radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 34%),
+			linear-gradient(150deg, rgba(245, 248, 255, 0.48) 0%, rgba(156, 170, 190, 0.32) 48%, rgba(45, 52, 66, 0.34) 100%);
+		backdrop-filter: blur(12px) saturate(160%);
+		-webkit-backdrop-filter: blur(12px) saturate(160%);
+		color: rgba(10, 12, 18, 0.88);
+		box-shadow:
+			inset 0 1px 1px rgba(255, 255, 255, 0.62),
+			inset 0 -6px 10px rgba(18, 22, 30, 0.24),
+			inset 0 0 0 1px rgba(255, 255, 255, 0.16);
 	}
 </style>
