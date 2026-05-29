@@ -17,6 +17,7 @@ import org.critiqal.api.user.response.UserStatsDTO;
 import org.critiqal.domain.follow.service.FollowService;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.user.Username;
+import org.critiqal.domain.badge.service.BadgeService;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
@@ -34,23 +35,27 @@ public class UserResource {
     private final PostService postService;
     private final CurrentUser currentUser;
     private final PostLikeServiceImpl postLikeService;
+    private final BadgeService badgeService;
 
     public UserResource(UserService userService,
                         FollowService followService,
                         PostService postService,
                         CurrentUser currentUser,
-                        PostLikeServiceImpl postLikeService) {
+                        PostLikeServiceImpl postLikeService,
+                        BadgeService badgeService) {
         this.userService = userService;
         this.followService = followService;
         this.postService = postService;
         this.currentUser = currentUser;
         this.postLikeService = postLikeService;
+        this.badgeService = badgeService;
     }
 
     @GET
     @Path("/{username}")
     public UserDTO getProfile(@PathParam("username") String username) {
-        return UserDTO.from(userService.getByUsername(Username.of(username)));
+        var user = userService.getByUsername(Username.of(username));
+        return UserDTO.from(user, badgeService.getUserBadges(user.id));
     }
 
     @GET
