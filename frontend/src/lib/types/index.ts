@@ -1,4 +1,5 @@
 export type { User, UpdateProfileRequest, UserStats } from './user';
+export type { UserBadge, BadgeCode } from './badge';
 export type {
   LoginResponse,
   RegisterResponse,

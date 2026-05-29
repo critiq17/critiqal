@@ -1,3 +1,5 @@
+import type { UserBadge } from './badge';
+
 export interface User {
   id: string;
   username: string;
