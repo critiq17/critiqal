@@ -69,10 +69,10 @@
 <style>
 	.p-text {
 		margin: 4px 0 12px;
-		font-size: 14.5px;
-		line-height: 1.5;
+		font-size: 15px;
+		font-weight: 400;
+		line-height: 1.55;
 		color: var(--color-text-primary);
-		letter-spacing: -0.003em;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		text-wrap: pretty;
