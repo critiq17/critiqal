@@ -11,6 +11,7 @@ export interface User {
   pendingEmail: string | null;
   twoFactorEnabled: boolean;
   createdAt: string;
+  badges?: UserBadge[];
 }
 
 export interface UpdateProfileRequest {

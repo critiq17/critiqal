@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { User } from '$lib/types';
+	import BadgeRow from '$lib/components/badges/BadgeRow.svelte';
 
 	interface Props {
 		profile: User;
@@ -54,6 +55,9 @@
 		<span class="user-username">@{profile.username}</span>
 		{#if profile.bio}
 			<p class="bio">{profile.bio}</p>
+		{/if}
+		{#if profile.badges && profile.badges.length > 0}
+			<BadgeRow badges={profile.badges} size="sm" />
 		{/if}
 	</div>
 
