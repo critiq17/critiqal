@@ -12,5 +12,8 @@ public interface UserBadgeRepository {
 
     long countByBadgeCode(String code);
 
+    // Returns true if a badge was removed (idempotent: false when none existed).
+    boolean deleteByUserIdAndBadgeCode(UUID userId, String code);
+
     UserBadge save(UserBadge userBadge);
 }

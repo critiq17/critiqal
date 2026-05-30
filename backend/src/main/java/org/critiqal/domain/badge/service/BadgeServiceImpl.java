@@ -61,4 +61,15 @@ public class BadgeServiceImpl implements BadgeService {
     public long countByCode(BadgeCode code) {
         return ubRepo.countByBadgeCode(code.name());
     }
+
+    @Override
+    public List<Badge> listAll() {
+        return badgeRepo.listAll();
+    }
+
+    @Override
+    @Transactional
+    public boolean revokeBadge(UUID userId, BadgeCode code) {
+        return ubRepo.deleteByUserIdAndBadgeCode(userId, code.name());
+    }
 }
