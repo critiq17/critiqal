@@ -52,7 +52,8 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Uni<ChallengeData> getChallenge(RoutingContext context) {
-        return Uni.createFrom().item(new ChallengeData(401, null, null));
+        var status = isAdminPath(context) ? 404 : 401;
+        return Uni.createFrom().item(new ChallengeData(status, null, null));
     }
 
     @Override
@@ -72,5 +73,10 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
         return path.matches("^/api/posts/[^/]+/comments$") ||
                 path.matches("^/api/posts/[^/]+/comments/[^/]+/replies$");
+    }
+
+    private boolean isAdminPath(RoutingContext context) {
+        var path = context.normalizedPath();
+        return path != null && (path.equals("/api/admin") || path.startsWith("/api/admin/"));
     }
 }
