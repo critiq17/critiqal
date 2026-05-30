@@ -1,18 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { slide, fade } from 'svelte/transition';
+	import { slide } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
 	import { navStack } from '$lib/stores/nav-stack.store.svelte';
-	import { twoFactorService } from '$lib/services/two-factor.service';
-	import { emailVerificationService } from '$lib/services/email-verification.service';
-	import { recoveryService } from '$lib/services/recovery.service';
-	import { sessionService } from '$lib/services/session.service';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { goto } from '$app/navigation';
-	import { apiClient } from '$lib/api/client';
-	import { ApiError } from '$lib/types';
-	import type { User, TotpSetupResponse, TwoFactorStatusResponse, AuthSession } from '$lib/types';
+	import type { AuthSession } from '$lib/types';
+	import { UseSettings } from '$lib/features/settings/useSettings.svelte';
 	import { t } from '$lib/i18n';
 	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
 	import DeviceIcon from '$lib/components/DeviceIcon.svelte';
@@ -29,6 +24,8 @@
 	let { onBack }: Props = $props();
 	void onBack;
 
+	const settings = new UseSettings();
+
 	let scrollEl = $state<HTMLDivElement | undefined>(undefined);
 	// "Settings" header is invisible at rest and frosts in on scroll.
 	let scrolled = $state(false);
@@ -41,175 +38,47 @@
 	}
 
 	onMount(() => {
-		loadTfaStatus();
+		settings.loadTfaStatus();
 		stravaStore.load();
-		loadSessions();
+		settings.loadSessions();
 	});
 
-	// ── Email ────────────────────────────────────────────────────────────────
+	// ── Email (UI-only state) ─────────────────────────────────────────────────
 
 	let emailEditing = $state(false);
-	let emailInput = $state('');
-	let emailSubmitting = $state(false);
-	let emailError = $state('');
-	let emailSuccess = $state(false);
 
 	async function handleSetEmail(): Promise<void> {
-		emailSubmitting = true;
-		emailError = '';
-		emailSuccess = false;
-		try {
-			await emailVerificationService.setEmail({ email: emailInput });
-			await authStore.refresh();
-			emailSuccess = true;
-			emailInput = '';
-			emailEditing = false;
-		} catch (err: unknown) {
-			emailError = mapError(err);
-		} finally {
-			emailSubmitting = false;
-		}
+		await settings.handleSetEmail(settings.emailInput);
+		if (settings.emailSuccess) emailEditing = false;
 	}
 
-	async function handleResendVerification(): Promise<void> {
-		const pending = authStore.user?.pendingEmail;
-		if (!pending) return;
-		emailSubmitting = true;
-		emailError = '';
-		emailSuccess = false;
-		try {
-			await emailVerificationService.setEmail({ email: pending });
-			emailSuccess = true;
-		} catch (err: unknown) {
-			emailError = mapError(err);
-		} finally {
-			emailSubmitting = false;
-		}
-	}
-
-	// ── 2FA ──────────────────────────────────────────────────────────────────
-
-	type TwoFaView =
-		| 'idle'
-		| 'setup-qr'
-		| 'show-codes'
-		| 'disable-confirm'
-		| 'regen-confirm'
-		| 'regen-codes';
-
-	let tfaStatus = $state<TwoFactorStatusResponse | null>(null);
-	let tfaLoading = $state(true);
-	let tfaError = $state('');
-	let tfaSubmitting = $state(false);
-	let tfaView = $state<TwoFaView>('idle');
-	let tfaSetup = $state<TotpSetupResponse | null>(null);
-	let tfaConfirmCode = $state('');
-	let tfaDisableCode = $state('');
-	let tfaRecoveryCodes = $state<string[]>([]);
-	let tfaCodesCount = $state<number | null>(null);
-
-	async function loadTfaStatus(): Promise<void> {
-		tfaLoading = true;
-		try {
-			tfaStatus = await twoFactorService.status();
-			if (tfaStatus.enabled) {
-				const r = await recoveryService.getCodesCount();
-				tfaCodesCount = r.activeCount;
-			}
-		} catch { /* non-fatal */ } finally {
-			tfaLoading = false;
-		}
-	}
-
-	async function handleSetupTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			tfaSetup = await twoFactorService.setup();
-			tfaConfirmCode = '';
-			tfaView = 'setup-qr';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	async function handleConfirmTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			await twoFactorService.confirm({ code: tfaConfirmCode });
-			tfaRecoveryCodes = tfaSetup?.recoveryCodes ?? [];
-			tfaView = 'show-codes';
-			tfaStatus = { enabled: true };
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	function handleDoneWithCodes(): void {
-		tfaSetup = null; tfaConfirmCode = ''; tfaRecoveryCodes = [];
-		tfaView = 'idle'; loadTfaStatus();
-	}
-
-	async function handleDisableTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			await twoFactorService.disable({ code: tfaDisableCode });
-			tfaStatus = { enabled: false };
-			tfaDisableCode = ''; tfaCodesCount = null; tfaView = 'idle';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	async function handleRegenCodes(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			const res = await recoveryService.regenerateCodes();
-			tfaRecoveryCodes = res.codes;
-			tfaView = 'regen-codes';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	// ── Strava ───────────────────────────────────────────────────────────────
+	// ── Strava (UI-only state) ────────────────────────────────────────────────
 
 	let stravaComingSoon = $state(false);
 	let confirmDisconnect = $state(false);
 
 	function handleStravaConnect(): void {
 		stravaComingSoon = true;
-		setTimeout(() => { stravaComingSoon = false; }, 4000);
+		setTimeout(() => {
+			stravaComingSoon = false;
+		}, 4000);
 	}
 
 	async function handleStravaDisconnect(): Promise<void> {
-		await stravaStore.disconnect();
+		await settings.handleStravaDisconnect();
 		confirmDisconnect = false;
 	}
 
-	// ── Sessions ─────────────────────────────────────────────────────────────
+	// ── Sessions (UI-only state) ──────────────────────────────────────────────
 
-	let sessions = $state<AuthSession[]>([]);
-	let sessionsLoading = $state(true);
-	let sessionsError = $state('');
-	let revokingId = $state<string | null>(null);
 	let confirmRevokeId = $state<string | null>(null);
 
-	async function loadSessions(): Promise<void> {
-		sessionsLoading = true;
-		sessionsError = '';
-		try {
-			sessions = await sessionService.list();
-		} catch (err) {
-			sessionsError = mapError(err);
-		} finally {
-			sessionsLoading = false;
-		}
+	async function handleRevokeSession(id: string): Promise<void> {
+		await settings.handleRevokeSession(id);
+		if (!settings.sessionsError) confirmRevokeId = null;
 	}
 
-	async function handleRevokeSession(id: string): Promise<void> {
-		revokingId = id;
-		try {
-			await sessionService.revoke(id);
-			sessions = sessions.filter((s) => s.id !== id);
-			confirmRevokeId = null;
-		} catch (err) {
-			sessionsError = mapError(err);
-		} finally {
-			revokingId = null;
-		}
-	}
+	// ── Session display helpers ───────────────────────────────────────────────
 
 	function sessionLocation(s: AuthSession): string {
 		const parts: string[] = [];
@@ -242,7 +111,7 @@
 		}
 	}
 
-	// ── External links ───────────────────────────────────────────────────────
+	// ── External links (mobile-specific) ─────────────────────────────────────
 
 	function openSupport(): void {
 		const tg = getTelegramWebApp();
@@ -254,20 +123,6 @@
 		const tg = getTelegramWebApp();
 		if (tg) tg.openLink('https://dev.critiqal.xyz');
 		else window.open('https://dev.critiqal.xyz', '_blank');
-	}
-
-	// ── Account ──────────────────────────────────────────────────────────────
-
-	async function handleLogout(): Promise<void> {
-		await authStore.logout();
-		navStack.reset();
-		goto('/');
-	}
-
-	function mapError(err: unknown): string {
-		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
-		if (err instanceof Error) return err.message;
-		return t('common.somethingWentWrong');
 	}
 </script>
 
@@ -321,7 +176,7 @@
 
 			<!-- Email row -->
 			<div class="row-section">
-				<button class="row row-tappable" onclick={() => { emailEditing = !emailEditing; emailError = ''; emailSuccess = false; }}>
+				<button class="row row-tappable" onclick={() => { emailEditing = !emailEditing; settings.emailError = ''; settings.emailSuccess = false; }}>
 					<div class="row-icon">
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 							stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -354,40 +209,40 @@
 
 				{#if emailEditing}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
-						{#if emailError}
-							<p class="feedback err">{emailError}</p>
+						{#if settings.emailError}
+							<p class="feedback err">{settings.emailError}</p>
 						{/if}
-						{#if emailSuccess}
+						{#if settings.emailSuccess}
 							<p class="feedback ok">{t('settings.email.sent')}</p>
 						{/if}
-						{#if authStore.user?.pendingEmail && !emailSuccess}
+						{#if authStore.user?.pendingEmail && !settings.emailSuccess}
 							<p class="feedback muted">{t('settings.email.pendingHint')} — <strong>{authStore.user.pendingEmail}</strong></p>
 							<div class="form-actions">
-								<button class="m-btn ghost" disabled={emailSubmitting} onclick={handleResendVerification}>
-									{emailSubmitting ? '…' : t('settings.email.resend')}
+								<button class="m-btn ghost" disabled={settings.emailLoading} onclick={() => settings.handleResendVerification()}>
+									{settings.emailLoading ? '…' : t('settings.email.resend')}
 								</button>
-								<button class="m-btn ghost" disabled={emailSubmitting}
-									onclick={() => { emailEditing = false; emailError = ''; }}>
+								<button class="m-btn ghost" disabled={settings.emailLoading}
+									onclick={() => { emailEditing = false; settings.emailError = ''; }}>
 									{t('common.cancel')}
 								</button>
 							</div>
-						{:else if !emailSuccess}
+						{:else if !settings.emailSuccess}
 							<div class="inline-form">
 								<input
 									type="email"
 									class="m-input"
-									bind:value={emailInput}
+									bind:value={settings.emailInput}
 									placeholder={t('settings.email.newPlaceholder')}
 									autocomplete="email"
-									disabled={emailSubmitting}
+									disabled={settings.emailLoading}
 								/>
 								<div class="form-actions">
-									<button class="m-btn primary" disabled={emailSubmitting || !emailInput.trim()}
+									<button class="m-btn primary" disabled={settings.emailLoading || !settings.emailInput.trim()}
 										onclick={handleSetEmail}>
-										{emailSubmitting ? t('common.saving') : t('common.save')}
+										{settings.emailLoading ? t('common.saving') : t('common.save')}
 									</button>
-									<button class="m-btn ghost" disabled={emailSubmitting}
-										onclick={() => { emailEditing = false; emailInput = ''; emailError = ''; }}>
+									<button class="m-btn ghost" disabled={settings.emailLoading}
+										onclick={() => { emailEditing = false; settings.emailInput = ''; settings.emailError = ''; }}>
 										{t('common.cancel')}
 									</button>
 								</div>
@@ -402,8 +257,8 @@
 			<!-- 2FA row -->
 			<div class="row-section">
 				<button class="row row-tappable" onclick={() => {
-					if (tfaView !== 'idle') { tfaView = 'idle'; return; }
-					if (!tfaStatus?.enabled) handleSetupTfa();
+					if (settings.tfaSetupStep !== 'idle') { settings.tfaSetupStep = 'idle'; return; }
+					if (!settings.tfaStatus?.enabled) settings.handleSetupTfa();
 				}}>
 					<div class="row-icon">
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -414,18 +269,18 @@
 					</div>
 					<div class="row-body">
 						<span class="row-title">{t('settings.sections.twoFactor')}</span>
-						{#if tfaLoading}
+						{#if settings.tfaLoading}
 							<span class="row-sub dim">{t('common.loading')}</span>
-						{:else if tfaStatus?.enabled && tfaCodesCount !== null}
-							<span class="row-sub">{tfaCodesCount} {t('settings.twoFactor.recoveryCodes')}</span>
-						{:else if !tfaStatus?.enabled}
+						{:else if settings.tfaStatus?.enabled && settings.backupCodesCount !== null}
+							<span class="row-sub">{settings.backupCodesCount} {t('settings.twoFactor.recoveryCodes')}</span>
+						{:else if !settings.tfaStatus?.enabled}
 							<span class="row-sub dim">{t('settings.twoFactor.notEnabled')}</span>
 						{/if}
 					</div>
 					<div class="row-right">
-						{#if tfaLoading}
+						{#if settings.tfaLoading}
 							<span class="spinner-xs" aria-label={t('common.loading')}></span>
-						{:else if tfaStatus?.enabled}
+						{:else if settings.tfaStatus?.enabled}
 							<span class="status-pill green">{t('common.on')}</span>
 						{:else}
 							<span class="status-pill muted">{t('common.off')}</span>
@@ -433,98 +288,96 @@
 					</div>
 				</button>
 
-				{#if tfaError}
+				{#if settings.tfaError}
 					<div class="row-expanded">
-						<p class="feedback err">{tfaError}</p>
+						<p class="feedback err">{settings.tfaError}</p>
 					</div>
 				{/if}
 
-				{#if !tfaLoading && tfaView === 'setup-qr' && tfaSetup}
+				{#if !settings.tfaLoading && settings.tfaSetupStep === 'setup' && settings.tfaSetupData}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<p class="feedback muted">{t('settings.twoFactor.setupHint')}</p>
-						<img class="qr" src={tfaSetup.qrCodeUri} alt="QR" />
+						<img class="qr" src={settings.tfaSetupData.qrCodeUri} alt="QR" />
 						<details class="manual-entry">
 							<summary>{t('settings.twoFactor.cantScan')}</summary>
-							<code class="tfa-secret">{tfaSetup.secret}</code>
+							<code class="tfa-secret">{settings.tfaSetupData.secret}</code>
 						</details>
 						<div class="inline-form">
-							<input type="text" class="m-input" bind:value={tfaConfirmCode}
+							<input type="text" class="m-input" bind:value={settings.tfaCode}
 								inputmode="numeric" maxlength={6} placeholder={t('settings.twoFactor.codePlaceholder')}
-								autocomplete="one-time-code" disabled={tfaSubmitting} />
+								autocomplete="one-time-code" disabled={settings.tfaSubmitting} />
 							<div class="form-actions">
 								<button class="m-btn primary"
-									disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6}
-									onclick={handleConfirmTfa}>
-									{tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
+									disabled={settings.tfaSubmitting || settings.tfaCode.trim().length !== 6}
+									onclick={() => settings.handleConfirmTfa(settings.tfaCode)}>
+									{settings.tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
 								</button>
-								<button class="m-btn ghost" disabled={tfaSubmitting}
-									onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
+								<button class="m-btn ghost" disabled={settings.tfaSubmitting}
+									onclick={() => { settings.tfaSetupStep = 'idle'; settings.tfaSetupData = null; }}>
 									{t('common.cancel')}
 								</button>
 							</div>
 						</div>
 					</div>
 
-				{:else if !tfaLoading && (tfaView === 'show-codes' || tfaView === 'regen-codes')}
+				{:else if !settings.tfaLoading && settings.tfaSetupStep === 'confirm'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<p class="feedback amber">{t('settings.twoFactor.saveCodes')}</p>
 						<ul class="codes-grid">
-							{#each tfaRecoveryCodes as code}
+							{#each settings.tfaRecoveryCodes as code}
 								<li class="code-chip">{code}</li>
 							{/each}
 						</ul>
 						<button class="m-btn primary" style="align-self:flex-start"
-							onclick={tfaView === 'regen-codes'
-								? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); }
-								: handleDoneWithCodes}>
+							onclick={() => settings.handleDoneWithCodes()}>
 							{t('settings.twoFactor.savedDone')}
 						</button>
 					</div>
 
-				{:else if !tfaLoading && tfaView === 'disable-confirm'}
+				{:else if !settings.tfaLoading && settings.tfaSetupStep === 'disabled-confirm'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<p class="feedback muted">{t('settings.twoFactor.disableHint')}</p>
 						<div class="inline-form">
-							<input type="text" class="m-input" bind:value={tfaDisableCode}
+							<input type="text" class="m-input" bind:value={settings.tfaDisableCode}
 								inputmode="numeric" maxlength={6} placeholder={t('settings.twoFactor.codePlaceholder')}
-								autocomplete="one-time-code" disabled={tfaSubmitting} />
+								autocomplete="one-time-code" disabled={settings.tfaSubmitting} />
 							<div class="form-actions">
 								<button class="m-btn danger"
-									disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6}
-									onclick={handleDisableTfa}>
-									{tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
+									disabled={settings.tfaSubmitting || settings.tfaDisableCode.trim().length !== 6}
+									onclick={() => settings.handleDisableTfa()}>
+									{settings.tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
 								</button>
-								<button class="m-btn ghost" disabled={tfaSubmitting}
-									onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
+								<button class="m-btn ghost" disabled={settings.tfaSubmitting}
+									onclick={() => { settings.tfaSetupStep = 'idle'; settings.tfaDisableCode = ''; }}>
 									{t('common.cancel')}
 								</button>
 							</div>
 						</div>
 					</div>
 
-				{:else if !tfaLoading && tfaView === 'regen-confirm'}
+				{:else if !settings.tfaLoading && settings.tfaSetupStep === 'regen-confirm'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<p class="feedback amber">{t('settings.twoFactor.saveCodes')}</p>
 						<div class="form-actions">
-							<button class="m-btn primary" disabled={tfaSubmitting} onclick={handleRegenCodes}>
-								{tfaSubmitting ? '…' : t('common.confirm')}
+							<button class="m-btn primary" disabled={settings.tfaSubmitting} onclick={() => settings.handleRegenCodes()}>
+								{settings.tfaSubmitting ? '…' : t('common.confirm')}
 							</button>
-							<button class="m-btn ghost" disabled={tfaSubmitting}
-								onclick={() => { tfaView = 'idle'; tfaError = ''; }}>
+							<button class="m-btn ghost" disabled={settings.tfaSubmitting}
+								onclick={() => { settings.tfaSetupStep = 'idle'; settings.tfaError = ''; }}>
 								{t('common.cancel')}
 							</button>
 						</div>
 					</div>
 
-				{:else if !tfaLoading && tfaStatus?.enabled && tfaView === 'idle'}
+				{:else if !settings.tfaLoading && settings.tfaStatus?.enabled && settings.tfaSetupStep === 'idle'}
 					<div class="row-expanded" transition:slide={{ duration: 200 }}>
 						<div class="tfa-actions">
 							<button class="m-text-btn"
-								onclick={() => { tfaView = 'regen-confirm'; tfaError = ''; }}>
+								onclick={() => { settings.tfaSetupStep = 'regen-confirm'; settings.tfaError = ''; }}>
 								{t('settings.twoFactor.regenerate')}
 							</button>
 							<span class="dot-sep" aria-hidden="true">·</span>
-							<button class="m-text-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
+							<button class="m-text-btn danger" onclick={() => { settings.tfaSetupStep = 'disabled-confirm'; settings.tfaError = ''; }}>
 								{t('common.disable')}
 							</button>
 						</div>
@@ -539,13 +392,13 @@
 			<button
 				type="button"
 				class="sessions-refresh"
-				disabled={sessionsLoading}
-				onclick={loadSessions}
+				disabled={settings.sessionsLoading}
+				onclick={() => settings.loadSessions()}
 				aria-label={t('settings.sessions.refresh')}
 			>
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 					stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-					class:spinning={sessionsLoading} aria-hidden="true">
+					class:spinning={settings.sessionsLoading} aria-hidden="true">
 					<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
 					<path d="M21 3v5h-5" />
 					<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
@@ -554,18 +407,18 @@
 			</button>
 		</div>
 		<div class="group sessions-group">
-			{#if sessionsError}
-				<div class="sessions-feedback"><p class="feedback err">{sessionsError}</p></div>
+			{#if settings.sessionsError}
+				<div class="sessions-feedback"><p class="feedback err">{settings.sessionsError}</p></div>
 			{/if}
-			{#if sessionsLoading && sessions.length === 0}
+			{#if settings.sessionsLoading && settings.sessions.length === 0}
 				<div class="sessions-skel">
 					<div class="session-skel"></div>
 					<div class="session-skel"></div>
 				</div>
-			{:else if sessions.length === 0}
+			{:else if settings.sessions.length === 0}
 				<div class="sessions-feedback"><p class="feedback muted">{t('settings.sessions.empty')}</p></div>
 			{:else}
-				{#each sessions as session, idx (session.id)}
+				{#each settings.sessions as session, idx (session.id)}
 					{#if idx > 0}
 						<div class="row-divider"></div>
 					{/if}
@@ -597,14 +450,14 @@
 									<div class="form-actions">
 										<button
 											class="m-btn danger"
-											disabled={revokingId === session.id}
+											disabled={settings.revokingSessionId === session.id}
 											onclick={() => handleRevokeSession(session.id)}
 										>
-											{revokingId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
+											{settings.revokingSessionId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
 										</button>
 										<button
 											class="m-btn ghost"
-											disabled={revokingId === session.id}
+											disabled={settings.revokingSessionId === session.id}
 											onclick={() => (confirmRevokeId = null)}
 										>
 											{t('common.cancel')}
@@ -710,7 +563,7 @@
 
 		<!-- Sign out -->
 		<div class="group">
-			<button class="row row-tappable" onclick={handleLogout}>
+			<button class="row row-tappable" onclick={() => settings.handleLogout((path) => { navStack.reset(); goto(path); })}>
 				<div class="row-icon danger-icon">
 					<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
 						stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

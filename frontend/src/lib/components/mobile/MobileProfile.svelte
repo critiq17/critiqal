@@ -84,7 +84,6 @@
 	});
 
 	onMount(() => {
-		profile.load();
 		stravaStore.load();
 
 		const params = new URLSearchParams(window.location.search);

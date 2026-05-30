@@ -12,6 +12,8 @@ export interface User {
   twoFactorEnabled: boolean;
   createdAt: string;
   badges?: UserBadge[];
+  stats?: { postsCount: number; followersCount: number; followingCount: number } | null;
+  isFollowing?: boolean | null;
 }
 
 export interface UpdateProfileRequest {

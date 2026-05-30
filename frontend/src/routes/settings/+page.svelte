@@ -4,146 +4,39 @@
 	import { fly, slide } from 'svelte/transition';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { stravaStore } from '$lib/stores/strava.store.svelte';
-	import { apiClient } from '$lib/api/client';
-	import type { User } from '$lib/types';
-	import { twoFactorService } from '$lib/services/two-factor.service';
-	import { emailVerificationService } from '$lib/services/email-verification.service';
-	import { recoveryService } from '$lib/services/recovery.service';
-	import { sessionService } from '$lib/services/session.service';
-	import { ApiError } from '$lib/types';
-	import type { TotpSetupResponse, TwoFactorStatusResponse, AuthSession } from '$lib/types';
+	import type { AuthSession } from '$lib/types';
+	import { UseSettings } from '$lib/features/settings/useSettings.svelte';
 	import LeftSidebar from '$lib/components/LeftSidebar.svelte';
 	import DeviceIcon from '$lib/components/DeviceIcon.svelte';
 	import LanguageSwitcher from '$lib/i18n/LanguageSwitcher.svelte';
 	import { t } from '$lib/i18n';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
 
-	// ── Email ────────────────────────────────────────────────────────────────
+	const settings = new UseSettings();
 
-	let emailInput = $state('');
+	// ── Email (UI-only state) ─────────────────────────────────────────────────
+
 	let emailEditing = $state(false);
-	let emailSubmitting = $state(false);
-	let emailError = $state('');
-	let emailSuccess = $state(false);
 
 	function startEmailEdit(): void {
-		emailInput = '';
+		settings.emailInput = '';
 		emailEditing = true;
-		emailError = '';
-		emailSuccess = false;
+		settings.emailError = '';
+		settings.emailSuccess = false;
 	}
 
 	function cancelEmailEdit(): void {
 		emailEditing = false;
-		emailInput = '';
-		emailError = '';
+		settings.emailInput = '';
+		settings.emailError = '';
 	}
 
 	async function handleSetEmail(): Promise<void> {
-		emailSubmitting = true;
-		emailError = '';
-		emailSuccess = false;
-		try {
-			await emailVerificationService.setEmail({ email: emailInput });
-			emailSuccess = true;
-			emailInput = '';
-			emailEditing = false;
-			const fresh = await apiClient.get<User>('/api/auth/me');
-			authStore.updateUser(fresh);
-		} catch (err: unknown) {
-			emailError = mapError(err);
-		} finally {
-			emailSubmitting = false;
-		}
+		await settings.handleSetEmail(settings.emailInput);
+		if (settings.emailSuccess) emailEditing = false;
 	}
 
-	async function handleResendVerification(): Promise<void> {
-		const pending = authStore.user?.pendingEmail;
-		if (!pending) return;
-		emailSubmitting = true;
-		emailError = '';
-		emailSuccess = false;
-		try {
-			await emailVerificationService.setEmail({ email: pending });
-			emailSuccess = true;
-		} catch (err: unknown) {
-			emailError = mapError(err);
-		} finally {
-			emailSubmitting = false;
-		}
-	}
-
-	// ── 2FA ──────────────────────────────────────────────────────────────────
-
-	type TwoFaView = 'idle' | 'setup-qr' | 'show-codes' | 'disable-confirm' | 'regen-codes';
-
-	let tfaStatus = $state<TwoFactorStatusResponse | null>(null);
-	let tfaLoading = $state(true);
-	let tfaError = $state('');
-	let tfaSubmitting = $state(false);
-	let tfaView = $state<TwoFaView>('idle');
-	let tfaSetup = $state<TotpSetupResponse | null>(null);
-	let tfaConfirmCode = $state('');
-	let tfaDisableCode = $state('');
-	let tfaRecoveryCodes = $state<string[]>([]);
-	let tfaCodesCount = $state<number | null>(null);
-
-	async function loadTfaStatus(): Promise<void> {
-		tfaLoading = true;
-		try {
-			tfaStatus = await twoFactorService.status();
-			if (tfaStatus.enabled) {
-				const r = await recoveryService.getCodesCount();
-				tfaCodesCount = r.activeCount;
-			}
-		} catch { /* non-fatal */ } finally {
-			tfaLoading = false;
-		}
-	}
-
-	async function handleSetupTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			tfaSetup = await twoFactorService.setup();
-			tfaConfirmCode = '';
-			tfaView = 'setup-qr';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	async function handleConfirmTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			await twoFactorService.confirm({ code: tfaConfirmCode });
-			tfaRecoveryCodes = tfaSetup?.recoveryCodes ?? [];
-			tfaView = 'show-codes';
-			tfaStatus = { enabled: true };
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	function handleDoneWithCodes(): void {
-		tfaSetup = null; tfaConfirmCode = ''; tfaRecoveryCodes = [];
-		tfaView = 'idle'; loadTfaStatus();
-	}
-
-	async function handleDisableTfa(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			await twoFactorService.disable({ code: tfaDisableCode });
-			tfaStatus = { enabled: false };
-			tfaDisableCode = ''; tfaCodesCount = null; tfaView = 'idle';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	async function handleRegenCodes(): Promise<void> {
-		tfaSubmitting = true; tfaError = '';
-		try {
-			const res = await recoveryService.regenerateCodes();
-			tfaRecoveryCodes = res.codes;
-			tfaView = 'regen-codes';
-		} catch (err) { tfaError = mapError(err); } finally { tfaSubmitting = false; }
-	}
-
-	// ── Strava ───────────────────────────────────────────────────────────────
+	// ── Strava (UI-only state) ────────────────────────────────────────────────
 
 	let stravaComingSoon = $state(false);
 	let confirmDisconnect = $state(false);
@@ -154,42 +47,20 @@
 	}
 
 	async function handleStravaDisconnect(): Promise<void> {
-		await stravaStore.disconnect();
+		await settings.handleStravaDisconnect();
 		confirmDisconnect = false;
 	}
 
-	// ── Sessions ─────────────────────────────────────────────────────────────
+	// ── Sessions (UI-only state) ──────────────────────────────────────────────
 
-	let sessions = $state<AuthSession[]>([]);
-	let sessionsLoading = $state(true);
-	let sessionsError = $state('');
-	let revokingId = $state<string | null>(null);
 	let confirmRevokeId = $state<string | null>(null);
 
-	async function loadSessions(): Promise<void> {
-		sessionsLoading = true;
-		sessionsError = '';
-		try {
-			sessions = await sessionService.list();
-		} catch (err) {
-			sessionsError = mapError(err);
-		} finally {
-			sessionsLoading = false;
-		}
+	async function handleRevokeSession(id: string): Promise<void> {
+		await settings.handleRevokeSession(id);
+		if (!settings.sessionsError) confirmRevokeId = null;
 	}
 
-	async function handleRevokeSession(id: string): Promise<void> {
-		revokingId = id;
-		try {
-			await sessionService.revoke(id);
-			sessions = sessions.filter((s) => s.id !== id);
-			confirmRevokeId = null;
-		} catch (err) {
-			sessionsError = mapError(err);
-		} finally {
-			revokingId = null;
-		}
-	}
+	// ── Session display helpers ───────────────────────────────────────────────
 
 	function sessionLocation(s: AuthSession): string {
 		const parts: string[] = [];
@@ -222,23 +93,10 @@
 		}
 	}
 
-	// ── Account ──────────────────────────────────────────────────────────────
-
-	async function handleLogout(): Promise<void> {
-		await authStore.logout();
-		goto('/');
-	}
-
-	function mapError(err: unknown): string {
-		if (err instanceof ApiError) return err.message || t('common.somethingWentWrong');
-		if (err instanceof Error) return err.message;
-		return t('common.somethingWentWrong');
-	}
-
 	onMount(() => {
-		loadTfaStatus();
+		settings.loadTfaStatus();
 		stravaStore.load();
-		loadSessions();
+		settings.loadSessions();
 	});
 </script>
 
@@ -319,8 +177,8 @@
 						<span class="setting-sub">{t('settings.email.pendingHint')}</span>
 					</div>
 					{#if !emailEditing}
-						<button class="link-btn" disabled={emailSubmitting} onclick={handleResendVerification}>
-							{emailSubmitting ? '…' : t('settings.email.resend')}
+						<button class="link-btn" disabled={settings.emailLoading} onclick={() => settings.handleResendVerification()}>
+							{settings.emailLoading ? '…' : t('settings.email.resend')}
 						</button>
 					{/if}
 				</div>
@@ -334,37 +192,37 @@
 				</div>
 			{/if}
 
-			{#if emailSuccess}
+			{#if settings.emailSuccess}
 				<p class="hint hint-ok" in:fly={{ y: -4, duration: 150 }}>{t('settings.email.sent')}</p>
 			{/if}
 
-			{#if emailError && !emailEditing}
-				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{emailError}</p>
+			{#if settings.emailError && !emailEditing}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{settings.emailError}</p>
 			{/if}
 
 			{#if emailEditing}
 				<div class="inline-form" transition:slide={{ duration: 180 }}>
-					{#if emailError}
-						<p class="hint hint-err">{emailError}</p>
+					{#if settings.emailError}
+						<p class="hint hint-err">{settings.emailError}</p>
 					{/if}
 					<div class="input-row">
 						<input
 							type="email"
 							class="input"
-							bind:value={emailInput}
+							bind:value={settings.emailInput}
 							autocomplete="email"
 							required
-							disabled={emailSubmitting}
+							disabled={settings.emailLoading}
 							placeholder={t('settings.email.newPlaceholder')}
 						/>
 						<button
 							class="btn-primary"
-							disabled={emailSubmitting || emailInput.trim().length === 0}
+							disabled={settings.emailLoading || settings.emailInput.trim().length === 0}
 							onclick={handleSetEmail}
 						>
-							{emailSubmitting ? t('common.saving') : t('common.save')}
+							{settings.emailLoading ? t('common.saving') : t('common.save')}
 						</button>
-						<button class="btn-ghost" disabled={emailSubmitting} onclick={cancelEmailEdit}>
+						<button class="btn-ghost" disabled={settings.emailLoading} onclick={cancelEmailEdit}>
 							{t('common.cancel')}
 						</button>
 					</div>
@@ -377,105 +235,105 @@
 			<div class="setting-row">
 				<div class="setting-info col">
 					<p class="section-label">{t('settings.sections.twoFactor')}</p>
-					{#if !tfaLoading}
+					{#if !settings.tfaLoading}
 						<span class="setting-sub">
-							{#if tfaStatus?.enabled}
-								{t('settings.twoFactor.enabled')} · {tfaCodesCount ?? '…'} {t('settings.twoFactor.recoveryCodes')}
+							{#if settings.tfaStatus?.enabled}
+								{t('settings.twoFactor.enabled')} · {settings.backupCodesCount ?? '…'} {t('settings.twoFactor.recoveryCodes')}
 							{:else}
 								{t('settings.twoFactor.notEnabled')}
 							{/if}
 						</span>
 					{/if}
 				</div>
-				{#if !tfaLoading && tfaView === 'idle'}
-					{#if tfaStatus?.enabled}
+				{#if !settings.tfaLoading && settings.tfaSetupStep === 'idle'}
+					{#if settings.tfaStatus?.enabled}
 						<span class="status-badge enabled">{t('common.on')}</span>
 					{:else}
-						<button class="link-btn" disabled={tfaSubmitting} onclick={handleSetupTfa}>
-							{tfaSubmitting ? t('settings.twoFactor.settingUp') : t('common.enable')}
+						<button class="link-btn" disabled={settings.tfaSubmitting} onclick={() => settings.handleSetupTfa()}>
+							{settings.tfaSubmitting ? t('settings.twoFactor.settingUp') : t('common.enable')}
 						</button>
 					{/if}
 				{/if}
 			</div>
 
-			{#if tfaError}
-				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{tfaError}</p>
+			{#if settings.tfaError}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{settings.tfaError}</p>
 			{/if}
 
-			{#if tfaLoading}
+			{#if settings.tfaLoading}
 				<div class="skeleton"></div>
 
-			{:else if tfaView === 'setup-qr' && tfaSetup}
+			{:else if settings.tfaSetupStep === 'setup' && settings.tfaSetupData}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
 					<p class="hint">{t('settings.twoFactor.setupHint')}</p>
-					<img class="qr" src={tfaSetup.qrCodeUri} alt="QR" />
+					<img class="qr" src={settings.tfaSetupData.qrCodeUri} alt="QR" />
 					<details class="manual-entry">
 						<summary>{t('settings.twoFactor.cantScan')}</summary>
-						<code class="secret">{tfaSetup.secret}</code>
+						<code class="secret">{settings.tfaSetupData.secret}</code>
 					</details>
 					<div class="input-row">
 						<input
 							type="text"
 							class="input"
-							bind:value={tfaConfirmCode}
+							bind:value={settings.tfaCode}
 							inputmode="numeric"
 							maxlength={6}
 							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
-							disabled={tfaSubmitting}
+							disabled={settings.tfaSubmitting}
 						/>
-						<button class="btn-primary" disabled={tfaSubmitting || tfaConfirmCode.trim().length !== 6} onclick={handleConfirmTfa}>
-							{tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
+						<button class="btn-primary" disabled={settings.tfaSubmitting || settings.tfaCode.trim().length !== 6} onclick={() => settings.handleConfirmTfa(settings.tfaCode)}>
+							{settings.tfaSubmitting ? t('settings.twoFactor.confirming') : t('settings.twoFactor.confirm')}
 						</button>
-						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaSetup = null; }}>
+						<button class="btn-ghost" disabled={settings.tfaSubmitting} onclick={() => { settings.tfaSetupStep = 'idle'; settings.tfaSetupData = null; }}>
 							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
 
-			{:else if tfaView === 'show-codes' || tfaView === 'regen-codes'}
+			{:else if settings.tfaSetupStep === 'confirm' || settings.tfaSetupStep === 'regen-confirm'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
 					<p class="hint hint-warn">{t('settings.twoFactor.saveCodes')}</p>
 					<ul class="codes-grid">
-						{#each tfaRecoveryCodes as code}
+						{#each settings.tfaRecoveryCodes as code}
 							<li class="code">{code}</li>
 						{/each}
 					</ul>
-					<button class="btn-primary" style="align-self: flex-start" onclick={tfaView === 'regen-codes' ? () => { tfaRecoveryCodes = []; tfaView = 'idle'; loadTfaStatus(); } : handleDoneWithCodes}>
+					<button class="btn-primary" style="align-self: flex-start" onclick={settings.tfaSetupStep === 'regen-confirm' ? () => { settings.tfaRecoveryCodes = []; settings.tfaSetupStep = 'idle'; settings.loadTfaStatus(); } : () => settings.handleDoneWithCodes()}>
 						{t('settings.twoFactor.savedDone')}
 					</button>
 				</div>
 
-			{:else if tfaView === 'disable-confirm'}
+			{:else if settings.tfaSetupStep === 'disabled-confirm'}
 				<div class="tfa-panel" in:fly={{ y: 6, duration: 200 }}>
 					<p class="hint">{t('settings.twoFactor.disableHint')}</p>
 					<div class="input-row">
 						<input
 							type="text"
 							class="input"
-							bind:value={tfaDisableCode}
+							bind:value={settings.tfaDisableCode}
 							inputmode="numeric"
 							maxlength={6}
 							placeholder={t('settings.twoFactor.codePlaceholder')}
 							autocomplete="one-time-code"
-							disabled={tfaSubmitting}
+							disabled={settings.tfaSubmitting}
 						/>
-						<button class="btn-danger" disabled={tfaSubmitting || tfaDisableCode.trim().length !== 6} onclick={handleDisableTfa}>
-							{tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
+						<button class="btn-danger" disabled={settings.tfaSubmitting || settings.tfaDisableCode.trim().length !== 6} onclick={() => settings.handleDisableTfa()}>
+							{settings.tfaSubmitting ? t('settings.twoFactor.disabling') : t('common.disable')}
 						</button>
-						<button class="btn-ghost" disabled={tfaSubmitting} onclick={() => { tfaView = 'idle'; tfaDisableCode = ''; }}>
+						<button class="btn-ghost" disabled={settings.tfaSubmitting} onclick={() => { settings.tfaSetupStep = 'idle'; settings.tfaDisableCode = ''; }}>
 							{t('common.cancel')}
 						</button>
 					</div>
 				</div>
 
-			{:else if tfaStatus?.enabled && tfaView === 'idle'}
+			{:else if settings.tfaStatus?.enabled && settings.tfaSetupStep === 'idle'}
 				<div class="tfa-actions">
-					<button class="link-btn" disabled={tfaSubmitting} onclick={handleRegenCodes}>
+					<button class="link-btn" disabled={settings.tfaSubmitting} onclick={() => settings.handleRegenCodes()}>
 						{t('settings.twoFactor.regenerate')}
 					</button>
 					<span class="dot-sep" aria-hidden="true">·</span>
-					<button class="link-btn danger" onclick={() => { tfaView = 'disable-confirm'; tfaError = ''; }}>
+					<button class="link-btn danger" onclick={() => { settings.tfaSetupStep = 'disabled-confirm'; settings.tfaError = ''; }}>
 						{t('common.disable')}
 					</button>
 				</div>
@@ -524,10 +382,10 @@
 					<p class="section-label">{t('settings.sections.sessions')}</p>
 					<span class="setting-sub">{t('settings.sessions.subtitle')}</span>
 				</div>
-				<button class="link-btn" disabled={sessionsLoading} onclick={loadSessions} title={t('settings.sessions.refresh')}>
+				<button class="link-btn" disabled={settings.sessionsLoading} onclick={() => settings.loadSessions()} title={t('settings.sessions.refresh')}>
 					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
 						stroke-linecap="round" stroke-linejoin="round" class="refresh-icon"
-						class:spinning={sessionsLoading} aria-hidden="true">
+						class:spinning={settings.sessionsLoading} aria-hidden="true">
 						<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" />
 						<path d="M21 3v5h-5" />
 						<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" />
@@ -536,21 +394,21 @@
 				</button>
 			</div>
 
-			{#if sessionsError}
-				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{sessionsError}</p>
+			{#if settings.sessionsError}
+				<p class="hint hint-err" in:fly={{ y: -4, duration: 150 }}>{settings.sessionsError}</p>
 			{/if}
 
-			{#if sessionsLoading && sessions.length === 0}
+			{#if settings.sessionsLoading && settings.sessions.length === 0}
 				<div class="session-skel-list">
 					{#each Array(2) as _, i (i)}
 						<div class="session-skel"></div>
 					{/each}
 				</div>
-			{:else if sessions.length === 0}
+			{:else if settings.sessions.length === 0}
 				<p class="hint">{t('settings.sessions.empty')}</p>
 			{:else}
 				<ul class="session-list">
-					{#each sessions as session (session.id)}
+					{#each settings.sessions as session (session.id)}
 						<li class="session" class:current={session.current}
 							in:fly|local={{ y: 6, duration: 220 }}>
 							<div class="session-icon" aria-hidden="true">
@@ -580,14 +438,14 @@
 										<div class="inline-actions" in:fly={{ x: 4, duration: 140 }}>
 											<button
 												class="link-btn danger"
-												disabled={revokingId === session.id}
+												disabled={settings.revokingSessionId === session.id}
 												onclick={() => handleRevokeSession(session.id)}
 											>
-												{revokingId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
+												{settings.revokingSessionId === session.id ? t('settings.sessions.revoking') : t('settings.sessions.revoke')}
 											</button>
 											<button
 												class="link-btn"
-												disabled={revokingId === session.id}
+												disabled={settings.revokingSessionId === session.id}
 												onclick={() => (confirmRevokeId = null)}
 											>
 												{t('common.cancel')}
@@ -608,7 +466,7 @@
 
 		<!-- Account -->
 		<section class="section section-last">
-			<button class="link-btn danger" onclick={handleLogout}>{t('settings.signOut')}</button>
+			<button class="link-btn danger" onclick={() => settings.handleLogout((path) => goto(path))}>{t('settings.signOut')}</button>
 		</section>
 	</main>
 

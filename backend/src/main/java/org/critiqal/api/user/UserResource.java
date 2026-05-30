@@ -55,7 +55,18 @@ public class UserResource {
     @Path("/{username}")
     public UserDTO getProfile(@PathParam("username") String username) {
         var user = userService.getByUsername(Username.of(username));
-        return UserDTO.from(user, badgeService.getUserBadges(user.id));
+        var badges = badgeService.getUserBadges(user.id);
+        var followStats = followService.getStats(user.id);
+        var stats = new UserStatsDTO(
+                postService.countByAuthor(user.id),
+                followStats.followers(),
+                followStats.following()
+        );
+        UUID viewerId = currentUser.idOrNull();
+        Boolean isFollowing = (viewerId != null && !viewerId.equals(user.id))
+                ? followService.isFollowing(viewerId, user.id)
+                : null;
+        return UserDTO.fromProfile(user, badges, stats, isFollowing);
     }
 
     @GET
@@ -92,6 +103,15 @@ public class UserResource {
         UUID followerId = currentUser.id();
         followService.unfollow(followerId, targetId);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{id}/follow/check")
+    @Authenticated
+    public Response checkFollow(@PathParam("id") UUID targetId) {
+        UUID viewerId = currentUser.id();
+        boolean following = followService.isFollowing(viewerId, targetId);
+        return Response.ok(Map.of("isFollowing", following)).build();
     }
 
 
