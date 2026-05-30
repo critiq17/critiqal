@@ -1,7 +1,7 @@
 package org.critiqal.infra.auth.admin;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.eclipse.microprofile.config.Config;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -11,9 +11,10 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class AdminAllowList {
 
-    private static Set<UUID> adminIds;
+    private final Set<UUID> adminIds;
 
-    public AdminAllowList(@ConfigProperty(name = "admin.user-ids") String raw) {
+    public AdminAllowList(Config config) {
+        var raw = config.getOptionalValue("admin.user-ids", String.class).orElse("");
         this.adminIds = Arrays.stream(raw.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isBlank())

@@ -4,7 +4,6 @@ import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.identity.request.AuthenticationRequest;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
-import io.quarkus.vertx.http.runtime.QuarkusErrorHandler;
 import io.quarkus.vertx.http.runtime.security.ChallengeData;
 import io.quarkus.vertx.http.runtime.security.HttpAuthenticationMechanism;
 import io.smallrye.mutiny.Uni;
@@ -12,7 +11,6 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.hibernate.bytecode.enhance.internal.bytebuddy.SetFieldOnArgument;
 
 import java.util.Set;
 
@@ -32,6 +30,7 @@ public class AdminAuthMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Uni<SecurityIdentity> authenticate(RoutingContext ctx, IdentityProviderManager idm) {
+        if (!isAdminPath(ctx)) return Uni.createFrom().nullItem();
         var cookie = ctx.request().getCookie(cookieName);
         if (cookie == null) return Uni.createFrom().nullItem();
         var sid = cookie.getValue();
@@ -49,7 +48,8 @@ public class AdminAuthMechanism implements HttpAuthenticationMechanism {
 
     @Override
     public Uni<ChallengeData> getChallenge(RoutingContext ctx) {
-        return Uni.createFrom().item(new ChallengeData(404, null, null));
+        var status = isAdminPath(ctx) ? 404 : 401;
+        return Uni.createFrom().item(new ChallengeData(status, null, null));
     }
 
     @Override
@@ -57,4 +57,8 @@ public class AdminAuthMechanism implements HttpAuthenticationMechanism {
         return Set.of();
     }
 
+    private boolean isAdminPath(RoutingContext ctx) {
+        var path = ctx.normalizedPath();
+        return path != null && (path.equals("/api/admin") || path.startsWith("/api/admin/"));
+    }
 }
