@@ -52,6 +52,10 @@ export class UseProfile {
     profileCache.onStaleOnReturn((u) => {
       if (u === authStore.user?.username) this.load();
     });
+
+    // Start fetching immediately so the request is in flight before the
+    // component mounts, rather than waiting for onMount.
+    this.load();
   }
 
   private async loadStats(userId: string, username: string): Promise<void> {
@@ -91,8 +95,17 @@ export class UseProfile {
       this.isLoading = false;
       profileCache.set(username, { profile: user });
 
-      // Fire stats in parallel — populates counters without pulling full lists.
-      this.loadStats(user.id, username);
+      // Use inline stats from the profile response when the backend includes
+      // them; otherwise fall back to a dedicated /stats request.
+      if (user.stats != null) {
+        this.postsCount = user.stats.postsCount;
+        this.followersCount = user.stats.followersCount;
+        this.followingCount = user.stats.followingCount;
+        profileCache.set(username, { stats: user.stats });
+      } else {
+        // Fire stats in parallel — populates counters without pulling full lists.
+        this.loadStats(user.id, username);
+      }
 
       if (!hasCachedProfile) this.postsLoading = true;
       const postsPage = await postsPromise;

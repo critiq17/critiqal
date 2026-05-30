@@ -57,6 +57,10 @@ export class UseProfilePage {
     profileCache.onStaleOnReturn((u) => {
       if (u === this.username) this.loadProfile();
     });
+
+    // Start fetching immediately at construction time so the request is in
+    // flight before the component mounts, rather than waiting for onMount.
+    this.loadProfile();
   }
 
   private hydrateFromCache(): void {
@@ -109,13 +113,27 @@ export class UseProfilePage {
       this.profileState = 'loaded';
       profileCache.set(this.username, { profile: user });
 
-      // Fire stats in parallel — populates posts/followers/following counters
-      // without waiting on the heavyweight follower-list endpoints.
-      this.loadStats(user.id);
+      // Use inline stats from the profile response when the backend includes
+      // them; otherwise fall back to a dedicated /stats request.
+      if (user.stats != null) {
+        this.postsCount = user.stats.postsCount;
+        this.followersCount = user.stats.followersCount;
+        this.followingCount = user.stats.followingCount;
+        profileCache.set(this.username, { stats: user.stats });
+      } else {
+        // Fire stats in parallel — populates posts/followers/following counters
+        // without waiting on the heavyweight follower-list endpoints.
+        this.loadStats(user.id);
+      }
 
       // Determine isFollowing only if not already known via cached list.
       if (!this.listsLoaded && authStore.isAuthenticated && authStore.user?.id !== user.id) {
-        this.refreshIsFollowing(user.id);
+        if (user.isFollowing != null) {
+          // Backend included the flag — use it directly, no extra request needed.
+          this.isFollowing = user.isFollowing;
+        } else {
+          this.refreshIsFollowing(user.id);
+        }
       }
     } catch (err: unknown) {
       if (!hasCachedProfile) {

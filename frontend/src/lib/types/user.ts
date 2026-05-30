@@ -1,3 +1,5 @@
+import type { UserBadge } from './badge';
+
 export interface User {
   id: string;
   username: string;
@@ -9,6 +11,9 @@ export interface User {
   pendingEmail: string | null;
   twoFactorEnabled: boolean;
   createdAt: string;
+  badges?: UserBadge[];
+  stats?: { postsCount: number; followersCount: number; followingCount: number } | null;
+  isFollowing?: boolean | null;
 }
 
 export interface UpdateProfileRequest {

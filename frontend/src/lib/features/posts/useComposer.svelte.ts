@@ -4,6 +4,7 @@ import { authStore } from '$lib/stores/auth.store.svelte';
 import { authGate } from '$lib/stores/auth-gate.store.svelte';
 import { ApiError } from '$lib/types';
 import type { Post, PostPhoto } from '$lib/types';
+import { normalizeContent } from '$lib/utils/normalizeContent';
 
 interface SubmitOptions {
   /**
@@ -28,11 +29,14 @@ export class UseComposer {
   loading = $state(false);
   errorMessage = $state('');
 
+  get normalizedText(): string {
+    return normalizeContent(this.text);
+  }
   get hasContent(): boolean {
-    return this.text.trim().length > 0;
+    return this.normalizedText.length > 0;
   }
   get charsLeft(): number {
-    return MAX_CHARS - this.text.length;
+    return MAX_CHARS - this.normalizedText.length;
   }
   get overLimit(): boolean {
     return this.charsLeft < 0;
@@ -77,7 +81,7 @@ export class UseComposer {
       return null;
     }
 
-    const content = this.text.trim();
+    const content = this.normalizedText;
     if (!content || this.loading || this.overLimit) return null;
 
     this.loading = true;

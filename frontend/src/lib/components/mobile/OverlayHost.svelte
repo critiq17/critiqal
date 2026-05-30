@@ -6,7 +6,9 @@
 	import { registerSheet } from '$lib/actions/registerSheet';
 	import ProfileOverlayView from './ProfileOverlayView.svelte';
 	import ConnectionsOverlayView from './ConnectionsOverlayView.svelte';
-	import MobileSettingsOverlay from './MobileSettingsOverlay.svelte';
+
+	// Lazy-loaded: 1294 LOC — only needed when settings is pushed onto the nav stack.
+	let MobileSettingsOverlay = $state<typeof import('./MobileSettingsOverlay.svelte').default | null>(null);
 
 	// Fraction of screen width the layer *beneath* the top one is pushed left,
 	// for the iOS-style parallax depth cue.
@@ -108,6 +110,13 @@
 		return dispose;
 	});
 
+	// Trigger import the first time a settings entry appears in the rendered stack.
+	$effect(() => {
+		if (!MobileSettingsOverlay && rendered.some((e) => e.kind === 'settings')) {
+			import('./MobileSettingsOverlay.svelte').then((m) => { MobileSettingsOverlay = m.default; });
+		}
+	});
+
 	// ── Edge-swipe back (drives top + the layer beneath together) ───────────────
 	let startX = 0;
 	let startY = 0;
@@ -200,7 +209,7 @@
 				tab={entry.tab}
 				onBack={backByButton}
 			/>
-		{:else if entry.kind === 'settings'}
+		{:else if entry.kind === 'settings' && MobileSettingsOverlay}
 			<MobileSettingsOverlay onBack={backByButton} />
 		{/if}
 	</div>

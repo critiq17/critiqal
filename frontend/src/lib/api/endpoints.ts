@@ -48,6 +48,7 @@ export const API = {
     followers: (id: string) => `/api/users/${id}/followers`,
     following: (id: string) => `/api/users/${id}/following`,
     stats: (id: string) => `/api/users/${id}/stats`,
+    badges: (id: string) => `/api/users/${id}/badges`,
     followingFeed: '/api/users/notifications/posts',
   },
   media: {
