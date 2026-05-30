@@ -39,8 +39,10 @@
 		display: flex;
 		flex-direction: column;
 		align-items: center;
+		justify-content: flex-start;
 		gap: 10px;
-		width: min(100%, 280px);
+		width: 100%;
+		min-height: 218px;
 		box-sizing: border-box;
 		margin: 0 auto;
 		text-align: center;
@@ -52,13 +54,17 @@
 		flex-direction: column;
 		align-items: center;
 		gap: 2px;
+		min-height: 42px;
 	}
 
 	.badge-detail__name {
 		margin: 0;
+		max-width: 100%;
 		font-size: 1.05rem;
 		font-weight: 700;
 		color: var(--color-text-primary);
+		line-height: 1.18;
+		overflow-wrap: anywhere;
 	}
 
 	.badge-detail__tier {
@@ -70,13 +76,18 @@
 
 	.badge-detail__desc {
 		margin: 0;
+		min-height: 40px;
 		font-size: 0.86rem;
 		line-height: 1.4;
 		color: var(--color-text-secondary, var(--color-text-muted));
+		display: flex;
+		align-items: center;
+		justify-content: center;
 	}
 
 	.badge-detail__date {
 		margin: 0;
+		min-height: 16px;
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
 	}
@@ -84,6 +95,7 @@
 	@media (max-width: 640px) {
 		.badge-detail {
 			width: min(100%, 320px);
+			min-height: 242px;
 			gap: 12px;
 			padding: 10px 20px calc(22px + env(safe-area-inset-bottom));
 		}
@@ -94,6 +106,7 @@
 
 		.badge-detail__desc {
 			max-width: 100%;
+			min-height: 44px;
 			font-size: 0.9rem;
 		}
 	}

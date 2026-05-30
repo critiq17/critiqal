@@ -22,7 +22,18 @@ export interface BadgeMeta {
   surface?: BadgeSurface;
 }
 
-export type BadgeGlyph = 'numeral-i' | 'helmet' | 'laurel' | 'eagle' | 'quill' | 'column' | 'scroll';
+export type BadgeGlyph =
+  | 'numeral-i'
+  | 'helmet'
+  | 'centurion'
+  | 'legatus'
+  | 'scribe'
+  | 'orator'
+  | 'laurel'
+  | 'eagle'
+  | 'quill'
+  | 'column'
+  | 'scroll';
 export type BadgeSurface = 'glass';
 
 // Muted, antique-metal palette; reads as struck coinage, not neon.
@@ -55,15 +66,15 @@ export const TIER_STYLES: Record<BadgeTier, BadgeTierStyle> = {
 
 // Maps each backend BadgeCode to its visual treatment.
 // Tenure ladder: CENTURION(bronze) -> GLADIATOR(silver) -> LEGATUS(gold); ORIGIN is legendary.
-// Contribution: SCRIBE(bronze) -> TRIBUNE(silver) -> ORATOR(gold).
+// Contribution: SCRIBE(bronze) -> ORATOR(gold) -> TRIBUNE(legendary).
 export const BADGE_META: Record<BadgeCode, BadgeMeta> = {
   ORIGIN: { tier: 'legendary', glyph: 'numeral-i' },
-  CENTURION: { tier: 'bronze', glyph: 'laurel' },
+  CENTURION: { tier: 'bronze', glyph: 'centurion' },
   GLADIATOR: { tier: 'silver', glyph: 'helmet', surface: 'glass' },
-  LEGATUS: { tier: 'gold', glyph: 'eagle' },
-  SCRIBE: { tier: 'bronze', glyph: 'quill' },
-  ORATOR: { tier: 'gold', glyph: 'column' },
-  TRIBUNE: { tier: 'silver', glyph: 'scroll' },
+  LEGATUS: { tier: 'gold', glyph: 'legatus' },
+  SCRIBE: { tier: 'bronze', glyph: 'scribe' },
+  ORATOR: { tier: 'gold', glyph: 'orator' },
+  TRIBUNE: { tier: 'legendary', glyph: 'scroll' },
 };
 
 export function badgeMeta(code: BadgeCode): BadgeMeta {
