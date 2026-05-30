@@ -28,6 +28,12 @@ public class UserBadgeRepositoryImpl implements UserBadgeRepository, PanacheRepo
 
     @Override
     @Transactional
+    public boolean deleteByUserIdAndBadgeCode(UUID userId, String code) {
+        return delete("user.id = ?1 AND badge.code = ?2", userId, code) > 0;
+    }
+
+    @Override
+    @Transactional
     public UserBadge save(UserBadge userBadge) {
         persist(userBadge);
         return userBadge;
