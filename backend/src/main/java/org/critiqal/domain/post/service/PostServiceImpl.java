@@ -51,15 +51,37 @@ public class PostServiceImpl implements PostService {
         if (content == null || content.isBlank()) {
             throw new DomainException("Post cannot be empty");
         }
-
+        String normalized = normalizeContent(content);
+        if (normalized.isBlank()) {
+            throw new DomainException("Post cannot be empty");
+        }
+        if (normalized.length() > 500) {
+            throw new DomainException("Post cannot exceed 500 characters");
+        }
         var author = userService.getById(authorId);
         var post = new Post();
         post.author = author;
-        post.content = content;
+        post.content = normalized;
 
         post = postRepo.save(post);
         postCreatedEvent.fireAsync(new PostCreatedEvent(post.id, author.id));
         return post;
+    }
+
+    private static String normalizeContent(String raw) {
+        // 1. Normalize line endings
+        String s = raw.replace("\r\n", "\n").replace("\r", "\n");
+        // 2. Strip trailing whitespace from each line
+        String[] lines = s.split("\n", -1);
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < lines.length; i++) {
+            sb.append(lines[i].stripTrailing());
+            if (i < lines.length - 1) sb.append('\n');
+        }
+        // 3. Collapse 3+ consecutive newlines → max 2
+        String result = sb.toString().replaceAll("\n{3,}", "\n\n");
+        // 4. Strip leading/trailing
+        return result.strip();
     }
 
     @Override

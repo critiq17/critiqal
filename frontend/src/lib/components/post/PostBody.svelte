@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import PostPhotoGallery from './PostPhotoGallery.svelte';
 	import type { Post } from '$lib/types';
+	import { normalizeContent } from '$lib/utils/normalizeContent';
 
 	interface Props {
 		post: Post;
@@ -18,7 +19,7 @@
 	let overflowing = $state(false);
 	let textEl = $state<HTMLParagraphElement | null>(null);
 
-	const content = $derived(post.content?.trim() ?? '');
+	const content = $derived(normalizeContent(post.content ?? ''));
 
 	function measure(): void {
 		const el = textEl;
