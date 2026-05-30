@@ -3,10 +3,32 @@
 	import { portal } from '$lib/actions/portal';
 	import { clickOutside } from '$lib/actions/clickOutside';
 	import { longpress } from '$lib/actions/longpress';
+	import { cubicIn, backOut } from 'svelte/easing';
+	import type { TransitionConfig } from 'svelte/transition';
 	import Sheet from '$lib/ui/Sheet.svelte';
 	import BadgeDetail from './BadgeDetail.svelte';
-	import BadgeGlyph from './BadgeGlyph.svelte';
+	import BadgeIcon from './BadgeIcon.svelte';
 	import { badgeMeta, tierStyle } from './badgeMeta';
+
+	// Spring-pop entry: scales from 0.92 and floats up slightly.
+	function popoverIn(_node: HTMLElement): TransitionConfig {
+		return {
+			duration: 220,
+			easing: backOut,
+			css: (t, u) =>
+				`opacity: ${t}; transform: translateX(-50%) translateY(${-7 * u}px) scale(${0.92 + 0.08 * t})`,
+		};
+	}
+
+	// Quick fade-scale out.
+	function popoverOut(_node: HTMLElement): TransitionConfig {
+		return {
+			duration: 140,
+			easing: cubicIn,
+			css: (t, u) =>
+				`opacity: ${t}; transform: translateX(-50%) translateY(${-4 * u}px) scale(${0.96 + 0.04 * t})`,
+		};
+	}
 
 	interface Props {
 		badge: UserBadge;
@@ -99,7 +121,7 @@
 	title={badge.name}
 >
 	<span class="icon-shell" aria-hidden="true">
-		<BadgeGlyph glyph={meta.glyph} size={15} />
+		<BadgeIcon glyph={meta.glyph} size={18} />
 	</span>
 	<span class="badge-name">{badge.name}</span>
 </button>
@@ -113,6 +135,8 @@
 		class="badge-popover"
 		use:portal
 		use:clickOutside={{ onClickOutside: close }}
+		in:popoverIn
+		out:popoverOut
 		role="dialog"
 		tabindex="-1"
 		aria-label={badge.name}
@@ -132,7 +156,7 @@
 		position: relative;
 		isolation: isolate;
 		display: inline-grid;
-		grid-template-columns: 16px minmax(0, auto);
+		grid-template-columns: 18px minmax(0, auto);
 		align-items: center;
 		gap: 6px;
 		max-width: min(176px, 100%);
@@ -194,8 +218,8 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		width: 16px;
-		height: 16px;
+		width: 18px;
+		height: 18px;
 		color: color-mix(in srgb, var(--color-text-primary) 82%, #05070a 18%);
 		flex-shrink: 0;
 	}
@@ -214,8 +238,9 @@
 	.badge-popover {
 		position: fixed;
 		z-index: 1000;
-		transform: translateX(-50%);
-		max-width: min(280px, calc(100vw - 24px));
+		/* base transform set by JS (top/left + translateX(-50%)); transitions override it */
+		width: min(288px, calc(100vw - 24px));
+		box-sizing: border-box;
 		padding: 14px;
 		border-radius: var(--radius-lg, 16px);
 		border: 1px solid var(--glass-border);
@@ -226,27 +251,11 @@
 			var(--glass-shadow),
 			inset 0 1px 0 var(--glass-highlight),
 			0 14px 44px rgba(0, 0, 0, 0.34);
-		animation: badge-pop 130ms ease-out;
-	}
-
-	@keyframes badge-pop {
-		from {
-			opacity: 0;
-			transform: translateX(-50%) translateY(-3px) scale(0.98);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0) scale(1);
-		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
 		.badge-pill {
 			transition: none;
-		}
-
-		.badge-popover {
-			animation: none;
 		}
 	}
 </style>

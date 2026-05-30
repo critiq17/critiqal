@@ -3,9 +3,29 @@
 	import { portal } from '$lib/actions/portal';
 	import { clickOutside } from '$lib/actions/clickOutside';
 	import { longpress } from '$lib/actions/longpress';
+	import { cubicIn, backOut } from 'svelte/easing';
+	import type { TransitionConfig } from 'svelte/transition';
 	import Sheet from '$lib/ui/Sheet.svelte';
 	import BadgeMedallion from './BadgeMedallion.svelte';
 	import BadgeDetail from './BadgeDetail.svelte';
+
+	function popoverIn(_node: HTMLElement): TransitionConfig {
+		return {
+			duration: 220,
+			easing: backOut,
+			css: (t, u) =>
+				`opacity: ${t}; transform: translateX(-50%) translateY(${-7 * u}px) scale(${0.92 + 0.08 * t})`,
+		};
+	}
+
+	function popoverOut(_node: HTMLElement): TransitionConfig {
+		return {
+			duration: 140,
+			easing: cubicIn,
+			css: (t, u) =>
+				`opacity: ${t}; transform: translateX(-50%) translateY(${-4 * u}px) scale(${0.96 + 0.04 * t})`,
+		};
+	}
 
 	type Size = 'sm' | 'md' | 'lg';
 
@@ -72,6 +92,8 @@
 		class="badge-popover"
 		use:portal
 		use:clickOutside={{ onClickOutside: close }}
+		in:popoverIn
+		out:popoverOut
 		role="dialog"
 		aria-label={badge.name}
 		style:top="{top}px"
@@ -100,7 +122,6 @@
 	.badge-popover {
 		position: fixed;
 		z-index: 1000;
-		transform: translateX(-50%);
 		max-width: min(280px, calc(100vw - 24px));
 		padding: 14px;
 		border-radius: var(--radius-lg, 16px);
@@ -109,23 +130,5 @@
 		backdrop-filter: blur(16px) saturate(140%);
 		-webkit-backdrop-filter: blur(16px) saturate(140%);
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-		animation: badge-pop 140ms ease-out;
-	}
-
-	@keyframes badge-pop {
-		from {
-			opacity: 0;
-			transform: translateX(-50%) translateY(-4px) scale(0.97);
-		}
-		to {
-			opacity: 1;
-			transform: translateX(-50%) translateY(0) scale(1);
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.badge-popover {
-			animation: none;
-		}
 	}
 </style>
