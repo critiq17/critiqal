@@ -83,7 +83,7 @@
 	<BadgeMedallion code={badge.code} name={badge.name} {size} />
 </button>
 
-{#if open && isMobile}
+{#if isMobile}
 	<Sheet {open} onclose={close} title={badge.name}>
 		<BadgeDetail {badge} />
 	</Sheet>

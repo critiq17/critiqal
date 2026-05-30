@@ -126,7 +126,7 @@
 	<span class="badge-name">{badge.name}</span>
 </button>
 
-{#if open && isMobile}
+{#if isMobile}
 	<Sheet {open} onclose={close} maxHeight="72vh">
 		<BadgeDetail {badge} />
 	</Sheet>
