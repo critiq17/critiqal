@@ -23,7 +23,7 @@
 	});
 
 	// Sheet entry: spring slide-up from below.
-	function sheetIn(node: HTMLElement): TransitionConfig {
+	function sheetIn(_node: HTMLElement): TransitionConfig {
 		if (reducedMotion.value) return { duration: 0 };
 		return {
 			duration: 440,
