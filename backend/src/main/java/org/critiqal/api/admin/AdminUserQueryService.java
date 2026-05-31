@@ -3,6 +3,7 @@ package org.critiqal.api.admin;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.critiqal.api.admin.response.AdminUserDTO;
 import org.critiqal.domain.badge.service.BadgeService;
+import org.critiqal.domain.ban.service.BanService;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.user.User;
@@ -18,10 +19,12 @@ public class AdminUserQueryService {
 
     private final UserRepository userRepo;
     private final BadgeService badgeService;
+    private final BanService banService;
 
-    public AdminUserQueryService(UserRepository userRepo, BadgeService badgeService) {
+    public AdminUserQueryService(UserRepository userRepo, BadgeService badgeService, BanService banService) {
         this.userRepo = userRepo;
         this.badgeService = badgeService;
+        this.banService = banService;
     }
 
     public Page<AdminUserDTO> search(String query, int page, int size) {
@@ -36,7 +39,7 @@ public class AdminUserQueryService {
                 : userRepo.countSearch(query);
 
         List<AdminUserDTO> rows = users.stream()
-                .map(u -> AdminUserDTO.from(u, badgeService.getUserBadges(u.id)))
+                .map(u -> AdminUserDTO.from(u, badgeService.getUserBadges(u.id), banService.activeBan(u.id)))
                 .toList();
         return Page.of(rows, page, size, total);
     }
@@ -44,6 +47,6 @@ public class AdminUserQueryService {
     public AdminUserDTO getUser(UUID userId) {
         var user = userRepo.findByIdOptional(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
-        return AdminUserDTO.from(user, badgeService.getUserBadges(user.id));
+        return AdminUserDTO.from(user, badgeService.getUserBadges(user.id), banService.activeBan(userId));
     }
 }

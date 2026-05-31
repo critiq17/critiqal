@@ -3,6 +3,7 @@ package org.critiqal.api.admin;
 import org.critiqal.api.badge.response.UserBadgeDTO;
 import org.critiqal.domain.badge.BadgeCode;
 import org.critiqal.domain.badge.service.BadgeService;
+import org.critiqal.domain.ban.service.BanService;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.user.User;
@@ -28,13 +29,15 @@ class AdminUserQueryServiceTest {
 
     UserRepository userRepo;
     BadgeService badgeService;
+    BanService banService;
     AdminUserQueryService service;
 
     @BeforeEach
     void setUp() {
         userRepo = mock(UserRepository.class);
         badgeService = mock(BadgeService.class);
-        service = new AdminUserQueryService(userRepo, badgeService);
+        banService = mock(BanService.class);
+        service = new AdminUserQueryService(userRepo, badgeService, banService);
     }
 
     private static User user(String username) {

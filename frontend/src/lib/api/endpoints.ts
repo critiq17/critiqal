@@ -75,5 +75,7 @@ export const API = {
     badges: '/api/admin/badges',
     grantBadge: (id: string) => `/api/admin/users/${id}/badges`,
     revokeBadge: (id: string, code: string) => `/api/admin/users/${id}/badges/${code}`,
+    banUser: (id: string) => `/api/admin/users/${id}/ban`,
+    unbanUser: (id: string) => `/api/admin/users/${id}/ban`,
   },
 } as const;

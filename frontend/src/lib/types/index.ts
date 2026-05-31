@@ -22,8 +22,16 @@ export { isTwoFactorChallenge } from './auth';
 export type { Post, PostPhoto, PostStatus, CreatePostRequest } from './post';
 export type { Comment, AddCommentRequest } from './comment';
 export type { LikeResponse } from './like';
-export type { PageResponse } from './api';
-export { ApiError } from './api';
+export type { PageResponse, BanInfo } from './api';
+export { ApiError, isBanResponse } from './api';
 export type { StravaConnection, StravaActivity } from './strava';
 export type { AuthSession } from './session';
-export type { AdminUser, AdminBadge, AdminMe, AdminGrantResult, AdminRevokeResult } from './admin';
+export type {
+  AdminUser,
+  AdminBadge,
+  AdminMe,
+  AdminGrantResult,
+  AdminRevokeResult,
+  AdminBanResult,
+  AdminUnbanResult,
+} from './admin';

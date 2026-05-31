@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.critiqal.api.CurrentUser;
 import org.critiqal.api.admin.response.AdminBadgeDTO;
 import org.critiqal.api.admin.response.AdminUserDTO;
 import org.critiqal.api.post.response.PostDTO;
@@ -12,6 +13,7 @@ import org.critiqal.domain.badge.Badge;
 import org.critiqal.domain.badge.BadgeCode;
 import org.critiqal.domain.badge.UserBadge;
 import org.critiqal.domain.badge.service.BadgeService;
+import org.critiqal.domain.ban.service.BanService;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.shared.pagination.Page;
@@ -31,13 +33,18 @@ public class AdminResource {
     private final AdminUserQueryService userQuery;
     private final BadgeService badgeService;
     private final PostService postService;
+    private final BanService banService;
+    private final CurrentUser currentUser;
 
     public AdminResource(AdminUserQueryService userQuery,
                          BadgeService badgeService,
-                         PostService postService) {
+                         PostService postService,
+                         BanService banService, CurrentUser currentUser) {
         this.userQuery = userQuery;
         this.badgeService = badgeService;
         this.postService = postService;
+        this.banService = banService;
+        this.currentUser = currentUser;
     }
 
     @GET @Path("/me")
@@ -99,5 +106,22 @@ public class AdminResource {
         }
         boolean removed = badgeService.revokeBadge(userId, badgeCode);
         return Response.ok(Map.of("revoked", code, "user", userId.toString(), "removed", removed)).build();
+    }
+
+    @POST @Path("/users/{userId}/ban") @Transactional
+    public Response banUser(@PathParam("userId") UUID userId, Map<String, String> body) {
+        var reason = body.get("reason");
+        var days = body.get("days");
+        var duration = (days == null || days.isBlank())
+                ? null
+                : java.time.Duration.ofDays(Long.parseLong(days));
+        banService.ban(userId, currentUser.id(), reason, duration);
+        return Response.ok(Map.of("banned", userId.toString())).build();
+    }
+
+    @DELETE @Path("/users/{userId}/ban")
+    public Response unbanUser(@PathParam("userId") UUID userId) {
+        boolean lifted = banService.unban(userId, currentUser.id());
+        return Response.ok(Map.of("unbanned", userId.toString(), "lifted", lifted)).build();
     }
 }

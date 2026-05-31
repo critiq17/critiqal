@@ -18,6 +18,8 @@ import org.critiqal.domain.auth.email.service.EmailVerificationService;
 import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.auth.session.repository.AuthSessionRepository;
 import org.critiqal.domain.auth.totp.service.TotpService;
+import org.critiqal.domain.ban.UserBan;
+import org.critiqal.domain.ban.service.BanService;
 import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.service.UserService;
@@ -49,6 +51,7 @@ public class AuthResource {
     private final EmailService emailService;
     private final RateLimiter rateLimiter;
     private final EmailVerificationService verifyService;
+    private final BanService banService;
 
     public AuthResource(UserService userService,
                         SessionService sessions,
@@ -59,8 +62,10 @@ public class AuthResource {
                         DeviceGuard deviceGuard,
                         RequestMetadataResolver metadataResolver,
                         AuthSessionRepository authSessionRepo,
-                        EmailService emailService, RateLimiter rateLimiter,
-    EmailVerificationService verifyService) {
+                        EmailService emailService,
+                        RateLimiter rateLimiter,
+                        EmailVerificationService verifyService,
+                        BanService banService) {
         this.userService = userService;
         this.sessions = sessions;
         this.cookies = cookies;
@@ -73,6 +78,15 @@ public class AuthResource {
         this.emailService = emailService;
         this.rateLimiter = rateLimiter;
         this.verifyService = verifyService;
+        this.banService = banService;
+    }
+
+    private Response banResponse(UserBan ban) {
+        return Response.status(403).entity(Map.of(
+                "banned", true,
+                "reason", ban.reason,
+                "expiresAt", ban.expiresAt != null ? ban.expiresAt.toString() : ""
+        )).build();
     }
 
     @POST @Path("/register")
@@ -109,6 +123,9 @@ public class AuthResource {
         }
 
         var user = userService.getByUsername(username);
+        var activeBan = banService.activeBan(user.id);
+        if (activeBan.isPresent()) return banResponse(activeBan.get());
+
         if (user.twoFactorEnabled) {
             return Response.status(202)
                     .entity(new TwoFactorChallengeResponse(authChallengeService.create(user.id), "TOTP"))
@@ -149,6 +166,9 @@ public class AuthResource {
         }
 
         var user = userService.getById(userId);
+        var activeBan2fa = banService.activeBan(userId);
+        if (activeBan2fa.isPresent()) return banResponse(activeBan2fa.get());
+
         sendNewDeviceAlertIfNeeded(userId, user.email, user.emailVerified);
         issueVerificationCodeIfPending(user);
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(userId))).build();
@@ -167,6 +187,9 @@ public class AuthResource {
         }
 
         var user = userService.getById(userId);
+        var activeBanEmail = banService.activeBan(userId);
+        if (activeBanEmail.isPresent()) return banResponse(activeBanEmail.get());
+
         sendNewDeviceAlertIfNeeded(userId, user.email, user.emailVerified);
         return Response.ok(UserDTO.from(user)).cookie(cookies.issue(sessions.create(userId))).build();
     }
