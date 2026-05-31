@@ -122,16 +122,21 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm run build
-          # Generate package-lock.json so the server can use `npm ci --omit=dev`
-          npm install --package-lock-only --omit=dev
+          # Pre-install prod deps with pnpm (hoisted linker = flat node_modules compatible
+          # with any Node server). No npm used — npm has a bug with --package-lock-only
+          # and --omit=dev on this runner that causes "Cannot read properties of null".
+          staging="${GITHUB_WORKSPACE}/admin-staging"
+          mkdir -p "$staging"
+          cp package.json pnpm-lock.yaml "$staging/"
+          cp -r build "$staging/"
+          cd "$staging"
+          pnpm install --prod --frozen-lockfile --node-linker=hoisted --ignore-scripts
+          rm pnpm-lock.yaml
 
       - uses: actions/upload-artifact@v4
         with:
           name: admin-build
-          path: |
-            admin-frontend/build/
-            admin-frontend/package.json
-            admin-frontend/package-lock.json
+          path: admin-staging/
           retention-days: 1
 
   deploy:
@@ -266,7 +271,6 @@ jobs:
           script: |
             set -euo pipefail
             cd /opt/critiqal/prod/admin-frontend
-            npm ci --omit=dev --ignore-scripts --prefer-offline --no-audit --fund=false --silent
             pm2 delete critiqal-admin-prod 2>/dev/null || true
             PORT=3002 pm2 start build/index.js --name critiqal-admin-prod --update-env
             pm2 save
