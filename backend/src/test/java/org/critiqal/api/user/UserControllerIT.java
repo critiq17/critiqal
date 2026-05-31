@@ -144,6 +144,70 @@ class UserControllerIT {
             .body("$", not(empty()));
     }
 
+    @Test
+    void getProfile_authenticated_includesStats() {
+        var sid = TestAuthHelper.registerAndGetSessionCookie("profile_stats_user");
+
+        given()
+            .cookie(TestAuthHelper.COOKIE, sid)
+        .when().get("/api/users/profile_stats_user")
+        .then()
+            .statusCode(200)
+            .body("stats.postsCount", equalTo(0))
+            .body("stats.followersCount", equalTo(0))
+            .body("stats.followingCount", equalTo(0));
+    }
+
+    @Test
+    void getProfile_viewer_includesIsFollowing() {
+        var aResponse = TestAuthHelper.registerAndGetResponse("isfollow_user_a");
+        var aSid = aResponse.getCookie(TestAuthHelper.COOKIE);
+        var bId = TestAuthHelper.registerAndGetUserId("isfollow_user_b");
+
+        // A follows B
+        given()
+            .cookie(TestAuthHelper.COOKIE, aSid)
+        .when().post("/api/users/" + bId + "/follow")
+        .then().statusCode(200);
+
+        // Viewing B's profile as A — isFollowing must be true
+        given()
+            .cookie(TestAuthHelper.COOKIE, aSid)
+        .when().get("/api/users/isfollow_user_b")
+        .then()
+            .statusCode(200)
+            .body("isFollowing", equalTo(true));
+
+        // Viewing A's own profile — isFollowing must be null (own profile)
+        given()
+            .cookie(TestAuthHelper.COOKIE, aSid)
+        .when().get("/api/users/isfollow_user_a")
+        .then()
+            .statusCode(200)
+            .body("isFollowing", nullValue());
+    }
+
+    @Test
+    void checkFollow_returns200() {
+        var aResponse = TestAuthHelper.registerAndGetResponse("checkfollow_user_a");
+        var aSid = aResponse.getCookie(TestAuthHelper.COOKIE);
+        var bResponse = TestAuthHelper.registerAndGetResponse("checkfollow_user_b");
+        var bId = UUID.fromString(bResponse.jsonPath().getString("id"));
+
+        // A follows B
+        given()
+            .cookie(TestAuthHelper.COOKIE, aSid)
+        .when().post("/api/users/" + bId + "/follow")
+        .then().statusCode(200);
+
+        given()
+            .cookie(TestAuthHelper.COOKIE, aSid)
+        .when().get("/api/users/" + bId + "/follow/check")
+        .then()
+            .statusCode(200)
+            .body("isFollowing", equalTo(true));
+    }
+
     private UUID uuid(int value) {
         return UUID.fromString("00000000-0000-0000-0000-%012d".formatted(value));
     }

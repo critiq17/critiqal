@@ -33,14 +33,6 @@ function extractErrorMessage(data: unknown, fallback: string): string {
   return fallback;
 }
 
-function isTunnelHost(hostname: string): boolean {
-  return (
-    hostname.includes('ngrok-free.app') ||
-    hostname.includes('ngrok.app') ||
-    hostname.includes('ngrok.io')
-  );
-}
-
 function shouldBypassTunnelWarning(): boolean {
   return import.meta.env.DEV;
 }

@@ -1,4 +1,5 @@
 export type { User, UpdateProfileRequest, UserStats } from './user';
+export type { UserBadge, BadgeCode } from './badge';
 export type {
   LoginResponse,
   RegisterResponse,
@@ -25,3 +26,4 @@ export type { PageResponse } from './api';
 export { ApiError } from './api';
 export type { StravaConnection, StravaActivity } from './strava';
 export type { AuthSession } from './session';
+export type { AdminUser, AdminBadge, AdminMe, AdminGrantResult, AdminRevokeResult } from './admin';

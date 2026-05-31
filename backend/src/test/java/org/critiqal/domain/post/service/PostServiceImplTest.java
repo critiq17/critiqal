@@ -79,6 +79,58 @@ class PostServiceImplTest {
     }
 
     @Test
+    void createPost_stripsTrailingWhitespace() {
+        var author = new User();
+        author.id = uuid(7);
+
+        when(userService.getById(uuid(7))).thenReturn(author);
+        when(postRepo.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0, Post.class));
+
+        var result = service.createPost(uuid(7), "hello   ");
+
+        assertEquals("hello", result.content);
+    }
+
+    @Test
+    void createPost_collapsesExcessiveBlankLines() {
+        var author = new User();
+        author.id = uuid(7);
+
+        when(userService.getById(uuid(7))).thenReturn(author);
+        when(postRepo.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0, Post.class));
+
+        var result = service.createPost(uuid(7), "a\n\n\n\nb");
+
+        assertEquals("a\n\nb", result.content);
+    }
+
+    @Test
+    void createPost_rejectsBlankContent() {
+        assertThrows(DomainException.class, () -> service.createPost(uuid(7), "  \n  \n  "));
+        verifyNoInteractions(userService, postRepo, postCreatedEvent);
+    }
+
+    @Test
+    void createPost_rejectsTooLong() {
+        String tooLong = "a".repeat(501);
+        assertThrows(DomainException.class, () -> service.createPost(uuid(7), tooLong));
+        verifyNoInteractions(userService, postRepo, postCreatedEvent);
+    }
+
+    @Test
+    void createPost_stripsLeadingTrailingNewlines() {
+        var author = new User();
+        author.id = uuid(7);
+
+        when(userService.getById(uuid(7))).thenReturn(author);
+        when(postRepo.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0, Post.class));
+
+        var result = service.createPost(uuid(7), "\n\nhello\n\n");
+
+        assertEquals("hello", result.content);
+    }
+
+    @Test
     void getUserPostOrdersContentByRequestedIds() {
         var post1 = postWithId(1);
         var post3 = postWithId(3);

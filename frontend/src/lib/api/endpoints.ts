@@ -48,6 +48,7 @@ export const API = {
     followers: (id: string) => `/api/users/${id}/followers`,
     following: (id: string) => `/api/users/${id}/following`,
     stats: (id: string) => `/api/users/${id}/stats`,
+    badges: (id: string) => `/api/users/${id}/badges`,
     followingFeed: '/api/users/notifications/posts',
   },
   media: {
@@ -60,5 +61,19 @@ export const API = {
     connection: '/api/integrations/strava',
     activities: '/api/integrations/strava/activities',
     public: (userId: string) => `/api/integrations/strava/public/${userId}`,
+  },
+  admin: {
+    login: '/api/admin/auth/login',
+    login2fa: '/api/admin/auth/2fa',
+    logout: '/api/admin/auth/logout',
+    me: '/api/admin/me',
+    usersSearch: (q: string, page: number, size: number) =>
+      `/api/admin/users/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
+    user: (id: string) => `/api/admin/users/${id}`,
+    postsSearch: (q: string, page: number, size: number) =>
+      `/api/admin/posts/search?q=${encodeURIComponent(q)}&page=${page}&size=${size}`,
+    badges: '/api/admin/badges',
+    grantBadge: (id: string) => `/api/admin/users/${id}/badges`,
+    revokeBadge: (id: string, code: string) => `/api/admin/users/${id}/badges/${code}`,
   },
 } as const;

@@ -41,6 +41,32 @@ public class UserRepositoryImpl implements UserRepository, PanacheRepository<Use
     }
 
     @Override
+    public List<User> searchPaged(String query, int offset, int limit) {
+        return find("LOWER(username) LIKE ?1 OR LOWER(name) LIKE ?1 ORDER BY createdAt DESC",
+                "%" + query.toLowerCase() + "%")
+                .range(offset, offset + limit - 1)
+                .list();
+    }
+
+    @Override
+    public long countSearch(String query) {
+        return count("LOWER(username) LIKE ?1 OR LOWER(name) LIKE ?1",
+                "%" + query.toLowerCase() + "%");
+    }
+
+    @Override
+    public List<User> findRecent(int offset, int limit) {
+        return find("ORDER BY createdAt DESC")
+                .range(offset, offset + limit - 1)
+                .list();
+    }
+
+    @Override
+    public long countAll() {
+        return count();
+    }
+
+    @Override
     public User save(User user) {
         persist(user);
         return user;

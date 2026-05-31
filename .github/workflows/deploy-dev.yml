@@ -1,17 +1,13 @@
 # Deploy to dev
 #
 # Strategy:
-#   1. Build backend Docker image with BuildKit + GHA cache, push to GHCR.
-#   2. Build frontend, upload as artifact.
-#   3. Deploy job pulls frontend artifact, copies it + docker-compose to the
-#      server via Tailscale-protected SSH, then triggers the server to pull
-#      the new backend image straight from GHCR (no big SCP transfer).
+#   1. detect-changes: find which directories changed (backend / frontend / admin-frontend).
+#   2. Build only what changed — backend Docker image, main frontend, or admin frontend.
+#   3. deploy: conditional steps per component; only what was built gets deployed.
 #
-# Why this is fast:
-#   - Backend Maven deps and Docker layers are cached across runs (GHA cache).
-#   - Image transfer goes over GitHub's CDN (server <-> GHCR), not through
-#     the Tailscale relay that previously bottlenecked SCP at ~500KB/s.
-#   - Tailscale stays in the picture only for SSH/SCP of small files.
+# Why skip unchanged components:
+#   - Backend image rebuild takes ~8 min; skipping it on pure frontend changes saves a full pipeline.
+#   - dorny/paths-filter compares the push range (before..after) so the check is cheap and accurate.
 name: Deploy to dev
 
 on:
@@ -28,7 +24,28 @@ env:
   IMAGE_TAG: dev
 
 jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            admin:
+              - 'admin-frontend/**'
+
   build-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -59,13 +76,14 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend-dev
 
   build-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
@@ -88,8 +106,49 @@ jobs:
             frontend/package-lock.json
           retention-days: 1
 
+  build-admin:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: admin-frontend/pnpm-lock.yaml
+
+      - name: Build
+        working-directory: admin-frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm run build
+          # Pre-install prod deps with pnpm (hoisted linker = flat node_modules compatible
+          # with any Node server). No npm used — npm has a bug with --package-lock-only
+          # and --omit=dev on this runner that causes "Cannot read properties of null".
+          staging="${GITHUB_WORKSPACE}/admin-staging"
+          mkdir -p "$staging"
+          cp package.json pnpm-lock.yaml "$staging/"
+          cp -r build "$staging/"
+          cd "$staging"
+          pnpm install --prod --frozen-lockfile --node-linker=hoisted --ignore-scripts
+          rm pnpm-lock.yaml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admin-build
+          path: admin-staging/
+          retention-days: 1
+
   deploy:
-    needs: [build-backend, build-frontend]
+    needs: [detect-changes, build-backend, build-frontend, build-admin]
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (needs.build-backend.result == 'success' || needs.build-frontend.result == 'success' || needs.build-admin.result == 'success') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -98,17 +157,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend-build/
-
       - name: Connect to Tailscale VPN
         uses: tailscale/github-action@v2
         with:
           authKey: ${{ secrets.TAILSCALE_AUTHKEY }}
 
-      - name: Copy docker-compose
+      # ─── Backend ─────────────────────────────────────────────────────────────
+      - name: Copy docker-compose (backend)
+        if: needs.detect-changes.outputs.backend == 'true'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -120,20 +176,8 @@ jobs:
           strip_components: 1
           overwrite: true
 
-      - name: Copy frontend build
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT }}
-          source: "frontend-build/"
-          target: "/opt/critiqal/dev/frontend/"
-          strip_components: 1
-          overwrite: true
-          rm: true
-
-      - name: Deploy on server (pull image, restart, healthcheck)
+      - name: Deploy backend on server
+        if: needs.detect-changes.outputs.backend == 'true'
         uses: appleboy/ssh-action@v1.0.3
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -148,29 +192,95 @@ jobs:
           command_timeout: 10m
           script: |
             set -euo pipefail
-            echo "Deploying dev"
-
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-
             cd /opt/critiqal/dev/backend
             export BACKEND_IMAGE
             docker compose -f docker-compose.dev.yml pull backend
             docker compose -f docker-compose.dev.yml up -d --remove-orphans
-
             docker logout ghcr.io >/dev/null 2>&1 || true
-
-            echo "Waiting for backend"
             for i in $(seq 1 30); do
               curl -sf http://localhost:8083/health >/dev/null 2>&1 && echo "Backend ready" && break
               [ "$i" -eq 30 ] && docker compose -f docker-compose.dev.yml logs --tail=30 backend && exit 1
               sleep 2
             done
+            docker image prune -f >/dev/null 2>&1 || true
 
+      # ─── Main Frontend ────────────────────────────────────────────────────────
+      - name: Download frontend artifact
+        if: needs.detect-changes.outputs.frontend == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-build/
+
+      - name: Copy frontend build
+        if: needs.detect-changes.outputs.frontend == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "frontend-build/"
+          target: "/opt/critiqal/dev/frontend/"
+          strip_components: 1
+          overwrite: true
+          rm: true
+
+      - name: Deploy frontend on server
+        if: needs.detect-changes.outputs.frontend == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
             cd /opt/critiqal/dev/frontend
             npm ci --omit=dev --ignore-scripts --prefer-offline --no-audit --fund=false --silent
             pm2 delete critiqal-dev 2>/dev/null || true
             PORT=3001 pm2 start build/index.js --name critiqal-dev --update-env
             pm2 save
 
-            docker image prune -f >/dev/null 2>&1 || true
-            echo "Dev deploy complete"
+      # ─── Admin Frontend ───────────────────────────────────────────────────────
+      - name: Download admin artifact
+        if: needs.detect-changes.outputs.admin == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-build
+          path: admin-build/
+
+      - name: Copy admin build
+        if: needs.detect-changes.outputs.admin == 'true'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          source: "admin-build/"
+          target: "/opt/critiqal/dev/admin-frontend/"
+          strip_components: 1
+          overwrite: true
+          rm: true
+
+      - name: Deploy admin on server
+        if: needs.detect-changes.outputs.admin == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd /opt/critiqal/dev/admin-frontend
+            pm2 delete critiqal-admin-dev 2>/dev/null || true
+            PORT=3003 pm2 start build/index.js --name critiqal-admin-dev --update-env
+            pm2 save
+
+      - name: Dev deploy complete
+        run: echo "Done — $(date -u)"

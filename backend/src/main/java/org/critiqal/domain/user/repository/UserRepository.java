@@ -21,6 +21,15 @@ public interface UserRepository {
 
     List<User> search(String query);
 
+    // Paged admin search. Blank query browses recent users.
+    List<User> searchPaged(String query, int offset, int limit);
+
+    long countSearch(String query);
+
+    List<User> findRecent(int offset, int limit);
+
+    long countAll();
+
     User save(User user);
 
     int clearExpiredPendingEmails();

@@ -2,7 +2,6 @@
 	import { fade, slide } from 'svelte/transition';
 	import { apiClient } from '$lib/api/client';
 	import { API } from '$lib/api/endpoints';
-	import { getTelegramWebApp } from '$lib/telegram';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { closeMobileComments, mobileComments } from '$lib/stores/mobile-comments.store';
 	import type { Comment, User } from '$lib/types';

@@ -18,7 +18,9 @@
 	import ProfileInlineStats from '$lib/components/profile/ProfileInlineStats.svelte';
 	import ProfileTabs from '$lib/components/profile/ProfileTabs.svelte';
 	import ProfileEmptyPosts from '$lib/components/profile/ProfileEmptyPosts.svelte';
-	import FollowersModal from '$lib/components/profile/FollowersModal.svelte';
+	// Lazy-loaded: only needed on first modal open.
+	let FollowersModal = $state<typeof import('$lib/components/profile/FollowersModal.svelte').default | null>(null);
+	import BadgePillRow from '$lib/components/badges/BadgePillRow.svelte';
 
 	let username = $state($page.params.username as string);
 	let profilePage = $state(new UseProfilePage($page.params.username as string));
@@ -59,7 +61,6 @@
 	);
 
 	onMount(() => {
-		profilePage.loadProfile();
 		if (isOwnProfile) stravaStore.load();
 	});
 
@@ -72,9 +73,9 @@
 		const next = $page.params.username as string;
 		if (next === username) return;
 		username = next;
+		// Constructor calls loadProfile() immediately, so no explicit call needed here.
 		profilePage = new UseProfilePage(next);
 		await tick();
-		profilePage.loadProfile();
 		if (authStore.user?.username === next) stravaStore.load();
 	});
 
@@ -84,6 +85,12 @@
 			// untrack: stravaStore.loadPublic reads internal $state synchronously,
 			// which would otherwise create a dep and loop on every strava update.
 			untrack(() => stravaStore.loadPublic(profileId));
+		}
+	});
+
+	$effect(() => {
+		if (modalOpen && !FollowersModal) {
+			import('$lib/components/profile/FollowersModal.svelte').then((m) => { FollowersModal = m.default; });
 		}
 	});
 </script>
@@ -212,6 +219,10 @@
 							<p class="bio">{profilePage.profile.bio}</p>
 						{/if}
 
+						{#if profilePage.profile.badges && profilePage.profile.badges.length > 0}
+							<BadgePillRow badges={profilePage.profile.badges} />
+						{/if}
+
 						<ProfileInlineStats
 							postsCount={profilePage.postsCount}
 							followersCount={profilePage.followersCount}
@@ -279,16 +290,18 @@
 	<aside class="col-right" aria-hidden="true"></aside>
 </div>
 
-<FollowersModal
-	open={modalOpen}
-	tab={modalTab}
-	followersList={profilePage.followersList}
-	followingList={profilePage.followingList}
-	loading={profilePage.listsLoading}
-	onClose={() => {
-		modalOpen = false;
-	}}
-/>
+{#if FollowersModal}
+	<FollowersModal
+		open={modalOpen}
+		tab={modalTab}
+		followersList={profilePage.followersList}
+		followingList={profilePage.followingList}
+		loading={profilePage.listsLoading}
+		onClose={() => {
+			modalOpen = false;
+		}}
+	/>
+{/if}
 
 <style>
 	.page-layout {
