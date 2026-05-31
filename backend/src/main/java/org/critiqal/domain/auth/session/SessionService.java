@@ -14,6 +14,6 @@ public interface SessionService {
     void destroy(String sessionId);
 
     boolean revoke(UUID userId, UUID authSessionId);
-
+    void revokeAll(UUID userId);
     List<AuthSession> getSessions(UUID userId);
 }

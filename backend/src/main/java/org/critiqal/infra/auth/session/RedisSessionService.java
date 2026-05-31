@@ -105,6 +105,12 @@ public class RedisSessionService implements SessionService {
     }
 
     @Override
+    public void revokeAll(UUID userId) {
+        auditRepo.findActiveByUserId(userId)
+                .forEach(session -> destroyBySessionHash(session.sessionIdHash));
+    }
+
+    @Override
     public List<AuthSession> getSessions(UUID userId) {
         return auditRepo.findActiveByUserId(userId);
     }

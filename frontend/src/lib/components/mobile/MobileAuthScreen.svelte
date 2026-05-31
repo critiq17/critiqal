@@ -8,11 +8,14 @@
 	import {
 		ApiError,
 		isTwoFactorChallenge,
+		isBanResponse,
 		type LoginRequest,
 		type RegisterRequest,
-		type TwoFactorMethod
+		type TwoFactorMethod,
+		type BanInfo,
 	} from '$lib/types';
 	import { t } from '$lib/i18n';
+	import BannedScreen from '$lib/components/BannedScreen.svelte';
 
 	type AuthMode = 'login' | 'register';
 
@@ -34,6 +37,7 @@
 	let loading = $state(false);
 	let passwordTouched = $state(false);
 	let shakeKey = $state(0);
+	let banInfo = $state<BanInfo | null>(null);
 
 	const hasError = $derived(error.length > 0);
 	const isSubmitDisabled = $derived(
@@ -153,6 +157,10 @@
 
 			getTelegramWebApp()?.HapticFeedback.notificationOccurred('success');
 		} catch (err: unknown) {
+			if (err instanceof ApiError && err.status === 403 && isBanResponse(err.body)) {
+				banInfo = err.body;
+				return;
+			}
 			bumpError(mapError(err));
 		} finally {
 			loading = false;
@@ -176,6 +184,9 @@
 	{/if}
 	<div class="auth-shell">
 		<div class="auth-card glass glass-strong" aria-label={activeMode === 'login' ? t('auth.login.title') : t('auth.register.title')}>
+			{#if banInfo}
+				<BannedScreen reason={banInfo.reason} expiresAt={banInfo.expiresAt} />
+			{:else}
 			<div class="card-header">
 				<span class="logo-text">critiqal</span>
 				<p class="subtitle">
@@ -329,6 +340,7 @@
 						</button>
 					{/if}
 				</p>
+			{/if}
 			{/if}
 		</div>
 	</div>

@@ -11,6 +11,7 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.vertx.ext.web.RoutingContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.critiqal.domain.auth.session.SessionService;
+import org.critiqal.infra.auth.ban.BanCache;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.Set;
@@ -19,12 +20,15 @@ import java.util.Set;
 public class SessionAuthMechanism implements HttpAuthenticationMechanism {
 
     private final SessionService sessions;
+    private final BanCache banCache;
     private final String cookieName;
 
     public SessionAuthMechanism(
             SessionService sessions,
+            BanCache banCache,
             @ConfigProperty(name = "session.cookie.name") String cookieName) {
         this.sessions = sessions;
+        this.banCache = banCache;
         this.cookieName = SessionFactoryCookie.normalizeName(cookieName);
     }
 
@@ -43,6 +47,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
         return Uni.createFrom().item(() -> sessions.resolve(sid))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .map(opt -> opt
+                        .filter(userId -> isBanExempt(context) || !banCache.isBanned(userId))
                         .map(userId -> (SecurityIdentity) QuarkusSecurityIdentity.builder()
                                 .setPrincipal(userId::toString)
                                 .addRole("USER")
@@ -78,5 +83,10 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
     private boolean isAdminPath(RoutingContext context) {
         var path = context.normalizedPath();
         return path != null && (path.equals("/api/admin") || path.startsWith("/api/admin/"));
+    }
+
+    private boolean isBanExempt(RoutingContext ctx) {
+        var path = ctx.normalizedPath();
+        return "/api/ban-status".equals(path);
     }
 }

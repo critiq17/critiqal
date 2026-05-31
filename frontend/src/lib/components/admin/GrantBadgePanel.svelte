@@ -18,6 +18,9 @@
   // Local copy so we can refetch and reflect grant/revoke immediately.
   let current = $state<AdminUser>(user);
   let pending = $state<BadgeCode | null>(null);
+  let banReason = $state('');
+  let banDays = $state<number | undefined>(undefined);
+  let banPending = $state(false);
 
   // Keep the panel in sync if a different user is selected.
   $effect(() => {
@@ -30,6 +33,36 @@
     const fresh = await adminService.getUser(current.id);
     current = fresh;
     onchanged(fresh);
+  }
+
+  async function ban(): Promise<void> {
+    if (banPending || !banReason.trim()) return;
+    banPending = true;
+    try {
+      await adminService.banUser(current.id, banReason.trim(), banDays);
+      onfeedback(`Banned @${current.username}`, 'success');
+      banReason = '';
+      banDays = undefined;
+      await refresh();
+    } catch {
+      onfeedback(`Could not ban @${current.username}`, 'error');
+    } finally {
+      banPending = false;
+    }
+  }
+
+  async function unban(): Promise<void> {
+    if (banPending) return;
+    banPending = true;
+    try {
+      await adminService.unbanUser(current.id);
+      onfeedback(`Unbanned @${current.username}`, 'success');
+      await refresh();
+    } catch {
+      onfeedback(`Could not unban @${current.username}`, 'error');
+    } finally {
+      banPending = false;
+    }
   }
 
   async function toggle(badge: AdminBadge): Promise<void> {
@@ -64,6 +97,45 @@
     </div>
     <button class="close" onclick={onclose} aria-label="Close panel">✕</button>
   </header>
+
+  <p class="section-label">Moderation</p>
+  {#if current.banned}
+    <div class="ban-status">
+      <span class="ban-status-text">
+        Banned{current.bannedUntil ? ` until ${new Date(current.bannedUntil).toLocaleDateString()}` : ' permanently'}
+      </span>
+      <button class="ban-action unban" disabled={banPending} onclick={unban}>
+        {banPending ? '…' : 'Unban'}
+      </button>
+    </div>
+  {:else}
+    <div class="ban-form">
+      <textarea
+        class="ban-reason"
+        placeholder="Reason for ban…"
+        rows={3}
+        bind:value={banReason}
+        disabled={banPending}
+      ></textarea>
+      <div class="ban-row">
+        <input
+          class="ban-days"
+          type="number"
+          min={1}
+          placeholder="Days (leave empty = permanent)"
+          bind:value={banDays}
+          disabled={banPending}
+        />
+        <button
+          class="ban-action ban"
+          disabled={banPending || !banReason.trim()}
+          onclick={ban}
+        >
+          {banPending ? '…' : 'Ban'}
+        </button>
+      </div>
+    </div>
+  {/if}
 
   <p class="section-label">Badges</p>
   <ul class="badge-grid">
@@ -153,6 +225,97 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);
+  }
+  .ban-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: color-mix(in srgb, var(--color-error, #e53e3e) 8%, var(--color-bg));
+    border: 1px solid color-mix(in srgb, var(--color-error, #e53e3e) 35%, var(--color-border));
+    border-radius: var(--radius-md);
+  }
+  .ban-status-text {
+    font-size: 0.875rem;
+    color: var(--color-error, #e53e3e);
+    font-weight: 500;
+  }
+  .ban-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .ban-reason {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+  .ban-reason:focus {
+    outline: none;
+    border-color: var(--color-error, #e53e3e);
+  }
+  .ban-reason:disabled {
+    opacity: 0.6;
+  }
+  .ban-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .ban-days {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: 0.875rem;
+    min-width: 0;
+  }
+  .ban-days:focus {
+    outline: none;
+    border-color: var(--color-error, #e53e3e);
+  }
+  .ban-days:disabled {
+    opacity: 0.6;
+  }
+  .ban-action {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--radius-md);
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s ease;
+  }
+  .ban-action:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .ban-action.ban {
+    background: var(--color-error, #e53e3e);
+    color: #fff;
+  }
+  .ban-action.ban:hover:not(:disabled) {
+    opacity: 0.85;
+  }
+  .ban-action.unban {
+    background: var(--color-bg);
+    border: 1px solid var(--color-error, #e53e3e);
+    color: var(--color-error, #e53e3e);
+  }
+  .ban-action.unban:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-error, #e53e3e) 10%, var(--color-bg));
   }
   .badge-grid {
     list-style: none;

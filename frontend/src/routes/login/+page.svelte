@@ -5,17 +5,19 @@
 	import { authService } from '$lib/services/auth.service';
 	import { recoveryService } from '$lib/services/recovery.service';
 	import { emailVerificationService } from '$lib/services/email-verification.service';
-	import { ApiError, isTwoFactorChallenge } from '$lib/types';
-	import type { User } from '$lib/types';
+	import { ApiError, isTwoFactorChallenge, isBanResponse } from '$lib/types';
+	import type { User, BanInfo } from '$lib/types';
 	import { verifyEmailStore } from '$lib/stores/verify-email.store.svelte';
 	import { t } from '$lib/i18n';
 	import StarfieldBackdrop from '$lib/ui/StarfieldBackdrop.svelte';
+	import BannedScreen from '$lib/components/BannedScreen.svelte';
 
 	type AuthMode = 'credentials' | 'totp' | 'email' | 'recovery';
 	type Step = 'auth' | 'onboarding';
 
 	let step = $state<Step>('auth');
 	let mode = $state<AuthMode>('credentials');
+	let banInfo = $state<BanInfo | null>(null);
 
 	// ── Auth ─────────────────────────────────────────────────────────────────
 	let username = $state('');
@@ -101,6 +103,10 @@
 			await authStore.login(result);
 			await routeAfterLogin(result);
 		} catch (err: unknown) {
+			if (err instanceof ApiError && err.status === 403 && isBanResponse(err.body)) {
+				banInfo = err.body;
+				return;
+			}
 			error = mapError(err);
 			shakeKey++;
 		} finally {
@@ -138,7 +144,12 @@
 
 <div class="page">
 	<StarfieldBackdrop />
-	{#if step === 'auth'}
+
+	{#if banInfo}
+		<div class="card glass glass-strong" in:fly={{ y: 10, duration: 220 }}>
+			<BannedScreen reason={banInfo.reason} expiresAt={banInfo.expiresAt} />
+		</div>
+	{:else if step === 'auth'}
 		<div class="card glass glass-strong" aria-label={t('auth.login.title')} in:fly={{ y: 10, duration: 220 }}>
 			<div class="card-header">
 				<span class="logo">critiqal</span>

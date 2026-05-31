@@ -36,6 +36,10 @@ public class InMemorySessionService implements SessionService {
     }
 
     @Override
+    public void revokeAll(UUID userId) {
+    }
+
+    @Override
     public List<AuthSession> getSessions(UUID userId) {
         return List.of();
     }
