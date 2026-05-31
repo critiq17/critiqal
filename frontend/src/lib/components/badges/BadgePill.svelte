@@ -238,7 +238,7 @@
 	.badge-popover {
 		position: fixed;
 		z-index: 1000;
-		/* base transform set by JS (top/left + translateX(-50%)); transitions override it */
+		transform: translateX(-50%);
 		width: min(288px, calc(100vw - 24px));
 		box-sizing: border-box;
 		padding: 14px;

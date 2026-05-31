@@ -23,6 +23,8 @@ export interface AdminUser {
 	name: string | null;
 	avatarUrl: string | null;
 	badges: UserBadge[];
+	banned?: boolean;
+	bannedUntil?: string | null;
 }
 
 export interface AdminBadge {
@@ -45,6 +47,15 @@ export interface AdminRevokeResult {
 	revoked: string;
 	user: string;
 	removed: boolean;
+}
+
+export interface AdminBanResult {
+	banned: string;
+}
+
+export interface AdminUnbanResult {
+	unbanned: string;
+	lifted: boolean;
 }
 
 export interface PageResponse<T> {

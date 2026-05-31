@@ -3,9 +3,9 @@ package org.critiqal.infra.auth.ban;
 import io.quarkus.redis.datasource.RedisDataSource;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
 import org.critiqal.domain.ban.UserBan;
 import org.critiqal.domain.ban.repository.UserBanRepository;
-import org.critiqal.domain.ban.service.BanService;
 
 import java.util.UUID;
 
@@ -23,6 +23,7 @@ public class BanCache {
         this.banRepo = banRepo;
     }
 
+    @Transactional
     public boolean isBanned(UUID userId) {
         var key = PREFIX + userId;
         var cached = redis.get(key);

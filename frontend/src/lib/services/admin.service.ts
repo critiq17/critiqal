@@ -6,6 +6,8 @@ import type {
   AdminMe,
   AdminGrantResult,
   AdminRevokeResult,
+  AdminBanResult,
+  AdminUnbanResult,
   PageResponse,
   Post,
   TwoFactorChallenge,
@@ -56,5 +58,17 @@ export const adminService = {
 
   revokeBadge(userId: string, code: string): Promise<AdminRevokeResult> {
     return apiClient.delete<AdminRevokeResult>(API.admin.revokeBadge(userId, code));
+  },
+
+  banUser(userId: string, reason: string, days?: number): Promise<AdminBanResult> {
+    return apiClient.post<AdminBanResult>(
+      API.admin.banUser(userId),
+      { reason, days: days?.toString() ?? '' },
+      SKIP
+    );
+  },
+
+  unbanUser(userId: string): Promise<AdminUnbanResult> {
+    return apiClient.delete<AdminUnbanResult>(API.admin.unbanUser(userId));
   },
 };

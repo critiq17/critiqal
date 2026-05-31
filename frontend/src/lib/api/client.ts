@@ -119,7 +119,9 @@ async function parseResponse<T>(
     if (response.status === 403 && isEmailVerificationError(message)) {
       onEmailVerificationRequired?.();
     }
-    throw new ApiError(response.status, message);
+    const body =
+      typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : undefined;
+    throw new ApiError(response.status, message, body);
   }
 
   return data as T;

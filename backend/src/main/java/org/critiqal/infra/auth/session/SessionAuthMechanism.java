@@ -47,7 +47,7 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
         return Uni.createFrom().item(() -> sessions.resolve(sid))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .map(opt -> opt
-                        .filter(userId -> !banCache.isBanned(userId))
+                        .filter(userId -> isBanExempt(context) || !banCache.isBanned(userId))
                         .map(userId -> (SecurityIdentity) QuarkusSecurityIdentity.builder()
                                 .setPrincipal(userId::toString)
                                 .addRole("USER")
@@ -83,5 +83,10 @@ public class SessionAuthMechanism implements HttpAuthenticationMechanism {
     private boolean isAdminPath(RoutingContext context) {
         var path = context.normalizedPath();
         return path != null && (path.equals("/api/admin") || path.startsWith("/api/admin/"));
+    }
+
+    private boolean isBanExempt(RoutingContext ctx) {
+        var path = ctx.normalizedPath();
+        return "/api/ban-status".equals(path);
     }
 }

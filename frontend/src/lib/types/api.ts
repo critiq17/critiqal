@@ -6,13 +6,25 @@ export interface PageResponse<T> {
 	hasNext: boolean;
 }
 
+export interface BanInfo {
+	banned: true;
+	reason: string;
+	expiresAt: string; // ISO datetime string, or "" for permanent ban
+}
+
+export function isBanResponse(body: Record<string, unknown> | undefined): body is BanInfo {
+	return body?.banned === true && typeof body.reason === 'string';
+}
+
 export class ApiError extends Error {
 	readonly status: number;
+	readonly body?: Record<string, unknown>;
 
-	constructor(status: number, message: string) {
+	constructor(status: number, message: string, body?: Record<string, unknown>) {
 		super(message);
 		this.name = 'ApiError';
 		this.status = status;
+		this.body = body;
 	}
 
 	get isUnauthorized(): boolean {
