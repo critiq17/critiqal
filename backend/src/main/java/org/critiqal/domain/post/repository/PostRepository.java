@@ -35,4 +35,11 @@ public interface PostRepository {
     Post save(Post post);
 
     void incrementViews(UUID postId);
+
+    // Like/Comment counters
+    void incrementLikeCount(UUID postId);
+    void decrementLikeCount(UUID postId);
+    void incrementCommentCount(UUID postId, int delta);
+    void decrementCommentCount(UUID postId, int delta);
+    void recount(UUID postId);
 }
