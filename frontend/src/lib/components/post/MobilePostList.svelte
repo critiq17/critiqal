@@ -2,12 +2,13 @@
 	import type { Snippet } from 'svelte';
 	import type { Post } from '$lib/types';
 	import PostComponent from './Post.svelte';
+	import { t } from '$lib/i18n';
 
 	interface Props {
 		posts: Post[];
 		loading?: boolean;
 		error?: string | null;
-		onOpenComments: (postId: string) => void;
+		onOpenComments: (post: Post) => void;
 		onAuthorClick?: (username: string) => void;
 		onDeleted?: (id: string) => void;
 		onRetry?: () => void;
@@ -30,11 +31,11 @@
 	<div class="state-box" role="alert">
 		<p class="state-text state-text--err">{error}</p>
 		{#if onRetry}
-			<button class="retry-btn" type="button" onclick={onRetry}>Try again</button>
+			<button class="retry-btn" type="button" onclick={onRetry}>{t('common.retry')}</button>
 		{/if}
 	</div>
 {:else if loading && posts.length === 0}
-	<div class="skeleton-list" aria-busy="true" aria-label="Loading posts">
+	<div class="skeleton-list" aria-busy="true" aria-label={t('common.loading')}>
 		{#each [96, 72, 110] as h (h)}
 			<div class="skeleton-post" style="--h:{h}px"></div>
 		{/each}
@@ -44,7 +45,7 @@
 		{@render empty()}
 	{:else}
 		<div class="state-box">
-			<p class="state-text">No posts yet</p>
+			<p class="state-text">{t('post.empty')}</p>
 		</div>
 	{/if}
 {:else}

@@ -11,6 +11,7 @@
 	import { UseProfile } from '$lib/features/profile/useProfile.svelte';
 	import { elasticDrag } from '$lib/actions/elasticDrag';
 	import { MobilePostList } from '$lib/components/post';
+	import type { Post } from '$lib/types';
 	import ProfileEditOverlay from '$lib/components/profile/ProfileEditOverlay.svelte';
 	import ProfileStravaWidget from '$lib/components/profile/ProfileStravaWidget.svelte';
 	import ProfileShareButton from '$lib/components/profile/ProfileShareButton.svelte';
@@ -56,8 +57,8 @@
 		if (u) navStack.pushConnections(u, tab);
 	}
 
-	function openComments(postId: string): void {
-		openMobileComments(postId);
+	function openComments(post: Post): void {
+		openMobileComments(post);
 	}
 
 	async function handleAvatarChange(e: Event): Promise<void> {

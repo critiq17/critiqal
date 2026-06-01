@@ -5,6 +5,7 @@
 	import { getTelegramWebApp } from '$lib/telegram';
 	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { Post as PostComponent } from '$lib/components/post';
+	import type { Post } from '$lib/types';
 	import StarDraw from '$lib/ui/StarDraw.svelte';
 	import { t } from '$lib/i18n';
 
@@ -22,7 +23,9 @@
 	let isRefreshing = $state(false);
 
 	// Brand title in the transparent TG header strip frosts in on scroll.
-	// Progress 0..1 (over the first 80px of scroll) drives a smooth glass fade.
+	// Progress 0..1 over the first 90px of scroll, eased (ease-out quad) so the
+	// glass + brand bloom in softly at the start and settle gently — drives the
+	// full-height frosted header and the brand fade/rise.
 	let headerProgress = $state(0);
 	let headerTicking = false;
 	function onContainerScroll(): void {
@@ -30,13 +33,14 @@
 		headerTicking = true;
 		requestAnimationFrame(() => {
 			const top = containerEl?.scrollTop ?? 0;
-			headerProgress = Math.min(1, Math.max(0, top / 80));
+			const raw = Math.min(1, Math.max(0, top / 90));
+			headerProgress = 1 - (1 - raw) * (1 - raw);
 			headerTicking = false;
 		});
 	}
 
-	function openComments(postId: string): void {
-		openMobileComments(postId);
+	function openComments(post: Post): void {
+		openMobileComments(post);
 	}
 
 	async function fetchFeed(options: { force?: boolean } = {}): Promise<void> {
@@ -179,7 +183,7 @@
 				{post}
 				variant="mobile"
 				onAuthorClick={(username) => openProfile(username)}
-				onOpenComments={(postId) => openComments(postId)}
+				onOpenComments={openComments}
 				onDeleted={(id) => mobileFeedStore.removePost(id)}
 			/>
 		{/each}
@@ -199,25 +203,32 @@
 
 
 <style>
-	/* ── Header brand title — lives in the transparent TG header strip ─────────── */
-	/* top = device status bar height; height = TG header bar height (~44px).
-	   pointer-events: none so TG's native Close / action buttons remain tappable.
-	   Background, blur and divider all interpolate against --header-progress
-	   instead of a binary scrolled class — no resize jump on scroll. */
+	/* ── Header brand title — full-height frosted glass over the whole top ──────── */
+	/* Covers the status bar + the native TG header band (and bleeds ~10px into the
+	   content below), like the profile header — not just a thin 44px strip. The
+	   brand sits centred in the native-header band (between the paddings). All of
+	   background, blur, divider and the brand itself interpolate against
+	   --header-progress, so the glass and title bloom in smoothly on scroll.
+	   pointer-events: none so TG's native Close / action buttons stay tappable. */
 	.feed-header-title {
 		position: fixed;
-		top: env(safe-area-inset-top, 0px);
+		top: 0;
 		left: 0;
 		right: 0;
-		height: 44px;
+		box-sizing: border-box;
+		padding-top: env(safe-area-inset-top, 0px);
+		padding-bottom: 10px;
+		height: calc(env(safe-area-inset-top, 0px) + 54px);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		pointer-events: none;
 		z-index: 5;
-		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
-		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
-		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		/* Noticeably more transparent (~55% fill) — leans on the blur for
+		   legibility so the feed glows softly through the glass. */
+		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 55%), transparent);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * 20px)) saturate(180%);
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 20px)) saturate(180%);
 	}
 
 	.feed-header-title::after {
@@ -232,12 +243,23 @@
 		pointer-events: none;
 	}
 
+	/* Brand fades in and rises 2px as the glass forms — a soft, premium reveal
+	   rather than a title that's just always there. */
 	.feed-header-brand {
 		font-size: 17px;
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		color: var(--tg-text, #f0f0f0);
 		text-transform: lowercase;
+		opacity: var(--header-progress, 0);
+		transform: translateY(calc((1 - var(--header-progress, 0)) * 2px));
+		will-change: opacity, transform;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.feed-header-brand {
+			transform: none;
+		}
 	}
 
 	.feed-container {

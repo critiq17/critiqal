@@ -9,12 +9,26 @@
 		onQueryChange: (q: string) => void;
 		onTabChange: (tab: ExploreTab) => void;
 		onInputBind: (el: HTMLInputElement) => void;
+		// Reports the bar's rendered height so the scroller can pad its top by
+		// exactly this much — the bar is fixed (composited) instead of sticky,
+		// which is what keeps the mini-app feed smooth under the blurred glass.
+		onHeightChange?: (height: number) => void;
 	}
 
-	let { query, activeTab, collapsed = false, onQueryChange, onTabChange, onInputBind }: Props = $props();
+	let { query, activeTab, collapsed = false, onQueryChange, onTabChange, onInputBind, onHeightChange }: Props = $props();
+
+	let barEl = $state<HTMLDivElement | null>(null);
+
+	$effect(() => {
+		const el = barEl;
+		if (!el || !onHeightChange) return;
+		const ro = new ResizeObserver(() => onHeightChange(el.offsetHeight));
+		ro.observe(el);
+		return () => ro.disconnect();
+	});
 </script>
 
-<div class="search-bar" class:collapsed>
+<div class="search-bar" class:collapsed bind:this={barEl}>
 	<!-- Glass pill with the same liquid stretch/inertia physics as the bottom menu -->
 	<div
 		class="search-pill glass glass-soft"
@@ -88,8 +102,14 @@
 	   bar owns the TG-header clearance so collapse can shrink it and tuck
 	   the pill up between the native Close / ⋯ buttons. */
 	.search-bar {
-		position: sticky;
+		/* Fixed (not sticky-in-scroller): a backdrop-filter on a sticky child
+		   forces Android/Telegram webviews onto the non-composited scroll path,
+		   which is exactly the jank here. Fixed mirrors the smooth feed header;
+		   the scroller pads its top by this bar's measured height. */
+		position: fixed;
 		top: 0;
+		left: 0;
+		right: 0;
 		padding: var(--tg-top-clearance) 16px 0;
 		z-index: 10;
 		background-color: var(--glass-bg-soft, rgba(20, 20, 20, 0.5));
@@ -149,7 +169,6 @@
 		margin: 0 auto 12px;
 		padding: 0 12px;
 		touch-action: none;
-		will-change: transform;
 		transition:
 			box-shadow 0.2s ease,
 			max-width 0.34s cubic-bezier(0.4, 0, 0.2, 1),
