@@ -33,7 +33,7 @@
 		// (no transition) so the push effect can slide it in without a flash
 		// of it appearing at rest first.
 		node.style.transition = 'none';
-		node.style.transform = `translateX(${sw()}px)`;
+		node.style.transform = `translate3d(${sw()}px, 0, 0)`;
 		return { destroy: () => els.delete(key) };
 	}
 
@@ -41,7 +41,9 @@
 		const el = els.get(key);
 		if (!el) return;
 		el.style.transition = ms > 0 ? `transform ${ms}ms cubic-bezier(0.32, 0.72, 0, 1)` : 'none';
-		el.style.transform = `translateX(${x}px)`;
+		// translate3d forces a compositor layer → the slide runs on the GPU,
+		// not the main thread, which is what keeps it jitter-free under load.
+		el.style.transform = `translate3d(${x}px, 0, 0)`;
 	}
 
 	const sw = (): number => window.innerWidth;
@@ -126,6 +128,20 @@
 	let vel = 0;
 	let curX = 0;
 	let dragKeys: { top: number; below: number | null } | null = null;
+	let moveRaf = 0;
+
+	// DOM writes are coalesced into a single rAF per frame — touchmove can fire
+	// faster than the display refresh, and writing transforms on every event is
+	// what makes a drag feel like it stutters. One write per frame = buttery.
+	function applyDrag(): void {
+		moveRaf = 0;
+		if (!dragKeys) return;
+		setX(dragKeys.top, curX, 0);
+		if (dragKeys.below != null) {
+			const w = sw();
+			setX(dragKeys.below, -w * PUSH * (1 - Math.min(1, curX / w)), 0);
+		}
+	}
 
 	function onTouchStart(e: TouchEvent): void {
 		if (animating || navStack.depth === 0) return;
@@ -161,15 +177,16 @@
 		lastX = t.clientX;
 		lastT = now;
 		curX = dx;
-		setX(dragKeys.top, dx, 0);
-		if (dragKeys.below != null) {
-			const w = sw();
-			// below travels from -PUSH*w (hidden) to 0 (revealed) as we drag.
-			setX(dragKeys.below, -w * PUSH * (1 - Math.min(1, dx / w)), 0);
-		}
+		// below travels from -PUSH*w (hidden) to 0 (revealed) as we drag — both
+		// layers are repositioned together in the next frame (see applyDrag).
+		if (!moveRaf) moveRaf = requestAnimationFrame(applyDrag);
 	}
 
 	function onTouchEnd(): void {
+		if (moveRaf) {
+			cancelAnimationFrame(moveRaf);
+			moveRaf = 0;
+		}
 		if (!dragKeys) return;
 		const keys = dragKeys;
 		dragKeys = null;
@@ -222,7 +239,7 @@
 		z-index: 200;
 		background: var(--tg-bg, var(--color-bg, #0f0f0f));
 		will-change: transform;
-		transform: translateX(0);
+		transform: translate3d(0, 0, 0);
 		display: flex;
 		flex-direction: column;
 		overflow: hidden;

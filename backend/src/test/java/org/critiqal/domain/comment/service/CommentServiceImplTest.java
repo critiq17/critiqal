@@ -3,6 +3,7 @@ package org.critiqal.domain.comment.service;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.comment.repository.CommentRepository;
 import org.critiqal.domain.post.Post;
+import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.DomainException;
@@ -31,12 +32,13 @@ class CommentServiceImplTest {
     private final CommentRepository commentRepo = mock(CommentRepository.class);
     private final PostService postService = mock(PostService.class);
     private final UserService userService = mock(UserService.class);
+    private final PostRepository postRepo = mock(PostRepository.class);
 
     private CommentServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CommentServiceImpl(commentRepo, postService, userService);
+        service = new CommentServiceImpl(commentRepo, postService, userService, postRepo);
     }
 
     @Test
@@ -60,6 +62,45 @@ class CommentServiceImplTest {
 
         assertSame(comments, service.getRootComments(uuid(8)));
         verify(commentRepo).findByRootPost(uuid(8));
+    }
+
+
+    @Test
+    void addComment_incrementsCommentCount() {
+        var author = user(4); var post = post(6, 10);
+        when(userService.getById(uuid(4))).thenReturn(author);
+        when(postService.getById(uuid(6))).thenReturn(post);
+        when(commentRepo.save(any(Comment.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.addComment(uuid(4), uuid(6), "Nice ride");
+
+        verify(postRepo).incrementCommentCount(uuid(6), 1);
+    }
+
+    @Test
+    void deleteComment_rootWithReplies_decrementsBySubtree() {
+        var target = comment(11, post(6, 10), 2);
+        when(postService.getById(uuid(6))).thenReturn(post(6, 10));
+        when(commentRepo.findByIdOptional(uuid(11))).thenReturn(Optional.of(target));
+        when(commentRepo.countReplies(uuid(11))).thenReturn(3L);
+
+        service.deleteComment(uuid(6), uuid(11), uuid(2));
+
+        verify(postRepo).decrementCommentCount(uuid(6), 4);
+    }
+
+    @Test
+    void deleteComment_reply_decrementsByOne() {
+        var post = post(6, 10);
+        var reply = comment(12, post, 2);
+        reply.parent = comment(11, post, 2);
+        when(postService.getById(uuid(6))).thenReturn(post);
+        when(commentRepo.findByIdOptional(uuid(12))).thenReturn(Optional.of(reply));
+
+        service.deleteComment(uuid(6), uuid(12), uuid(2));
+
+        verify(postRepo).decrementCommentCount(uuid(6), 1);
+        verify(commentRepo, never()).countReplies(any());
     }
 
     @Test

@@ -23,4 +23,6 @@ public interface CommentRepository {
     Comment save(Comment comment);
 
     void delete(Comment comment);
+
+    long countReplies(UUID parentId);
 }

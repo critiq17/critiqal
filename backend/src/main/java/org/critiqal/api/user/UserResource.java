@@ -182,7 +182,6 @@ public class UserResource {
 
         var ids = page.content().stream().map(Post::getId).toList();
 
-        Map<UUID, Long> counts = postLikeService.countByPostIds(ids);
         UUID userId = currentUser.idOrNull();
         Set<UUID> liked = userId != null
                 ? postLikeService.likedPostIds(userId, ids)
@@ -190,7 +189,7 @@ public class UserResource {
 
         return page.map(post -> PostDTO.from(
                 post,
-                counts.getOrDefault(post.id, 0L),
+                post.likeCount,
                 liked.contains(post.id)
         ));
     }

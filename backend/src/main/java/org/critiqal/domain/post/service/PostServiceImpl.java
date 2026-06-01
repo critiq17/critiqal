@@ -184,4 +184,11 @@ public class PostServiceImpl implements PostService {
     public void view(UUID postId) {
         postRepo.incrementViews(postId);
     }
+
+    @Override
+    @Transactional
+    public void recountPost(UUID postId) {
+        getById(postId);
+        postRepo.recount(postId);
+    }
 }

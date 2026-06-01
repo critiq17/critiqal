@@ -25,7 +25,7 @@
 		focused?: boolean;
 		onDeleted?: (id: string) => void;
 		onAuthorClick?: (username: string) => void;
-		onOpenComments?: (postId: string) => void;
+		onOpenComments?: (post: PostType) => void;
 	}
 
 	let {
@@ -48,7 +48,11 @@
 		post.likedByMe,
 		post.likeCount
 	);
-	const comments = new UseComments(postId);
+	// Keep the post's authoritative comment counter in sync with optimistic
+	// add/delete; the footer badge reads post.commentCount directly.
+	const comments = new UseComments(postId, (delta) => {
+		post.commentCount = Math.max(0, post.commentCount + delta);
+	});
 	const mutations = new UsePostMutations(postId, () => onDeleted?.(postId));
 
 	let showOptionsMenu = $state(false);
@@ -85,7 +89,7 @@
 		if (commentsInline) {
 			comments.toggle();
 		} else {
-			onOpenComments?.(post.id);
+			onOpenComments?.(post);
 		}
 	}
 
@@ -152,8 +156,6 @@
 		showOptionsMenu = !showOptionsMenu;
 	}
 
-	const commentCount = $derived(comments.loaded ? comments.comments.length : 0);
-
 	// First photo drives the soft colour halo behind a borderless post.
 	const ambientUrl = $derived(
 		post.photos && post.photos.length > 0
@@ -212,7 +214,7 @@
 				{post}
 				{like}
 				viewCount={post.viewCount}
-				{commentCount}
+				commentCount={post.commentCount}
 				commentsExpanded={comments.expanded}
 				oncommentstoggle={handleCommentsToggle}
 			/>

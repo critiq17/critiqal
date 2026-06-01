@@ -1,7 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fly } from 'svelte/transition';
-	import { isTelegramMiniApp, initTelegram, getTelegramWebApp } from '$lib/telegram';
+	import { isTelegramMiniApp, initTelegram, getTelegramWebApp, getStartParam } from '$lib/telegram';
+	import { parseStartParam, type DeepLinkTarget } from '$lib/deeplink';
+	import { postService } from '$lib/services';
+	import { openProfile } from '$lib/stores/profile-nav.store.svelte';
 	import { authStore } from '$lib/stores/auth.store.svelte';
 	import { mobileAuth } from '$lib/stores/mobile-auth.store.svelte';
 	import { tabStore } from '$lib/stores/mobile-tab.store.svelte';
@@ -77,6 +80,37 @@
 		closeCompose();
 		tabStore.active = 'feed';
 	}
+
+	// ── Deep link on launch (t.me/<bot>?startapp=<payload>) ─────────────────────
+	// A shared post/profile link lands here: once auth resolves we read the
+	// start_param once and open the post focus or push the profile overlay.
+	let deepLinkHandled = false;
+
+	async function openDeepLink(target: DeepLinkTarget): Promise<void> {
+		if (target.kind === 'user') {
+			openProfile(target.username);
+			return;
+		}
+		try {
+			const post = await postService.getById(target.id);
+			mobilePostFocus.open(post);
+		} catch {
+			// Post removed or unavailable — fail quietly, app opens to the feed.
+		}
+	}
+
+	$effect(() => {
+		if (deepLinkHandled || authStore.isLoading) return;
+		const target = parseStartParam(getStartParam());
+		if (!target) {
+			deepLinkHandled = true;
+			return;
+		}
+		// Profile/post views require a session — wait for login, then open once.
+		if (!authStore.isAuthenticated) return;
+		deepLinkHandled = true;
+		void openDeepLink(target);
+	});
 
 	// Reference to the content div that gets pushed behind the overlay stack.
 	let contentEl = $state<HTMLElement | null>(null);

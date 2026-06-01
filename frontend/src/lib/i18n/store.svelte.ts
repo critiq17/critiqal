@@ -1,19 +1,17 @@
 import { ru } from './locales/ru';
+import { uk } from './locales/uk';
+import { en } from './locales/en';
 import { DEFAULT_LOCALE, LOCALES, type Locale } from './types';
 import type { Dict } from './locales/ru';
 
 const STORAGE_KEY = 'critiqal:lang';
 
-// Only `ru` (DEFAULT_LOCALE) is loaded eagerly so the initial bundle stays lean.
-// `uk` and `en` are fetched on first use and cached here.
-const DICTS: Partial<Record<Locale, Dict>> = { ru };
-
-async function loadLocale(locale: Locale): Promise<Dict> {
-  if (DICTS[locale]) return DICTS[locale]!;
-  const mod = locale === 'uk' ? await import('./locales/uk') : await import('./locales/en');
-  DICTS[locale] = (mod as Record<string, Dict>)[locale];
-  return DICTS[locale]!;
-}
+// All three dictionaries are bundled eagerly. They're plain string maps (a few
+// KB each) and loading them up front is what makes the active locale correct on
+// the very first render — the previous lazy scheme left `dict` stuck on `ru`
+// whenever the stored locale (uk/en) hadn't been fetched yet, so the UI showed
+// Russian even though the switcher said otherwise.
+const DICTS: Record<Locale, Dict> = { ru, uk, en };
 
 function readStored(): Locale | null {
   if (typeof window === 'undefined') return null;
@@ -42,13 +40,11 @@ function pickInitial(): Locale {
   return readStored() ?? detectFromBrowser();
 }
 
-// Top-level $state — read synchronously by t() in any component.
-// Initialised at module load so the very first render already has the
-// right strings: no FOUC, no async, no flicker.
+// Top-level $state — read synchronously by t() in any component. `dict` is
+// always kept in lockstep with `current`, so there is never a window where the
+// locale and the strings disagree.
 let current = $state<Locale>(pickInitial());
-// Fall back to `ru` synchronously; if the stored locale is uk/en it will be
-// loaded asynchronously by setLocaleImmediate called shortly after boot.
-let dict = $state<Dict>(DICTS[current] ?? ru);
+let dict = $state<Dict>(DICTS[current]);
 let switching = $state<boolean>(false);
 
 function writeStored(value: Locale): void {
@@ -73,43 +69,27 @@ export const i18n = {
     return !switching;
   },
 
-  // Trigger a language switch with the star-burst overlay.
-  // The overlay component watches `switching` and renders accordingly.
-  // We flip the dict at the burst peak (~360ms in) so the user sees the new
-  // language under the closing star — no flash of the wrong language.
+  // Trigger a language switch with the star-burst overlay. The dict is flipped
+  // at the burst peak (~360 ms in) so the user sees the new language emerge
+  // from under the closing star — no flash of the wrong language.
   async setLocale(next: Locale): Promise<void> {
     if (next === current || switching) return;
     switching = true;
     writeStored(next);
 
-    // Pre-fetch the locale dict in parallel with the burst animation so it's
-    // ready by the time we flip at the peak (~360 ms in).
-    const nextDict = await Promise.all([
-      loadLocale(next),
-      new Promise<void>((r) => setTimeout(r, 360)),
-    ]).then(([d]) => d);
-
+    await new Promise((r) => setTimeout(r, 360));
     current = next;
-    dict = nextDict;
+    dict = DICTS[next];
 
     await new Promise((r) => setTimeout(r, 420));
     switching = false;
   },
 
-  // Synchronous variant used during boot when the overlay isn't mounted.
-  // If the locale hasn't been fetched yet, show `ru` for the current render
-  // and silently switch once the import resolves (imperceptible on first paint).
+  // Synchronous variant (no overlay) — used wherever an instant switch is wanted.
   setLocaleImmediate(next: Locale): void {
     if (next === current) return;
     writeStored(next);
-    if (DICTS[next]) {
-      current = next;
-      dict = DICTS[next]!;
-    } else {
-      loadLocale(next).then((d) => {
-        current = next;
-        dict = d;
-      });
-    }
+    current = next;
+    dict = DICTS[next];
   },
 };

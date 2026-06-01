@@ -16,6 +16,7 @@ public record PostDTO(
         List<PostPhotoDTO> photos,
         long viewCount,
         long likeCount,
+        long commentCount,
         boolean likedByMe,
         PostStatus status,
         Instant createdAt
@@ -37,6 +38,7 @@ public record PostDTO(
                 photos,
                 post.viewCount,
                 likeCount,
+                post.commentCount,
                 likedByMe,
                 post.status,
                 post.createdAt

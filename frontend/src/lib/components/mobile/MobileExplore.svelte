@@ -74,6 +74,10 @@
 	const TOP_ZONE = 24; // always expanded within this many px of the top
 	const DEADZONE = 6; // ignore sub-pixel / jittery deltas
 
+	// The fixed glass header reports its height so the scroller pads its top by
+	// exactly that much — content stays glued to the bar through the collapse.
+	let headerHeight = $state(96);
+
 	function onScroll(): void {
 		if (scrollTicking) return;
 		scrollTicking = true;
@@ -93,16 +97,22 @@
 	}
 </script>
 
-<div class="explore-container" bind:this={scrollEl} onscroll={onScroll}>
-	<ExploreSearchBar
-		{query}
-		{activeTab}
-		{collapsed}
-		onQueryChange={(q) => { query = q; }}
-		onTabChange={handleTabChange}
-		onInputBind={(el) => { inputEl = el; }}
-	/>
+<ExploreSearchBar
+	{query}
+	{activeTab}
+	{collapsed}
+	onQueryChange={(q) => { query = q; }}
+	onTabChange={handleTabChange}
+	onInputBind={(el) => { inputEl = el; }}
+	onHeightChange={(h) => { headerHeight = h; }}
+/>
 
+<div
+	class="explore-container"
+	bind:this={scrollEl}
+	onscroll={onScroll}
+	style:padding-top="{headerHeight}px"
+>
 	<div
 		class="content-area"
 		role="tabpanel"
@@ -119,7 +129,7 @@
 						{query}
 						onRetry={() => search.fetchResults(query, activeTab)}
 						onAuthorClick={(username) => openProfile(username)}
-						onOpenComments={(postId) => openMobileComments(postId)}
+						onOpenComments={(post) => openMobileComments(post)}
 						onPostDeleted={(id) => search.removePost(id)}
 					/>
 				{:else}
@@ -140,8 +150,8 @@
 		overflow-x: hidden;
 		-webkit-overflow-scrolling: touch;
 		overscroll-behavior-y: contain;
-		/* The sticky search bar carries the TG-header clearance itself so it can
-		   shrink that space and ride up between the native buttons on collapse. */
+		/* padding-top is set inline to the fixed header's measured height so the
+		   first result clears the glass bar and tracks it through the collapse. */
 		padding-bottom: var(--content-bottom-padding, 104px);
 		scrollbar-width: none;
 		-ms-overflow-style: none;
@@ -154,9 +164,5 @@
 	.content-area {
 		padding-top: 4px;
 		overflow-x: hidden;
-	}
-
-	.tab-panel {
-		will-change: transform;
 	}
 </style>

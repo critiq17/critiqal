@@ -14,6 +14,7 @@ import org.critiqal.domain.badge.BadgeCode;
 import org.critiqal.domain.badge.UserBadge;
 import org.critiqal.domain.badge.service.BadgeService;
 import org.critiqal.domain.ban.service.BanService;
+import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.shared.pagination.Page;
@@ -35,16 +36,19 @@ public class AdminResource {
     private final PostService postService;
     private final BanService banService;
     private final CurrentUser currentUser;
+    private final PostRepository postRepo;
 
     public AdminResource(AdminUserQueryService userQuery,
                          BadgeService badgeService,
                          PostService postService,
-                         BanService banService, CurrentUser currentUser) {
+                         BanService banService, CurrentUser currentUser,
+                         PostRepository postRepo) {
         this.userQuery = userQuery;
         this.badgeService = badgeService;
         this.postService = postService;
         this.banService = banService;
         this.currentUser = currentUser;
+        this.postRepo = postRepo;
     }
 
     @GET @Path("/me")
@@ -123,5 +127,17 @@ public class AdminResource {
     public Response unbanUser(@PathParam("userId") UUID userId) {
         boolean lifted = banService.unban(userId, currentUser.id());
         return Response.ok(Map.of("unbanned", userId.toString(), "lifted", lifted)).build();
+    }
+
+    @POST @Path("/posts/{id}/recount") @Transactional
+    public Response recountPost(@PathParam("id") UUID id) {
+        postService.getById(id);
+        postRepo.recount(id);
+        var post = postService.getById(id);
+        return Response.ok(Map.of(
+                "postId", id.toString(),
+                "likedCount", post.likeCount,
+                "commentCount", post.commentCount
+        )).build();
     }
 }

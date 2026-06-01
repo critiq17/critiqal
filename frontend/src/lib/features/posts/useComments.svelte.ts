@@ -34,7 +34,12 @@ export class UseComments {
   deletingId = $state<string | null>(null);
   private replyStates = $state<Map<string, ReplyState>>(new Map());
 
-  constructor(private postId: string) {}
+  // Mirrors the backend post counter so the post's commentCount stays in sync
+  // with optimistic add/delete. Replies count toward the total too.
+  constructor(
+    private postId: string,
+    private onCountChange?: (delta: number) => void
+  ) {}
 
   getReplyState(commentId: string): ReplyState {
     return this.replyStates.get(commentId) ?? emptyReplyState();
@@ -73,6 +78,7 @@ export class UseComments {
       const c = await postService.addComment(this.postId, { content: text });
       this.comments = [c, ...this.comments];
       this.newComment = '';
+      this.onCountChange?.(1);
     } catch {
       // silent
     } finally {
@@ -83,12 +89,15 @@ export class UseComments {
   async deleteComment(commentId: string): Promise<void> {
     if (this.deletingId !== null) return;
     this.deletingId = commentId;
+    // Deleting a root comment removes its replies too (backend cascades).
+    const removed = 1 + this.getReplyState(commentId).replies.length;
     try {
       await postService.deleteComment(this.postId, commentId);
       this.comments = this.comments.filter((c) => c.id !== commentId);
       const next = new Map(this.replyStates);
       next.delete(commentId);
       this.replyStates = next;
+      this.onCountChange?.(-removed);
     } catch {
       // silent
     } finally {
@@ -139,6 +148,7 @@ export class UseComments {
         loaded: true,
         expanded: true,
       });
+      this.onCountChange?.(1);
     } catch {
       this.setReplyState(commentId, { submitting: false });
     }
@@ -149,6 +159,7 @@ export class UseComments {
       await postService.deleteComment(this.postId, replyId);
       const rs = this.getReplyState(commentId);
       this.setReplyState(commentId, { replies: rs.replies.filter((r) => r.id !== replyId) });
+      this.onCountChange?.(-1);
     } catch {
       // silent
     }
