@@ -48,4 +48,9 @@ public class CommentRepositoryImpl implements CommentRepository, PanacheReposito
     public void delete(Comment comment) {
         delete("id", comment.id);
     }
+
+    @Override
+    public long countReplies(UUID parentId) {
+        return count("parent.id = ?1", parentId);
+    }
 }
