@@ -15,6 +15,10 @@ interface TelegramWebApp {
   isExpanded: boolean;
   platform: string;
   initData: string;
+  initDataUnsafe?: {
+    start_param?: string;
+    [key: string]: unknown;
+  };
   viewportHeight: number;
   viewportStableHeight?: number;
   safeAreaInset: SafeAreaInset;
@@ -95,6 +99,14 @@ export function isTelegramMiniApp(): boolean {
 export function getTelegramWebApp(): TelegramWebApp | null {
   if (!isTelegramMiniApp()) return null;
   return window.Telegram?.WebApp ?? null;
+}
+
+// The `startapp` payload a deep link launched the mini app with (null on a
+// normal open or outside Telegram). telegram-web-app.js parses it out of the
+// launch hash into initDataUnsafe for us.
+export function getStartParam(): string | null {
+  const param = getTelegramWebApp()?.initDataUnsafe?.start_param;
+  return typeof param === 'string' && param.length > 0 ? param : null;
 }
 
 function applyThemeVars(tg: TelegramWebApp): void {

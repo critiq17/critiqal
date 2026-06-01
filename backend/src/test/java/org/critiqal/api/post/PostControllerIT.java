@@ -89,4 +89,24 @@ public class PostControllerIT {
                 .when().delete("/api/posts/" + postId)
                 .then().statusCode(204);
     }
+
+    @Test
+    void feed_reflectsLikeAndCommentCounters() {
+        var sid = TestAuthHelper.registerAndGetSessionCookie("counter_user");
+        var postId = given().cookie(TestAuthHelper.COOKIE, sid).contentType(JSON)
+                .body("{\"content\":\"counter post\"}")
+                .when().post("/api/posts").then().statusCode(201)
+                .extract().path("id").toString();
+
+        given().cookie(TestAuthHelper.COOKIE, sid)
+                .when().post("/api/posts/" + postId + "/likes").then().statusCode(200);
+        given().cookie(TestAuthHelper.COOKIE, sid).contentType(JSON)
+                .body("{\"content\":\"a comment\"}")
+                .when().post("/api/posts/" + postId + "/comments").then().statusCode(201);
+
+        given().when().get("/api/posts/" + postId)
+                .then().statusCode(200)
+                .body("likeCount", equalTo(1))
+                .body("commentCount", equalTo(1));
+    }
 }

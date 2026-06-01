@@ -60,9 +60,8 @@ public class PostResource {
         UUID userId = currentUser.idOrNull();
         postService.view(id, userId);
         var post = postService.getById(id);
-        long likeCount = postLikeService.count(id);
         boolean likedByMe = userId != null && postLikeService.isLiked(id, userId);
-        return PostDTO.from(post, likeCount, likedByMe);
+        return PostDTO.from(post, post.likeCount, likedByMe);
     }
 
     @POST
@@ -93,7 +92,6 @@ public class PostResource {
 
         var ids = page.content().stream().map(Post::getId).toList();
 
-        Map<UUID, Long> counts = postLikeService.countByPostIds(ids);
         UUID userId = currentUser.idOrNull();
         Set<UUID> liked = userId != null
                 ? postLikeService.likedPostIds(userId, ids)
@@ -101,7 +99,7 @@ public class PostResource {
 
         return page.map(post -> PostDTO.from(
                 post,
-                counts.getOrDefault(post.id, 0L),
+                post.likeCount,
                 liked.contains(post.id)
         ));
     }

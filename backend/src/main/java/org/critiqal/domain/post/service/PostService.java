@@ -30,4 +30,6 @@ public interface PostService {
     void deletePost(UUID postId, UUID requestedId);
 
     void view(UUID postId);
+
+    void recountPost(UUID postId);
 }

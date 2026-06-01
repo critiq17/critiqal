@@ -1,6 +1,7 @@
 package org.critiqal.domain.like.service;
 
 import org.critiqal.domain.like.repository.PostLikeRepository;
+import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,12 +28,37 @@ class PostLikeServiceImplTest {
 
     private final PostLikeRepository repo = mock(PostLikeRepository.class);
     private final PostService postService = mock(PostService.class);
+    private final PostRepository postRepo = mock(PostRepository.class);
 
     private PostLikeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PostLikeServiceImpl(repo, postService);
+        service = new PostLikeServiceImpl(repo, postService, postRepo);
+    }
+
+    @Test
+    void toggle_like_incrementsCounter() {
+        var postId = uuid(1); var userId = uuid(2);
+        when(repo.exists(postId, userId)).thenReturn(false);
+        when(repo.count(postId)).thenReturn(1L);
+
+        service.toggle(postId, userId);
+
+        verify(postRepo).incrementLikeCount(postId);
+        verify(postRepo, never()).decrementLikeCount(postId);
+    }
+
+    @Test
+    void toggle_unlike_decrementsCounter() {
+        var postId = uuid(3); var userId = uuid(4);
+        when(repo.exists(postId, userId)).thenReturn(true);
+        when(repo.count(postId)).thenReturn(0L);
+
+        service.toggle(postId, userId);
+
+        verify(postRepo).decrementLikeCount(postId);
+        verify(postRepo, never()).incrementLikeCount(postId);
     }
 
     @Test

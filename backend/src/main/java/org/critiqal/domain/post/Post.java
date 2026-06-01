@@ -32,6 +32,12 @@ public class Post extends PanacheEntityBase {
 
     public long viewCount = 0;
 
+    @Column(name = "like_count", nullable = false)
+    public int likeCount = 0;
+
+    @Column(name = "comment_count", nullable = false)
+    public int commentCount = 0;
+
     @Enumerated(EnumType.STRING)
     public PostStatus status = PostStatus.PUBLISHED;
 

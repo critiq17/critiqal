@@ -125,4 +125,41 @@ describe('UseComments', () => {
     expect(rs.expanded).toBe(true);
     expect(rs.replies).toHaveLength(1);
   });
+
+  it('reports +1 to the count callback when a comment is added', async () => {
+    const onCountChange = vi.fn();
+    const c = new UseComments('1', onCountChange);
+    await c.load();
+    c.newComment = 'hello';
+    await c.submit();
+    expect(onCountChange).toHaveBeenCalledWith(1);
+  });
+
+  it('reports +1 to the count callback when a reply is added', async () => {
+    const onCountChange = vi.fn();
+    const c = new UseComments('1', onCountChange);
+    c.setReplyDraft('5', 'a reply');
+    await c.submitReply('5');
+    expect(onCountChange).toHaveBeenCalledWith(1);
+  });
+
+  it('reports the comment plus its replies when a root comment is deleted', async () => {
+    mockPostService.getComments.mockResolvedValue([makeComment('1')]);
+    mockPostService.getReplies.mockResolvedValue([makeComment('10'), makeComment('11')]);
+    const onCountChange = vi.fn();
+    const c = new UseComments('1', onCountChange);
+    await c.load();
+    await c.toggleReplies('1'); // loads 2 replies
+    await c.deleteComment('1');
+    expect(onCountChange).toHaveBeenCalledWith(-3);
+  });
+
+  it('reports -1 to the count callback when a reply is deleted', async () => {
+    mockPostService.getReplies.mockResolvedValue([makeComment('10')]);
+    const onCountChange = vi.fn();
+    const c = new UseComments('1', onCountChange);
+    await c.toggleReplies('5');
+    await c.deleteReply('5', '10');
+    expect(onCountChange).toHaveBeenCalledWith(-1);
+  });
 });

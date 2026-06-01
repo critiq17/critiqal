@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
+	import { fade, fly, slide } from 'svelte/transition';
+	import { cubicOut } from 'svelte/easing';
 	import { apiClient } from '$lib/api/client';
 	import { API } from '$lib/api/endpoints';
 	import { authStore } from '$lib/stores/auth.store.svelte';
@@ -7,8 +8,11 @@
 	import type { Comment, User } from '$lib/types';
 	import { getInitials } from '$lib/utils/getInitials';
 	import { formatRelativeTime } from '$lib/utils/formatRelativeTime';
+	import { t } from '$lib/i18n';
 	import { registerSheet } from '$lib/actions/registerSheet';
+	import { elasticDrag } from '$lib/actions/elasticDrag';
 	import { pushBackHandler } from '$lib/tma/back-button';
+	import { hapticLight } from '$lib/tma/buttons';
 
 	interface ReplyUiState {
 		items: Comment[];
@@ -48,12 +52,43 @@
 	let replyStates = $state<Record<string, ReplyUiState>>({});
 	let replyTarget = $state<ReplyTarget | null>(null);
 	let composerInputEl = $state<HTMLInputElement | null>(null);
+	let panelEl = $state<HTMLElement | null>(null);
+	let backdropEl = $state<HTMLElement | null>(null);
 	let loadToken = 0;
 	const replyLoadTokens = new Map<string, number>();
 
+	let closing = false;
+
+	// Single animated exit for every close path (backdrop tap, ✕, back button,
+	// swipe-dismiss): slide the panel down and fade the backdrop, then unmount.
+	// Done manually (not a Svelte out-transition) so it continues smoothly from
+	// wherever a drag left the panel instead of snapping back first.
+	function animateClose(): void {
+		if (closing) return;
+		closing = true;
+		if (panelEl) {
+			panelEl.style.transition = 'transform 0.26s cubic-bezier(0.4, 0, 0.2, 1)';
+			panelEl.style.transform = 'translateY(110%)';
+		}
+		if (backdropEl) {
+			backdropEl.style.transition = 'opacity 0.24s ease';
+			backdropEl.style.opacity = '0';
+		}
+		window.setTimeout(() => {
+			closing = false;
+			closeMobileComments();
+		}, 250);
+	}
+
 	function requestClose(event?: Event): void {
 		event?.preventDefault();
-		closeMobileComments();
+		animateClose();
+	}
+
+	// Swipe-down on the header drags the whole panel; the backdrop dims in step
+	// (1 → 0) so the dismiss reads as one continuous, iOS-style gesture.
+	function fadeBackdrop(progress: number): void {
+		if (backdropEl) backdropEl.style.opacity = String(1 - progress);
 	}
 
 	function baseInset(): string {
@@ -148,34 +183,41 @@
 		composerInset = keyboardHeight > 0 ? `${keyboardHeight + 10}px` : baseInset();
 	}
 
+	// Mirror the backend post counter onto the live post object so the feed
+	// card's badge updates instantly without a refetch (replies count too).
+	function bumpPostCount(delta: number): void {
+		const post = $mobileComments.post;
+		if (!post) return;
+		post.commentCount = Math.max(0, post.commentCount + delta);
+	}
+
 	function authorFor(comment: Comment): User {
 		return comment.author ?? UNKNOWN_AUTHOR;
 	}
 
 	function commentTime(comment: Comment): string {
-		return comment.createdAt ? formatRelativeTime(comment.createdAt) : 'just now';
+		return comment.createdAt ? formatRelativeTime(comment.createdAt) : t('post.justNow');
 	}
 
 	function composerPlaceholder(): string {
-		return replyTarget ? `Reply to ${replyTarget.displayName}...` : 'Add a comment...';
+		return replyTarget ? `${t('comment.replyTo')} ${replyTarget.displayName}…` : t('comment.placeholder');
 	}
 
 	function composerAriaLabel(): string {
-		return replyTarget ? 'Write a reply' : 'Write a comment';
+		return replyTarget ? t('comment.writeReply') : t('comment.writeComment');
 	}
 
 	function submitAriaLabel(): string {
-		return replyTarget ? 'Post reply' : 'Post comment';
+		return replyTarget ? t('comment.postReply') : t('comment.postComment');
 	}
 
 	function replyToggleLabel(state: ReplyUiState): string {
-		if (state.loading) return 'Loading replies...';
-		if (state.error) return 'Retry replies';
-		if (!state.loaded) return 'View replies';
-		if (state.expanded) return state.items.length > 0 ? 'Hide replies' : 'Hide thread';
-		if (state.items.length === 1) return 'View 1 reply';
-		if (state.items.length > 1) return `View ${state.items.length} replies`;
-		return 'View replies';
+		if (state.loading) return t('comment.repliesLoading');
+		if (state.error) return t('comment.repliesRetry');
+		if (!state.loaded) return t('comment.viewReplies');
+		if (state.expanded) return state.items.length > 0 ? t('comment.hideReplies') : t('comment.hideThread');
+		if (state.items.length >= 1) return `${t('comment.viewReplies')} (${state.items.length})`;
+		return t('comment.viewReplies');
 	}
 
 	function focusComposer(): void {
@@ -217,7 +259,7 @@
 			}
 
 			if (items.length === 0) {
-				loadError = getErrorMessage(error, 'Failed to load comments');
+				loadError = getErrorMessage(error, t('comment.failed'));
 			}
 		} finally {
 			if (token === loadToken && $mobileComments.open && $mobileComments.postId === postId) {
@@ -283,7 +325,7 @@
 			setReplyState(commentId, {
 				loading: false,
 				expanded: expand,
-				error: getErrorMessage(error, 'Failed to load replies')
+				error: getErrorMessage(error, t('comment.repliesFailed'))
 			});
 		}
 	}
@@ -372,6 +414,7 @@
 					error: null
 				});
 
+				if (created) bumpPostCount(1);
 				draft = '';
 				replyTarget = null;
 				void loadReplies(activeReplyTarget.commentId, {
@@ -390,6 +433,7 @@
 
 			if (created) {
 				items = [created, ...items.filter((comment) => comment.id !== created.id)];
+				bumpPostCount(1);
 			}
 
 			draft = '';
@@ -398,7 +442,7 @@
 			if ($mobileComments.open && $mobileComments.postId === postId) {
 				submitError = getErrorMessage(
 					error,
-					activeReplyTarget ? 'Failed to post reply' : 'Failed to post comment'
+					activeReplyTarget ? t('comment.replyPostFailed') : t('comment.postFailed')
 				);
 			}
 		} finally {
@@ -417,6 +461,8 @@
 		}
 
 		deletingId = commentId;
+		// Deleting a root comment removes its replies too (backend cascades).
+		const removed = 1 + getReplyState(commentId).items.length;
 
 		try {
 			await apiClient.delete(API.posts.comment(postId, commentId));
@@ -427,6 +473,7 @@
 				if (replyTarget?.commentId === commentId) {
 					replyTarget = null;
 				}
+				bumpPostCount(-removed);
 			}
 		} catch {
 			// Keep the existing list intact when delete fails.
@@ -455,6 +502,7 @@
 				setReplyState(commentId, {
 					items: state.items.filter((reply) => reply.id !== replyId)
 				});
+				bumpPostCount(-1);
 			}
 		} catch {
 			// Keep the existing list intact when delete fails.
@@ -510,21 +558,48 @@
 		<button
 			class="comments-backdrop"
 			type="button"
-			aria-label="Close comments"
+			aria-label={t('comment.close')}
+			bind:this={backdropEl}
 			onclick={requestClose}
 			onpointerup={requestClose}
 			ontouchend={requestClose}
+			in:fade={{ duration: 200 }}
 		></button>
 
-		<div class="comments-panel glass-strong" role="dialog" aria-modal="true" aria-label="Comments">
-			<header class="comments-header">
+		<div
+			class="comments-panel glass-strong"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Comments"
+			bind:this={panelEl}
+			in:fly={{ y: 360, duration: 320, opacity: 1, easing: cubicOut }}
+		>
+			<!-- Header is the drag affordance: swipe it down to dismiss. The scroll
+			     body and composer stay untouched (drag only engages past a small
+			     threshold, so taps on the close button still pass through). -->
+			<header
+				class="comments-header"
+				use:elasticDrag={{
+					target: () => panelEl,
+					dismissDistance: 120,
+					dismissVelocity: 0.5,
+					onDismiss: () => {
+						hapticLight();
+						animateClose();
+					},
+					onProgress: fadeBackdrop,
+					positiveOnly: true,
+					stretch: 0.04,
+					stretchOrigin: 'top center'
+				}}
+			>
 				<div class="comments-handle" aria-hidden="true"></div>
 				<div class="comments-header-row">
-					<h2 class="comments-title">Comments</h2>
+					<h2 class="comments-title">{t('comment.title')}</h2>
 					<button
 						class="comments-close-btn"
 						type="button"
-						aria-label="Close comments"
+						aria-label={t('comment.close')}
 						onclick={requestClose}
 						onpointerup={requestClose}
 						ontouchend={requestClose}
@@ -539,7 +614,7 @@
 
 			<div class="comments-area">
 				{#if loading && items.length === 0}
-					<div class="comments-loading" aria-busy="true" aria-label="Loading comments">
+					<div class="comments-loading" aria-busy="true" aria-label={t('comment.loading')}>
 						<span class="loading-dot"></span>
 						<span class="loading-dot"></span>
 						<span class="loading-dot"></span>
@@ -554,12 +629,12 @@
 							onpointerup={reloadComments}
 							ontouchend={reloadComments}
 						>
-							Retry
-						</button>
+								{t('common.retry')}
+							</button>
 					</div>
 				{:else if items.length === 0}
 					<div class="comments-state">
-						<p>No comments yet.</p>
+						<p>{t('comment.empty')}</p>
 					</div>
 				{:else}
 					<ul class="comments-list">
@@ -591,7 +666,7 @@
 											<button
 												type="button"
 												class="comment-delete"
-												aria-label="Delete comment"
+												aria-label={t('comment.delete')}
 												onclick={(event) => deleteComment(comment.id, event)}
 												onpointerup={(event) => deleteComment(comment.id, event)}
 												ontouchend={(event) => deleteComment(comment.id, event)}
@@ -612,7 +687,7 @@
 												onpointerup={(event) => startReply(comment, event)}
 												ontouchend={(event) => startReply(comment, event)}
 											>
-												Reply
+												{t('post.reply')}
 											</button>
 										{/if}
 
@@ -631,7 +706,7 @@
 									{#if replyState.expanded}
 										<div class="reply-thread" transition:slide={{ duration: 170 }}>
 											{#if replyState.loading}
-												<div class="replies-loading" aria-label="Loading replies">
+												<div class="replies-loading" aria-label={t('comment.repliesLoading')}>
 													<span class="loading-dot"></span>
 													<span class="loading-dot"></span>
 													<span class="loading-dot"></span>
@@ -639,7 +714,7 @@
 											{:else if replyState.error}
 												<p class="replies-error" role="alert">{replyState.error}</p>
 											{:else if replyState.loaded && replyState.items.length === 0}
-												<p class="replies-empty">No replies yet.</p>
+												<p class="replies-empty">{t('comment.noReplies')}</p>
 											{:else if replyState.loaded && replyState.items.length > 0}
 												<ul class="replies-list">
 													{#each replyState.items as reply (reply.id)}
@@ -671,7 +746,7 @@
 																		<button
 																			type="button"
 																			class="comment-delete reply-delete"
-																			aria-label="Delete reply"
+																			aria-label={t('comment.deleteReply')}
 																			onclick={(event) => deleteReply(comment.id, reply.id, event)}
 																			onpointerup={(event) => deleteReply(comment.id, reply.id, event)}
 																			ontouchend={(event) => deleteReply(comment.id, reply.id, event)}
@@ -704,13 +779,13 @@
 					{#if replyTarget}
 						<div class="composer-context" transition:fade={{ duration: 120 }}>
 							<div class="composer-context-copy">
-								<span class="composer-context-label">Replying to</span>
+								<span class="composer-context-label">{t('comment.replyingTo')}</span>
 								<span class="composer-context-user">@{replyTarget.username}</span>
 							</div>
 							<button
 								type="button"
 								class="composer-context-close"
-								aria-label="Cancel reply"
+								aria-label={t('comment.cancelReply')}
 								onclick={clearReplyTarget}
 								onpointerup={clearReplyTarget}
 								ontouchend={clearReplyTarget}
@@ -815,6 +890,14 @@
 		padding: 0.5rem 1rem 0.55rem;
 		border-bottom: 1px solid var(--surface-tint-soft);
 		/* transparent — lets the panel glass show through (minimal) */
+		/* Drag affordance: own the vertical gesture so the swipe-to-dismiss is
+		   crisp and never fights native scroll. */
+		touch-action: none;
+		cursor: grab;
+	}
+
+	.comments-header:active {
+		cursor: grabbing;
 	}
 
 	.comments-handle {

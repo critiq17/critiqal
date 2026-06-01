@@ -16,6 +16,7 @@ export interface Post {
   photos: PostPhoto[];
   viewCount: number;
   likeCount: number;
+  commentCount: number;
   likedByMe: boolean;
   status: PostStatus;
   createdAt: string;

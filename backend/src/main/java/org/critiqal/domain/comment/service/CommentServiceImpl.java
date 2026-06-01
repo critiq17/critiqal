@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.comment.repository.CommentRepository;
+import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.DomainException;
@@ -24,13 +25,16 @@ public class CommentServiceImpl implements CommentService {
     private final CommentRepository commentRepo;
     private final PostService postService;
     private final UserService userService;
+    private final PostRepository postRepo;
 
     public CommentServiceImpl(CommentRepository commentRepo,
                               PostService postService,
-                              UserService userService) {
+                              UserService userService,
+                              PostRepository postRepo) {
         this.commentRepo = commentRepo;
         this.postService = postService;
         this.userService = userService;
+        this.postRepo = postRepo;
     }
 
     @Override
@@ -62,7 +66,10 @@ public class CommentServiceImpl implements CommentService {
         comment.author = userService.getById(authorId);
         comment.post = postService.getById(postId);
         comment.content = content;
-        return commentRepo.save(comment);
+        var saved = commentRepo.save(comment);
+
+        postRepo.incrementCommentCount(postId, 1);
+        return saved;
     }
 
     @Override
@@ -83,7 +90,10 @@ public class CommentServiceImpl implements CommentService {
         reply.post = post;
         reply.parent = parent;
         reply.content = content;
-        return commentRepo.save(reply);
+        var saved = commentRepo.save(reply);
+
+        postRepo.incrementCommentCount(postId, 1);
+        return saved;
     }
 
     @Override
@@ -93,7 +103,13 @@ public class CommentServiceImpl implements CommentService {
         if (!comment.author.id.equals(requestedId)) {
             throw new ForbiddenException("Not your comment");
         }
+
+        int removed = 1;
+        if (comment.parent == null) {
+            removed += (int) commentRepo.countReplies(comment.id);
+        }
         commentRepo.delete(comment);
+        postRepo.decrementCommentCount(postId, removed);
     }
 
     private Comment findCommentInPost(UUID postId, UUID commentId) {

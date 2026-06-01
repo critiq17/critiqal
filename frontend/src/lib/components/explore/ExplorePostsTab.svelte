@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { UseSearch } from '$lib/features/explore/useSearch.svelte';
+	import type { Post } from '$lib/types';
 	import { Post as PostComponent } from '$lib/components/post';
 	import ExploreEmptyState from './ExploreEmptyState.svelte';
 
@@ -10,7 +11,7 @@
 		query: string;
 		onRetry: () => void;
 		onAuthorClick: (username: string) => void;
-		onOpenComments?: (postId: string) => void;
+		onOpenComments?: (post: Post) => void;
 		onPostDeleted?: (id: string) => void;
 	}
 
@@ -55,7 +56,7 @@
 				{post}
 				variant="mobile"
 				onAuthorClick={(username) => onAuthorClick(username)}
-				onOpenComments={(postId) => onOpenComments?.(postId)}
+				onOpenComments={(post) => onOpenComments?.(post)}
 				onDeleted={(id) => onPostDeleted?.(id)}
 			/>
 		{/each}

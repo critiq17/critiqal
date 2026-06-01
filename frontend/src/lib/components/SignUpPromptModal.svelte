@@ -103,15 +103,27 @@
 	.sheet {
 		width: 100%;
 		max-width: 22rem;
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
+		/* Liquid glass — consistent with the post menu, comments sheet and the
+		   rest of the floating surfaces. */
+		background: var(--glass-bg-strong, var(--color-surface));
+		backdrop-filter: blur(calc(var(--glass-blur, 24px) + 4px)) saturate(var(--glass-saturate, 180%));
+		-webkit-backdrop-filter: blur(calc(var(--glass-blur, 24px) + 4px)) saturate(var(--glass-saturate, 180%));
+		border: 1px solid var(--glass-border, var(--color-border));
 		border-radius: 1rem;
 		padding: 2rem 1.5rem 1.4rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
-		box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+		box-shadow:
+			inset 0 1px 0 var(--glass-highlight, rgba(255, 255, 255, 0.08)),
+			0 24px 60px rgba(0, 0, 0, 0.55);
 		position: relative;
+	}
+
+	@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+		.sheet {
+			background: var(--color-surface);
+		}
 	}
 
 	.star-burst {

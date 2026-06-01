@@ -149,4 +149,52 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
     public void incrementViews(UUID postId) {
         update("viewCount = viewCount + 1 WHERE id = ?1", postId);
     }
+
+    @Override
+    @Transactional
+    public void incrementLikeCount(UUID postId) {
+        update("likeCount = likeCount + 1 WHERE id = ?1", postId);
+    }
+
+    @Override
+    @Transactional
+    public void decrementLikeCount(UUID postId) {
+        getEntityManager()
+                .createNativeQuery(
+                        "UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE id = ?1"
+                ).setParameter(1, postId)
+                .executeUpdate();
+    }
+
+    @Override
+    @Transactional
+    public void incrementCommentCount(UUID postId, int delta) {
+        update("commentCount = commentCount + ?1 WHERE id = ?2", delta, postId);
+    }
+
+    @Override
+    @Transactional
+    public void decrementCommentCount(UUID postId, int delta){
+        getEntityManager()
+                .createNativeQuery(
+                        "UPDATE posts SET comment_count = GREATEST(comment_count - ?1, 0) WHERE id = ?2"
+                ).setParameter(1, delta)
+                .setParameter(2, postId)
+                .executeUpdate();
+    }
+
+    @Override
+    @Transactional
+    public void recount(UUID postId) {
+        getEntityManager().createNativeQuery("""
+                UPDATE posts p SET
+                    like_count = COALESCE(
+                        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id), 0)
+                    comment_count = COALESCE(
+                        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id), 0)
+                WHERE p.id = ?1
+                """)
+                .setParameter(1, postId)
+                .executeUpdate();
+    }
 }

@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.like.LikeResult;
 import org.critiqal.domain.like.repository.PostLikeRepository;
+import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
 
 import java.util.List;
@@ -16,10 +17,13 @@ public class PostLikeServiceImpl implements LikeService {
 
     private final PostLikeRepository repo;
     private final PostService postService;
+    private final PostRepository postRepo;
 
-    public PostLikeServiceImpl(PostLikeRepository repo, PostService postService) {
+    public PostLikeServiceImpl(PostLikeRepository repo, PostService postService,
+                               PostRepository postRepo) {
         this.repo = repo;
         this.postService = postService;
+        this.postRepo = postRepo;
     }
 
     @Override
@@ -30,8 +34,10 @@ public class PostLikeServiceImpl implements LikeService {
         boolean wasLiked = repo.exists(postId, userId);
         if (wasLiked) {
             repo.remove(postId, userId);
+            postRepo.decrementLikeCount(postId);
         } else {
             repo.save(postId, userId);
+            postRepo.incrementLikeCount(postId);
         }
 
         long newCount = repo.count(postId);

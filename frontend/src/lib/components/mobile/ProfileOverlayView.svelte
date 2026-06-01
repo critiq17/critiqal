@@ -69,7 +69,7 @@
 			posts={profile.posts}
 			loading={profile.postsLoading}
 			error={profile.postsError}
-			onOpenComments={(postId) => openMobileComments(postId)}
+			onOpenComments={(post) => openMobileComments(post)}
 			onAuthorClick={(u) => navStack.pushProfile(u)}
 			onDeleted={(id) => profile.handlePostDeleted(id)}
 			onRetry={() => profile.loadPosts()}
