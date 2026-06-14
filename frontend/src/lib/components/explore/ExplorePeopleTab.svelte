@@ -35,7 +35,7 @@
 			<li class="user-item" style:animation-delay="{i * 30}ms">
 				<div class="user-avatar" aria-hidden="true">
 					{#if user.avatarUrl}
-						<img src={user.avatarUrl} alt={user.username} class="avatar-img" />
+						<img src={user.avatarUrl} alt={user.username} class="avatar-img" loading="lazy" decoding="async" />
 					{:else}
 						<span class="avatar-initial">{getInitials(user.name, user.username)}</span>
 					{/if}

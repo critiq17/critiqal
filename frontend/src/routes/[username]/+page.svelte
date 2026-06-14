@@ -160,6 +160,8 @@
 									src={profilePage.profile.avatarUrl}
 									alt={profilePage.profile.username}
 									class="avatar-img"
+									decoding="async"
+									fetchpriority="high"
 								/>
 							{:else}
 								<span class="avatar-initial">

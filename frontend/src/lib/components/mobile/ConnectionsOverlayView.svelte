@@ -75,7 +75,7 @@
 					<button class="user-row" type="button" onclick={() => navStack.pushProfile(user.username)}>
 						<div class="user-avatar">
 							{#if user.avatarUrl}
-								<img src={user.avatarUrl} alt="" class="avatar-img" />
+								<img src={user.avatarUrl} alt="" class="avatar-img" loading="lazy" decoding="async" />
 							{:else}
 								<span class="avatar-initial">{getInitials(user.name, user.username)}</span>
 							{/if}

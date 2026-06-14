@@ -4,9 +4,12 @@
 		name?: string | null;
 		size?: number;
 		onclick?: () => void;
+		// Above-the-fold avatars (profile hero, current-user chip) opt into
+		// eager/high-priority loading; everything in feeds and lists defers.
+		priority?: boolean;
 	}
 
-	let { src, name, size = 40, onclick }: Props = $props();
+	let { src, name, size = 40, onclick, priority = false }: Props = $props();
 
 	function getInitials(n: string | null | undefined): string {
 		if (!n) return '?';
@@ -27,7 +30,14 @@
 	tabindex={onclick ? 0 : undefined}
 >
 	{#if src && !imgError}
-		<img {src} alt={name ?? ''} onerror={() => { imgError = true; }} />
+		<img
+			{src}
+			alt={name ?? ''}
+			loading={priority ? 'eager' : 'lazy'}
+			decoding="async"
+			fetchpriority={priority ? 'high' : 'auto'}
+			onerror={() => { imgError = true; }}
+		/>
 	{:else}
 		<span>{getInitials(name)}</span>
 	{/if}
