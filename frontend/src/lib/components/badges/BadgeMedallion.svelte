@@ -104,8 +104,8 @@
 	.surface-glass .face {
 		background:
 			linear-gradient(150deg, rgba(245, 248, 255, 0.48) 0%, rgba(156, 170, 190, 0.32) 48%, rgba(45, 52, 66, 0.34) 100%);
-		backdrop-filter: blur(12px) saturate(160%);
-		-webkit-backdrop-filter: blur(12px) saturate(160%);
+		backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
 		color: rgba(10, 12, 18, 0.88);
 		box-shadow:
 			inset 0 1px 1px rgba(255, 255, 255, 0.62),

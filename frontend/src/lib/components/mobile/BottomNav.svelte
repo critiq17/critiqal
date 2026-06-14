@@ -216,8 +216,8 @@
     /* More transparent than default glass-soft — the menu reads as a thin
        frosted film, not a panel. backdrop-filter inherited from .glass. */
     background: rgba(20, 20, 22, 0.32);
-    backdrop-filter: blur(28px) saturate(var(--glass-saturate));
-    -webkit-backdrop-filter: blur(28px) saturate(var(--glass-saturate));
+    backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       0 12px 32px -8px rgba(0, 0, 0, 0.45),

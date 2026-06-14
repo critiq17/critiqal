@@ -227,8 +227,8 @@
 		/* Noticeably more transparent (~55% fill) — leans on the blur for
 		   legibility so the feed glows softly through the glass. */
 		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 55%), transparent);
-		backdrop-filter: blur(calc(var(--header-progress, 0) * 20px)) saturate(180%);
-		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 20px)) saturate(180%);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
 	}
 
 	.feed-header-title::after {

@@ -155,8 +155,8 @@
 	.blur-layer {
 		position: absolute;
 		inset: 0;
-		backdrop-filter: blur(10px) saturate(110%);
-		-webkit-backdrop-filter: blur(10px) saturate(110%);
+		backdrop-filter: blur(var(--glass-blur-sm)) saturate(110%);
+		-webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(110%);
 		transform: translateZ(0);
 		pointer-events: none;
 	}

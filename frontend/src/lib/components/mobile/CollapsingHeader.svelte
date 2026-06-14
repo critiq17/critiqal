@@ -33,8 +33,8 @@
 			)
 			3rem 0.55rem;
 		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
-		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
-		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
 	}
 
 	.collapsing-header::after {

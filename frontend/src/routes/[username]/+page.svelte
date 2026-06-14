@@ -345,8 +345,8 @@
 		position: sticky;
 		top: 0;
 		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
-		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
-		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
 		z-index: 10;
 		display: flex;
 		align-items: baseline;
@@ -510,8 +510,8 @@
 		position: sticky;
 		top: 3.625rem;
 		background-color: color-mix(in srgb, var(--color-bg) calc(var(--header-progress, 0) * 82%), transparent);
-		backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
-		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * 18px)) saturate(180%);
+		backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
+		-webkit-backdrop-filter: blur(calc(var(--header-progress, 0) * var(--glass-blur-md))) saturate(var(--glass-saturate));
 		z-index: 9;
 	}
 

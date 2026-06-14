@@ -160,6 +160,14 @@
 		   One source of truth: surfaces opt in with class="glass". */
 		--glass-blur: 24px;
 		--glass-saturate: 180%;
+		/* Blur scale (px). calc(var(--glass-blur) ± n) stays token-derived;
+		   these name the standalone tiers that used to be ad-hoc literals
+		   scattered across components. Theme-agnostic, so they live here only. */
+		--glass-blur-scrim: 4px;
+		--glass-blur-sm: 12px;
+		--glass-blur-md: 18px;
+		/* Saturation scale (%). soft = chrome; base (--glass-saturate) = surfaces. */
+		--glass-saturate-soft: 150%;
 		--glass-bg: rgba(20, 20, 20, 0.78);
 		--glass-bg-strong: rgba(20, 20, 20, 0.88);
 		--glass-bg-soft: rgba(20, 20, 20, 0.5);
@@ -302,7 +310,11 @@
 		:global(:root),
 		:global([data-theme='light']) {
 			--glass-blur: 0px;
+			--glass-blur-scrim: 0px;
+			--glass-blur-sm: 0px;
+			--glass-blur-md: 0px;
 			--glass-saturate: 100%;
+			--glass-saturate-soft: 100%;
 			--glass-bg: var(--color-surface);
 			--glass-bg-strong: var(--color-surface-raised);
 			--glass-bg-soft: var(--color-surface);
