@@ -168,8 +168,8 @@
 		background:
 			linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 45%),
 			color-mix(in srgb, var(--glass-bg-soft) 86%, var(--badge-accent) 9%);
-		backdrop-filter: blur(calc(var(--glass-blur) - 6px)) saturate(165%);
-		-webkit-backdrop-filter: blur(calc(var(--glass-blur) - 6px)) saturate(165%);
+		backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
 		color: var(--color-text-primary);
 		box-shadow:
 			inset 0 1px 0 color-mix(in srgb, var(--glass-highlight) 86%, white 16%),

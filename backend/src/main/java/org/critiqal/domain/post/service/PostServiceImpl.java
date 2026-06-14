@@ -2,7 +2,9 @@ package org.critiqal.domain.post.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
+import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.post.PostStatus;
@@ -34,15 +36,18 @@ public class PostServiceImpl implements PostService {
     private final PostViewRepository postViewRepo;
     private final UserService userService;
     private final Event<PostCreatedEvent> postCreatedEvent;
+    private final Event<ActivityEvent> activityEvent;
 
     public PostServiceImpl(PostRepository postRepo,
                            PostViewRepository postViewRepo,
                            UserService userService,
-                           Event<PostCreatedEvent> postCreatedEvent) {
+                           Event<PostCreatedEvent> postCreatedEvent,
+                           Event<ActivityEvent> activityEvent) {
         this.postRepo = postRepo;
         this.postViewRepo = postViewRepo;
         this.userService = userService;
         this.postCreatedEvent = postCreatedEvent;
+        this.activityEvent = activityEvent;
     }
 
     @Override
@@ -65,6 +70,7 @@ public class PostServiceImpl implements PostService {
 
         post = postRepo.save(post);
         postCreatedEvent.fireAsync(new PostCreatedEvent(post.id, author.id));
+        activityEvent.fireAsync(new ActivityEvent(authorId, ActivityEvent.ActivityType.POST_CREATED));
         return post;
     }
 

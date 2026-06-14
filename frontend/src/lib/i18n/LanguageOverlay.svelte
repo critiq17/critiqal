@@ -30,8 +30,8 @@
 		display: grid;
 		place-items: center;
 		background: var(--scrim-strong, rgba(0, 0, 0, 0.7));
-		backdrop-filter: blur(18px) saturate(160%);
-		-webkit-backdrop-filter: blur(18px) saturate(160%);
+		backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
 		pointer-events: all;
 	}
 

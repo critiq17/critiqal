@@ -127,8 +127,8 @@
 		border-radius: var(--radius-lg, 16px);
 		border: 1px solid var(--color-border);
 		background: color-mix(in srgb, var(--color-surface-raised, #1b1b22) 78%, transparent);
-		backdrop-filter: blur(16px) saturate(140%);
-		-webkit-backdrop-filter: blur(16px) saturate(140%);
+		backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate-soft));
 		box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
 	}
 </style>

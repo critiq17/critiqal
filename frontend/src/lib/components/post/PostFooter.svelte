@@ -146,7 +146,6 @@
 			background 180ms var(--soft),
 			color 180ms var(--soft),
 			transform 480ms var(--spring);
-		will-change: transform;
 	}
 
 	.act:hover {

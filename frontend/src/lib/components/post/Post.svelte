@@ -169,6 +169,7 @@
 		class="post"
 		class:mobile={isMobile}
 		class:focused
+		class:menu-open={showOptionsMenu}
 		bind:this={articleEl}
 		ontouchstart={onPressStart}
 		ontouchmove={onPressMove}
@@ -242,6 +243,22 @@
 		border: 0;
 		box-shadow: none;
 		transition: transform 380ms var(--spring);
+	}
+
+	/* Skip rendering offscreen desktop posts — including their blur(34px) glow
+	   layer — for a real paint/scroll win on long feeds. contain-intrinsic-size
+	   keeps the scrollbar honest; `auto` remembers each post's real height after
+	   first paint. Mobile posts are already paint-cheap (no glow, no
+	   backdrop-filter), so they're left untouched. */
+	.post:not(.mobile) {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 600px;
+	}
+
+	/* The post whose options menu is open opts back in: the dropdown can extend
+	   past the card and paint containment would clip it. */
+	.post:not(.mobile).menu-open {
+		content-visibility: visible;
 	}
 
 	/* Dynamic light from the photo: one blurred copy of the post's own image,

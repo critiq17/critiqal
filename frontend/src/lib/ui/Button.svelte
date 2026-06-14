@@ -44,7 +44,6 @@
 		font-weight: 600;
 		cursor: pointer;
 		transform-origin: center;
-		will-change: transform;
 		transition:
 			opacity var(--duration-micro) var(--ease-out-quart),
 			background-color var(--duration-micro) var(--ease-out-quart),
