@@ -1,7 +1,9 @@
 package org.critiqal.domain.comment.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.comment.repository.CommentRepository;
 import org.critiqal.domain.post.repository.PostRepository;
@@ -26,15 +28,18 @@ public class CommentServiceImpl implements CommentService {
     private final PostService postService;
     private final UserService userService;
     private final PostRepository postRepo;
+    private final Event<ActivityEvent> activityEvent;
 
     public CommentServiceImpl(CommentRepository commentRepo,
                               PostService postService,
                               UserService userService,
-                              PostRepository postRepo) {
+                              PostRepository postRepo,
+                              Event<ActivityEvent> activityEvent) {
         this.commentRepo = commentRepo;
         this.postService = postService;
         this.userService = userService;
         this.postRepo = postRepo;
+        this.activityEvent = activityEvent;
     }
 
     @Override
@@ -69,6 +74,7 @@ public class CommentServiceImpl implements CommentService {
         var saved = commentRepo.save(comment);
 
         postRepo.incrementCommentCount(postId, 1);
+        activityEvent.fireAsync(new ActivityEvent(authorId, ActivityEvent.ActivityType.COMMENT_ADDED));
         return saved;
     }
 
@@ -93,6 +99,7 @@ public class CommentServiceImpl implements CommentService {
         var saved = commentRepo.save(reply);
 
         postRepo.incrementCommentCount(postId, 1);
+        activityEvent.fireAsync(new ActivityEvent(authorId, ActivityEvent.ActivityType.COMMENT_ADDED));
         return saved;
     }
 

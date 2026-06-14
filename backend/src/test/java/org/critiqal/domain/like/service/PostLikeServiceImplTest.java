@@ -1,5 +1,7 @@
 package org.critiqal.domain.like.service;
 
+import jakarta.enterprise.event.Event;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.like.repository.PostLikeRepository;
 import org.critiqal.domain.post.repository.PostRepository;
 import org.critiqal.domain.post.service.PostService;
@@ -18,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -29,12 +32,14 @@ class PostLikeServiceImplTest {
     private final PostLikeRepository repo = mock(PostLikeRepository.class);
     private final PostService postService = mock(PostService.class);
     private final PostRepository postRepo = mock(PostRepository.class);
+    @SuppressWarnings("unchecked")
+    private final Event<ActivityEvent> activityEvent = mock(Event.class);
 
     private PostLikeServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PostLikeServiceImpl(repo, postService, postRepo);
+        service = new PostLikeServiceImpl(repo, postService, postRepo, activityEvent);
     }
 
     @Test
@@ -47,6 +52,8 @@ class PostLikeServiceImplTest {
 
         verify(postRepo).incrementLikeCount(postId);
         verify(postRepo, never()).decrementLikeCount(postId);
+        verify(activityEvent).fireAsync(argThat(event ->
+                event.userId().equals(userId) && event.type() == ActivityEvent.ActivityType.POST_LIKED));
     }
 
     @Test
@@ -59,6 +66,8 @@ class PostLikeServiceImplTest {
 
         verify(postRepo).decrementLikeCount(postId);
         verify(postRepo, never()).incrementLikeCount(postId);
+        verify(activityEvent).fireAsync(argThat(event ->
+                event.userId().equals(userId) && event.type() == ActivityEvent.ActivityType.POST_UNLIKED));
     }
 
     @Test

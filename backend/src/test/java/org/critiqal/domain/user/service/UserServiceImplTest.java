@@ -1,6 +1,7 @@
 package org.critiqal.domain.user.service;
 
 import jakarta.enterprise.event.Event;
+import org.critiqal.domain.activity.repository.UserActivityStatsRepository;
 import org.critiqal.domain.auth.password.PasswordHash;
 import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.NotFoundException;
@@ -34,12 +35,13 @@ class UserServiceImplTest {
     private final PasswordHash passwordHash = mock(PasswordHash.class);
     @SuppressWarnings("unchecked")
     private final Event<UserRegisteredEvent> registeredEvent = mock(Event.class);
+    private final UserActivityStatsRepository statsRepo = mock(UserActivityStatsRepository.class);
 
     private UserServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new UserServiceImpl(userRepo, passwordHash, registeredEvent);
+        service = new UserServiceImpl(userRepo, passwordHash, registeredEvent, statsRepo);
     }
 
     @Test
@@ -51,7 +53,7 @@ class UserServiceImplTest {
 
         verify(passwordHash, never()).hash(any());
         verify(userRepo, never()).save(any());
-        verifyNoInteractions(registeredEvent);
+        verifyNoInteractions(registeredEvent, statsRepo);
     }
 
     @Test
@@ -72,6 +74,7 @@ class UserServiceImplTest {
         assertEquals("hashed-secret", saved.passwordHash);
         verify(userRepo).save(argThat(user ->
                 "new_user".equals(user.username) && "hashed-secret".equals(user.passwordHash)));
+        verify(statsRepo).findOrCreate(uuid(42));
         verify(registeredEvent).fireAsync(argThat(event ->
                 event.userId().equals(uuid(42)) && event.username().equals("new_user")));
     }

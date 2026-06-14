@@ -32,20 +32,20 @@ public class UserActivityStatsRepositoryImpl
     @Override
     @Transactional
     public void incrementPosts(UUID userId) {
-        nativeUpsert(userId, "posts_count = posts_count + 1");
+        nativeIncrement(userId, "posts_count");
     }
 
     @Override
     @Transactional
     public void incrementComments(UUID userId) {
-        nativeUpsert(userId, "comments_count = comments_count + 1");
+        nativeIncrement(userId, "comments_count");
     }
 
     @Override
     @Transactional
     public void incrementLikes(UUID userId, int delta) {
         if (delta > 0) {
-            nativeUpsert(userId, "likes_count = likes_count + 1");
+            nativeIncrement(userId, "likes_count");
         } else {
             getEntityManager().createNativeQuery("""
                     INSERT INTO user_activity_stats (user_id, likes_count, last_updated)
@@ -80,14 +80,14 @@ public class UserActivityStatsRepositoryImpl
                 .getResultList();
     }
 
-    private void nativeUpsert(UUID userId, String setClause) {
+    private void nativeIncrement(UUID userId, String columnName) {
         getEntityManager().createNativeQuery("""
-                INSERT INTO user_activity_stats (user_id, last_updated)
-                VALUES (?1, CURRENT_TIMESTAMP)
+                INSERT INTO user_activity_stats (user_id, %1$s, last_updated)
+                VALUES (?1, 1, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id) DO UPDATE
-                    SET %s
+                    SET %1$s = user_activity_stats.%1$s + 1,
                         last_updated = CURRENT_TIMESTAMP
-                """.formatted(setClause))
+                """.formatted(columnName))
                 .setParameter(1, userId)
                 .executeUpdate();
     }
