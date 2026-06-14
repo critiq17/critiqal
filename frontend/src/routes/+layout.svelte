@@ -164,8 +164,13 @@
 		--glass-bg-strong: rgba(20, 20, 20, 0.88);
 		--glass-bg-soft: rgba(20, 20, 20, 0.5);
 		--glass-border: rgba(255, 255, 255, 0.08);
-		--glass-highlight: rgba(255, 255, 255, 0.1);
+		--glass-highlight: rgba(255, 255, 255, 0.12);
 		--glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+		/* Liquid-glass depth cues (cheap, paint-only — no extra GPU pass).
+		   edge-light = specular catch on the lower rim; depth = soft inner
+		   bottom shadow that reads as glass thickness. */
+		--glass-edge-light: rgba(255, 255, 255, 0.05);
+		--glass-depth: rgba(0, 0, 0, 0.22);
 
 		font-family:
 			'Inter',
@@ -223,8 +228,10 @@
 		--glass-bg-strong: rgba(255, 255, 255, 0.92);
 		--glass-bg-soft: rgba(255, 255, 255, 0.6);
 		--glass-border: rgba(15, 17, 21, 0.08);
-		--glass-highlight: rgba(255, 255, 255, 0.7);
+		--glass-highlight: rgba(255, 255, 255, 0.85);
 		--glass-shadow: 0 8px 32px rgba(15, 17, 21, 0.10);
+		--glass-edge-light: rgba(255, 255, 255, 0.6);
+		--glass-depth: rgba(15, 17, 21, 0.06);
 
 		color-scheme: light;
 	}
@@ -245,15 +252,21 @@
 		font-family: inherit;
 	}
 
-	/* Reusable glass surface. The inset highlight is the cheap "liquid"
-	   top-edge light cue; blur/saturate is GPU work so it lives only on
-	   small, non-scrolling surfaces (menus, sheets, buttons). */
+	/* Reusable glass surface. Two stacked inset highlights (top + lower rim)
+	   plus a soft inner-bottom shadow give the "liquid" specular/refraction
+	   read for free — it's all paint, no extra GPU pass. blur/saturate is the
+	   only GPU work, so it stays on small, non-scrolling surfaces (menus,
+	   sheets, buttons). */
 	:global(.glass) {
 		background: var(--glass-bg);
 		backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 		-webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
 		border: 1px solid var(--glass-border);
-		box-shadow: var(--glass-shadow), inset 0 1px 0 var(--glass-highlight);
+		box-shadow:
+			var(--glass-shadow),
+			inset 0 1px 0 var(--glass-highlight),
+			inset 0 -1px 0 var(--glass-edge-light),
+			inset 0 -12px 20px -16px var(--glass-depth);
 	}
 
 	:global(.glass-strong) {
@@ -276,6 +289,40 @@
 		:global(.glass-strong),
 		:global(.glass-soft) {
 			background: var(--color-surface);
+		}
+	}
+
+	/* Accessibility + low-power. When the OS requests reduced transparency we
+	   neutralise the glass token system at the root, so every surface that
+	   derives its backdrop-filter from --glass-blur / --glass-saturate (the
+	   vast majority) collapses to a flat, opaque panel with no see-through and
+	   little-to-no GPU blur — centrally, with zero per-component work. The
+	   .glass* utilities additionally drop the filter outright. */
+	@media (prefers-reduced-transparency: reduce) {
+		:global(:root),
+		:global([data-theme='light']) {
+			--glass-blur: 0px;
+			--glass-saturate: 100%;
+			--glass-bg: var(--color-surface);
+			--glass-bg-strong: var(--color-surface-raised);
+			--glass-bg-soft: var(--color-surface);
+		}
+
+		:global(.glass),
+		:global(.glass-strong),
+		:global(.glass-soft) {
+			backdrop-filter: none;
+			-webkit-backdrop-filter: none;
+			background: var(--color-surface);
+		}
+	}
+
+	/* High-contrast mode: firm the hairline glass borders into the solid theme
+	   border so panels keep a crisp, legible edge. */
+	@media (prefers-contrast: more) {
+		:global(:root),
+		:global([data-theme='light']) {
+			--glass-border: var(--color-border);
 		}
 	}
 
