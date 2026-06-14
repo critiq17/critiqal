@@ -33,4 +33,6 @@ public interface UserRepository {
     User save(User user);
 
     int clearExpiredPendingEmails();
+
+    List<UUID> findEarlyUsersWithoutBadge(String badgeCode, int topN);
 }

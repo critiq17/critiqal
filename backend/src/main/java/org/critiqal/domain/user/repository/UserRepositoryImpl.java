@@ -3,6 +3,7 @@ package org.critiqal.domain.user.repository;
 import io.quarkus.hibernate.orm.panache.PanacheRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.badge.BadgeCode;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
 
@@ -85,5 +86,28 @@ public class UserRepositoryImpl implements UserRepository, PanacheRepository<Use
                     AND vt.expiresAt > ?1
                 )
                 """, Instant.now());
+    }
+
+    @Override
+    public List<UUID> findEarlyUsersWithoutBadge(String badgeCode, int topN) {
+        return getEntityManager()
+                .createNativeQuery("""
+                        WITH early AS (
+                            SELECT id, ROW_NUMBER() OVER (ORDER BY created_at ASC) AS rn
+                            FROM users
+                        )
+                        SELECT e.id
+                        FROM early e 
+                        WHERE e.rn <= :topN
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM user_badges ub
+                              JOIN badges b ON ub.badge_id = b.id
+                              WHERE ub.user_id = e.id AND b.code = :code
+                          )
+                        """, UUID.class)
+                .setParameter("topN", topN)
+                .setParameter("code", badgeCode)
+                .getResultList();
     }
 }

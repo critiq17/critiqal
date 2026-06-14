@@ -29,5 +29,5 @@ INSERT INTO badges (code, name, description, config) VALUES
 
 ON CONFLICT (code) DO UPDATE
     SET name        = EXCLUDED.name,
-        description = EXCLUDED.description;
+        description = EXCLUDED.description,
         config      = EXCLUDED.config;
