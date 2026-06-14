@@ -1,5 +1,7 @@
 package org.critiqal.domain.comment.service;
 
+import jakarta.enterprise.event.Event;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.comment.Comment;
 import org.critiqal.domain.comment.repository.CommentRepository;
 import org.critiqal.domain.post.Post;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -33,12 +36,14 @@ class CommentServiceImplTest {
     private final PostService postService = mock(PostService.class);
     private final UserService userService = mock(UserService.class);
     private final PostRepository postRepo = mock(PostRepository.class);
+    @SuppressWarnings("unchecked")
+    private final Event<ActivityEvent> activityEvent = mock(Event.class);
 
     private CommentServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new CommentServiceImpl(commentRepo, postService, userService, postRepo);
+        service = new CommentServiceImpl(commentRepo, postService, userService, postRepo, activityEvent);
     }
 
     @Test
@@ -75,6 +80,8 @@ class CommentServiceImplTest {
         service.addComment(uuid(4), uuid(6), "Nice ride");
 
         verify(postRepo).incrementCommentCount(uuid(6), 1);
+        verify(activityEvent).fireAsync(argThat(event ->
+                event.userId().equals(uuid(4)) && event.type() == ActivityEvent.ActivityType.COMMENT_ADDED));
     }
 
     @Test
@@ -166,6 +173,8 @@ class CommentServiceImplTest {
         assertSame(post, saved.post);
         assertSame(parent, saved.parent);
         assertEquals("Reply", saved.content);
+        verify(activityEvent).fireAsync(argThat(event ->
+                event.userId().equals(uuid(4)) && event.type() == ActivityEvent.ActivityType.COMMENT_ADDED));
     }
 
     @Test

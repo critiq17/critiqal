@@ -1,6 +1,7 @@
 package org.critiqal.domain.post.service;
 
 import jakarta.enterprise.event.Event;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.post.PostStatus;
@@ -43,18 +44,20 @@ class PostServiceImplTest {
     private final UserService userService = mock(UserService.class);
     @SuppressWarnings("unchecked")
     private final Event<PostCreatedEvent> postCreatedEvent = mock(Event.class);
+    @SuppressWarnings("unchecked")
+    private final Event<ActivityEvent> activityEvent = mock(Event.class);
 
     private PostServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PostServiceImpl(postRepo, postViewRepo, userService, postCreatedEvent);
+        service = new PostServiceImpl(postRepo, postViewRepo, userService, postCreatedEvent, activityEvent);
     }
 
     @Test
     void createPostRejectsBlankContent() {
         assertThrows(DomainException.class, () -> service.createPost(uuid(1), "  "));
-        verifyNoInteractions(userService, postRepo, postCreatedEvent);
+        verifyNoInteractions(userService, postRepo, postCreatedEvent, activityEvent);
     }
 
     @Test
@@ -76,6 +79,8 @@ class PostServiceImplTest {
         assertEquals("hello world", result.content);
         verify(postRepo).save(argThat(post -> post.author == author && "hello world".equals(post.content)));
         verify(postCreatedEvent).fireAsync(argThat(event -> event.postId().equals(uuid(11)) && event.authorId().equals(uuid(7))));
+        verify(activityEvent).fireAsync(argThat(event ->
+                event.userId().equals(uuid(7)) && event.type() == ActivityEvent.ActivityType.POST_CREATED));
     }
 
     @Test
@@ -107,14 +112,14 @@ class PostServiceImplTest {
     @Test
     void createPost_rejectsBlankContent() {
         assertThrows(DomainException.class, () -> service.createPost(uuid(7), "  \n  \n  "));
-        verifyNoInteractions(userService, postRepo, postCreatedEvent);
+        verifyNoInteractions(userService, postRepo, postCreatedEvent, activityEvent);
     }
 
     @Test
     void createPost_rejectsTooLong() {
         String tooLong = "a".repeat(501);
         assertThrows(DomainException.class, () -> service.createPost(uuid(7), tooLong));
-        verifyNoInteractions(userService, postRepo, postCreatedEvent);
+        verifyNoInteractions(userService, postRepo, postCreatedEvent, activityEvent);
     }
 
     @Test

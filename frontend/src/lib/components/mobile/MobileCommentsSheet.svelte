@@ -648,7 +648,7 @@
 							>
 								<div class="comment-avatar" aria-hidden="true">
 									{#if author.avatarUrl}
-										<img src={author.avatarUrl} alt="" class="comment-avatar-img" />
+										<img src={author.avatarUrl} alt="" class="comment-avatar-img" loading="lazy" decoding="async" />
 									{:else}
 										<span class="comment-avatar-fallback">
 											{getInitials(author.name, author.username)}
@@ -726,7 +726,7 @@
 														>
 															<div class="reply-avatar" aria-hidden="true">
 																{#if replyAuthor.avatarUrl}
-																	<img src={replyAuthor.avatarUrl} alt="" class="comment-avatar-img" />
+																	<img src={replyAuthor.avatarUrl} alt="" class="comment-avatar-img" loading="lazy" decoding="async" />
 																{:else}
 																	<span class="reply-avatar-fallback">
 																		{getInitials(replyAuthor.name, replyAuthor.username)}
@@ -798,7 +798,7 @@
 					<div class="comments-composer">
 						<div class="composer-avatar" aria-hidden="true">
 							{#if authStore.user?.avatarUrl}
-								<img src={authStore.user.avatarUrl} alt="" class="comment-avatar-img" />
+								<img src={authStore.user.avatarUrl} alt="" class="comment-avatar-img" loading="lazy" decoding="async" />
 							{:else}
 								<span class="comment-avatar-fallback">
 									{getInitials(authStore.user?.name, authStore.user?.username)}

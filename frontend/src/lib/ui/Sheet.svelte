@@ -124,8 +124,8 @@
 		position: fixed;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.6);
-		backdrop-filter: blur(4px);
-		-webkit-backdrop-filter: blur(4px);
+		backdrop-filter: blur(var(--glass-blur-scrim));
+		-webkit-backdrop-filter: blur(var(--glass-blur-scrim));
 		z-index: 100;
 		will-change: opacity;
 	}

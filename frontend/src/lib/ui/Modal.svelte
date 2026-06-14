@@ -37,7 +37,8 @@
 	.backdrop {
 		position: fixed; inset: 0;
 		background: rgba(0,0,0,0.7);
-		backdrop-filter: blur(4px);
+		backdrop-filter: blur(var(--glass-blur-scrim));
+		-webkit-backdrop-filter: blur(var(--glass-blur-scrim));
 		z-index: 200;
 		animation: fadeIn var(--transition-base);
 	}

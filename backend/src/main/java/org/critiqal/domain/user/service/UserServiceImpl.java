@@ -3,6 +3,8 @@ package org.critiqal.domain.user.service;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.activity.ActivityEvent;
+import org.critiqal.domain.activity.repository.UserActivityStatsRepository;
 import org.critiqal.domain.shared.exception.ConflictException;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.user.User;
@@ -24,11 +26,14 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepo;
     private final PasswordHash passwordHash;
     private final Event<UserRegisteredEvent> userRegisteredEvent;
+    private final UserActivityStatsRepository statsRepo;
 
-    public UserServiceImpl(UserRepository userRepo, PasswordHash passwordHash, Event<UserRegisteredEvent> userRegisteredEvent) {
+    public UserServiceImpl(UserRepository userRepo, PasswordHash passwordHash,
+                           Event<UserRegisteredEvent> userRegisteredEvent, UserActivityStatsRepository statsRepo) {
         this.userRepo = userRepo;
         this.passwordHash = passwordHash;
         this.userRegisteredEvent = userRegisteredEvent;
+        this.statsRepo = statsRepo;
     }
 
     @Override
@@ -43,6 +48,7 @@ public class UserServiceImpl implements UserService {
         user.passwordHash = passwordHash.hash(password);
 
         user = userRepo.save(user);
+        statsRepo.findOrCreate(user.id);
         userRegisteredEvent.fireAsync(new UserRegisteredEvent(user.id, user.username));
         return user;
     }

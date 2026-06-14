@@ -91,8 +91,8 @@
 		position: fixed;
 		inset: 0;
 		background: var(--scrim-strong, rgba(0, 0, 0, 0.7));
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
+		backdrop-filter: blur(var(--glass-blur-scrim));
+		-webkit-backdrop-filter: blur(var(--glass-blur-scrim));
 		display: flex;
 		align-items: center;
 		justify-content: center;

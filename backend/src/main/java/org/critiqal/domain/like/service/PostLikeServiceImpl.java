@@ -1,7 +1,9 @@
 package org.critiqal.domain.like.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Event;
 import jakarta.transaction.Transactional;
+import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.like.LikeResult;
 import org.critiqal.domain.like.repository.PostLikeRepository;
 import org.critiqal.domain.post.repository.PostRepository;
@@ -18,12 +20,14 @@ public class PostLikeServiceImpl implements LikeService {
     private final PostLikeRepository repo;
     private final PostService postService;
     private final PostRepository postRepo;
+    private final Event<ActivityEvent> activityEvent;
 
     public PostLikeServiceImpl(PostLikeRepository repo, PostService postService,
-                               PostRepository postRepo) {
+                               PostRepository postRepo, Event<ActivityEvent> activityEvent) {
         this.repo = repo;
         this.postService = postService;
         this.postRepo = postRepo;
+        this.activityEvent = activityEvent;
     }
 
     @Override
@@ -35,9 +39,11 @@ public class PostLikeServiceImpl implements LikeService {
         if (wasLiked) {
             repo.remove(postId, userId);
             postRepo.decrementLikeCount(postId);
+            activityEvent.fireAsync(new ActivityEvent(userId, ActivityEvent.ActivityType.POST_UNLIKED));
         } else {
             repo.save(postId, userId);
             postRepo.incrementLikeCount(postId);
+            activityEvent.fireAsync(new ActivityEvent(userId, ActivityEvent.ActivityType.POST_LIKED));
         }
 
         long newCount = repo.count(postId);

@@ -227,8 +227,8 @@
 		border-radius: 999px;
 		color: #fff;
 		background: rgba(0, 0, 0, 0.42);
-		backdrop-filter: blur(12px) saturate(140%);
-		-webkit-backdrop-filter: blur(12px) saturate(140%);
+		backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
 		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 		cursor: pointer;
 		opacity: 0;
@@ -272,8 +272,8 @@
 		padding: 6px 8px;
 		background: rgba(0, 0, 0, 0.4);
 		border-radius: 999px;
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
+		backdrop-filter: blur(var(--glass-blur-sm));
+		-webkit-backdrop-filter: blur(var(--glass-blur-sm));
 		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.14);
 		pointer-events: none;
 	}
@@ -307,8 +307,8 @@
 		letter-spacing: 0.02em;
 		border-radius: 999px;
 		pointer-events: none;
-		backdrop-filter: blur(12px) saturate(140%);
-		-webkit-backdrop-filter: blur(12px) saturate(140%);
+		backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
+		-webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate-soft));
 		box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18);
 	}
 
