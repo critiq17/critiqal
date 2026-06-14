@@ -229,7 +229,6 @@
     align-items: center;
     touch-action: none;
     transform-origin: center;
-    will-change: transform;
   }
 
   /* Sliding pill behind the active tab. Spring-driven via rAF in the script:
@@ -272,7 +271,6 @@
     min-width: 48px;
     min-height: 48px;
     transform-origin: center;
-    will-change: transform;
     transition: transform var(--duration-press) var(--ease-out-quart);
     -webkit-tap-highlight-color: transparent;
   }
@@ -338,7 +336,6 @@
     flex-shrink: 0;
     color: var(--text-secondary-2);
     transform-origin: center;
-    will-change: transform;
     transition:
       transform var(--duration-press) var(--ease-out-quart),
       color var(--duration-micro) var(--ease-out-quart);
