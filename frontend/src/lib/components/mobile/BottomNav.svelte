@@ -216,8 +216,8 @@
     /* More transparent than default glass-soft — the menu reads as a thin
        frosted film, not a panel. backdrop-filter inherited from .glass. */
     background: rgba(20, 20, 22, 0.32);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(var(--glass-saturate));
+    -webkit-backdrop-filter: blur(28px) saturate(var(--glass-saturate));
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.08),
       0 12px 32px -8px rgba(0, 0, 0, 0.45),
@@ -309,6 +309,17 @@
     .tab-btn:active,
     .compose-btn:active {
       transform: none;
+    }
+  }
+
+  /* Reduced transparency: drop the blur and settle on an opaque dark panel
+     that matches the menu's normal dark-frost read (it is intentionally dark
+     in both themes). */
+  @media (prefers-reduced-transparency: reduce) {
+    .nav-pill {
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      background: #1f1f23;
     }
   }
 
