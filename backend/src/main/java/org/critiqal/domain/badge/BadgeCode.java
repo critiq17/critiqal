@@ -7,5 +7,9 @@ public enum BadgeCode {
     LEGATUS,
     SCRIBE,
     ORATOR,
-    TRIBUNE
+    TRIBUNE,
+    // event organizer track
+    AEDILE,   // capability: earned the right to organize (reputation or admin grant)
+    PRAETOR,  // hosted 5 events
+    CONSUL    // hosted 20 events
 }

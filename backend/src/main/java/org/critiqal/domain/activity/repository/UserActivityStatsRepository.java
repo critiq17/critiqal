@@ -17,6 +17,10 @@ public interface UserActivityStatsRepository {
 
     void incrementLikes(UUID userId, int delta);
 
+    void incrementEventsHosted(UUID userId);
+
+    void incrementEventsAttended(UUID userId);
+
     int incrementAllMemberDays();
 
     java.util.List<UUID> findUserIdsWithMemberDays(int days);

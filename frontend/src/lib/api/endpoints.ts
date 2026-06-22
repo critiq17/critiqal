@@ -62,6 +62,16 @@ export const API = {
     activities: '/api/integrations/strava/activities',
     public: (userId: string) => `/api/integrations/strava/public/${userId}`,
   },
+  events: {
+    list: '/api/events',
+    mine: '/api/events/mine',
+    permissions: '/api/events/permissions',
+    byId: (id: string) => `/api/events/${id}`,
+    publish: (id: string) => `/api/events/${id}/publish`,
+    cancel: (id: string) => `/api/events/${id}/cancel`,
+    rsvp: (id: string) => `/api/events/${id}/rsvp`,
+    attendees: (id: string) => `/api/events/${id}/attendees`,
+  },
   admin: {
     login: '/api/admin/auth/login',
     login2fa: '/api/admin/auth/2fa',
