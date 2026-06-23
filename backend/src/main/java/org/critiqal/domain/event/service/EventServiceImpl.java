@@ -124,7 +124,7 @@ public class EventServiceImpl implements EventService {
     private Event doPublish(Event event) {
         event.status = EventStatus.PUBLISHED;
         event.updatedAt = Instant.now();
-        publishedEvent.fireAsync(new EventPublishedEvent(event.id));
+        publishedEvent.fire(new EventPublishedEvent(event.id));
         return event;
     }
 
@@ -132,12 +132,15 @@ public class EventServiceImpl implements EventService {
     @Transactional
     public Event cancelEvent(UUID eventId, UUID requesterId) {
         var event = requireManageable(eventId, requesterId);
-        if (event.status == EventStatus.ENDED || event.status == EventStatus.CANCELLED) {
+        if (event.status == EventStatus.CANCELLED) {
+            return event; // idempotent: a repeat cancel is a no-op, not an error
+        }
+        if (event.status == EventStatus.ENDED) {
             throw new DomainException("Event is already finished");
         }
         event.status = EventStatus.CANCELLED;
         event.updatedAt = Instant.now();
-        cancelledEvent.fireAsync(new EventCancelledEvent(event.id));
+        cancelledEvent.fire(new EventCancelledEvent(event.id));
         return event;
     }
 

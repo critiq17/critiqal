@@ -3,6 +3,7 @@ package org.critiqal.infra.discord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.critiqal.domain.event.Event;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -11,6 +12,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -87,7 +89,7 @@ public class DiscordClient {
 
             var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warnf("Discord createScheduledEvent failed: %d %s", resp.statusCode(), resp.body());
+                log.errorf("Discord createScheduledEvent failed: HTTP %d — %s", resp.statusCode(), resp.body());
                 return Optional.empty();
             }
             Map<?, ?> json = mapper.readValue(resp.body(), Map.class);
@@ -98,9 +100,10 @@ public class DiscordClient {
         }
     }
 
-    public void deleteScheduledEvent(String discordEventId) {
+    /** Deletes a scheduled event. Returns true when gone (2xx or already-404), false on failure (retry later). */
+    public boolean deleteScheduledEvent(String discordEventId) {
         if (!isConfigured() || discordEventId == null) {
-            return;
+            return true;
         }
         try {
             var req = HttpRequest.newBuilder()
@@ -110,36 +113,82 @@ public class DiscordClient {
                     .DELETE()
                     .build();
             var resp = http.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() / 100 != 2 && resp.statusCode() != 404) {
-                log.warnf("Discord deleteScheduledEvent failed: %d %s", resp.statusCode(), resp.body());
+            if (resp.statusCode() / 100 == 2 || resp.statusCode() == 404) {
+                return true;
             }
+            log.warnf("Discord deleteScheduledEvent failed: %d %s", resp.statusCode(), resp.body());
+            return false;
         } catch (Exception e) {
             log.warnf("Discord deleteScheduledEvent error: %s", e.getMessage());
+            return false;
         }
     }
 
     /** Posts a rich announcement embed to the configured channel webhook. */
-    public void announce(String title, String description, String url, String imageUrl) {
+    public void announce(Event event, String url) {
         if (webhookUrl.isBlank()) {
             return;
         }
         try {
             Map<String, Object> embed = new HashMap<>();
-            embed.put("title", truncate(title, 256));
-            if (description != null && !description.isBlank()) {
-                embed.put("description", truncate(description, 2048));
-            }
-            if (url != null && !url.isBlank()) {
-                embed.put("url", url);
-            }
+
+            // Title links to the event page
+            embed.put("title", truncate(event.title, 256));
+            if (url != null && !url.isBlank()) embed.put("url", url);
             embed.put("color", ACCENT_COLOR);
-            if (imageUrl != null && !imageUrl.isBlank()) {
-                embed.put("image", Map.of("url", imageUrl));
+            // Discord renders <t:EPOCH:F> as a localised full date for each viewer
+            embed.put("timestamp", event.startsAt.toString());
+
+            // Description
+            if (event.description != null && !event.description.isBlank()) {
+                embed.put("description", truncate(event.description, 2048));
             }
 
-            Map<String, Object> payload = Map.of(
-                    "content", "📣 New event on Critiqal",
-                    "embeds", List.of(embed));
+            // Author = host
+            Map<String, Object> author = new HashMap<>();
+            String hostDisplay = event.host.name != null ? event.host.name : event.host.username;
+            author.put("name", "Hosted by " + hostDisplay + " (@" + event.host.username + ")");
+            if (event.host.avatarUrl != null) author.put("icon_url", event.host.avatarUrl);
+            embed.put("author", author);
+
+            // Fields
+            List<Map<String, Object>> fields = new ArrayList<>();
+
+            // When — Discord native timestamps auto-localise per viewer
+            long startEpoch = event.startsAt.getEpochSecond();
+            String whenValue = "<t:" + startEpoch + ":F>";
+            if (event.endsAt != null) {
+                whenValue += " — <t:" + event.endsAt.getEpochSecond() + ":t>";
+            }
+            whenValue += "  (<t:" + startEpoch + ":R>)";
+            fields.add(field("When", whenValue, false));
+
+            // Where
+            String where = event.locationValue != null && !event.locationValue.isBlank()
+                    ? event.locationValue
+                    : switch (event.locationType) {
+                        case DISCORD -> "Discord";
+                        case TELEGRAM -> "Telegram";
+                        case IRL -> "In person";
+                        case EXTERNAL -> "External link";
+                    };
+            fields.add(field("Where", truncate(where, 1024), true));
+
+            // Spots
+            if (event.capacity != null) {
+                fields.add(field("Spots", event.attendeeCount + " / " + event.capacity, true));
+            }
+
+            embed.put("fields", fields);
+
+            // Cover image
+            if (event.coverImageUrl != null && !event.coverImageUrl.isBlank()) {
+                embed.put("image", Map.of("url", event.coverImageUrl));
+            }
+
+            embed.put("footer", Map.of("text", "Critiqal Events"));
+
+            Map<String, Object> payload = Map.of("embeds", List.of(embed));
 
             var req = HttpRequest.newBuilder()
                     .uri(URI.create(webhookUrl))
@@ -151,6 +200,10 @@ public class DiscordClient {
         } catch (Exception e) {
             log.warnf("Discord announce error: %s", e.getMessage());
         }
+    }
+
+    private static Map<String, Object> field(String name, String value, boolean inline) {
+        return Map.of("name", name, "value", value, "inline", inline);
     }
 
     private static String truncate(String s, int max) {

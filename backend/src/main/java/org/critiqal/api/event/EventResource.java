@@ -84,8 +84,10 @@ public class EventResource {
                 req.locationType(), req.locationValue(),
                 req.startsAt(), req.endsAt(), req.capacity(),
                 Boolean.TRUE.equals(req.publishNow()));
-        var event = eventService.createEvent(currentUser.id(), cmd);
-        return Response.status(Response.Status.CREATED).entity(toDto(event)).build();
+        var created = eventService.createEvent(currentUser.id(), cmd);
+        return Response.status(Response.Status.CREATED)
+                .entity(toDto(eventService.getById(created.id)))
+                .build();
     }
 
     @PATCH
@@ -97,8 +99,8 @@ public class EventResource {
                 req.title(), req.description(), req.coverImageUrl(),
                 req.locationType(), req.locationValue(),
                 req.startsAt(), req.endsAt(), req.capacity());
-        var event = eventService.updateEvent(id, currentUser.id(), cmd);
-        return toDto(event);
+        eventService.updateEvent(id, currentUser.id(), cmd);
+        return toDto(eventService.getById(id));
     }
 
     @POST
@@ -106,7 +108,8 @@ public class EventResource {
     @Authenticated
     @RequireVerifiedEmail
     public EventDTO publish(@PathParam("id") UUID id) {
-        return toDto(eventService.publishEvent(id, currentUser.id()));
+        eventService.publishEvent(id, currentUser.id());
+        return toDto(eventService.getById(id));
     }
 
     @POST
@@ -114,7 +117,8 @@ public class EventResource {
     @Authenticated
     @RequireVerifiedEmail
     public EventDTO cancel(@PathParam("id") UUID id) {
-        return toDto(eventService.cancelEvent(id, currentUser.id()));
+        eventService.cancelEvent(id, currentUser.id());
+        return toDto(eventService.getById(id));
     }
 
     @DELETE
@@ -131,9 +135,8 @@ public class EventResource {
     @RequireVerifiedEmail
     public EventDTO rsvp(@PathParam("id") UUID id, RsvpRequest req) {
         RsvpStatus status = req != null && req.status() != null ? req.status() : RsvpStatus.GOING;
-        var result = eventService.rsvp(id, currentUser.id(), status);
-        return EventDTO.from(result.event(), result.status(),
-                result.event().isManageableBy(currentUser.id()));
+        eventService.rsvp(id, currentUser.id(), status);
+        return toDto(eventService.getById(id));
     }
 
     @DELETE

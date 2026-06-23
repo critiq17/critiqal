@@ -65,6 +65,22 @@ public class EventRepositoryImpl implements EventRepository, PanacheRepository<E
     }
 
     @Override
+    public List<Event> findPendingDiscordSync(int limit) {
+        return find("status in (?1, ?2) and discordEventId is null",
+                Sort.by("startsAt").ascending(),
+                EventStatus.PUBLISHED, EventStatus.LIVE)
+                .page(Page.of(0, limit))
+                .list();
+    }
+
+    @Override
+    public List<Event> findStaleDiscordEvents(int limit) {
+        return find("status = ?1 and discordEventId is not null", EventStatus.CANCELLED)
+                .page(Page.of(0, limit))
+                .list();
+    }
+
+    @Override
     @Transactional
     public void incrementAttendees(UUID eventId, int delta) {
         getEntityManager().createNativeQuery("""

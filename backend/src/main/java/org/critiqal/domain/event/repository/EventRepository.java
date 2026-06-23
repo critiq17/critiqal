@@ -26,5 +26,9 @@ public interface EventRepository {
 
     List<Event> findByStatusEndingBefore(List<EventStatus> statuses, Instant now);
 
+    List<Event> findPendingDiscordSync(int limit);
+
+    List<Event> findStaleDiscordEvents(int limit);
+
     void incrementAttendees(UUID eventId, int delta);
 }

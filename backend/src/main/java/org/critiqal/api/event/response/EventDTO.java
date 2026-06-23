@@ -20,6 +20,7 @@ public record EventDTO(
         String status,
         String discordEventId,
         Instant createdAt,
+        String discordEventUrl,
         String viewerRsvp,   // GOING | INTERESTED | null
         boolean canManage
 ) {
@@ -39,6 +40,9 @@ public record EventDTO(
                 e.status.name(),
                 e.discordEventId,
                 e.createdAt,
+                (e.discordGuildId != null && e.discordEventId != null)
+                        ? "https://discord.com/events/" + e.discordGuildId + "/" + e.discordEventId
+                        : null,
                 viewerRsvp != null ? viewerRsvp.name() : null,
                 canManage
         );
