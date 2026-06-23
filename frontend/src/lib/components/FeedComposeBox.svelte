@@ -23,7 +23,6 @@
 
 	let permissionChecked = $state(false);
 	let canCreate = $state<boolean | null>(null);
-	let permissionError = $state(false);
 
 	// ── Event form state ──────────────────────────────────────────────────────
 
@@ -62,13 +61,11 @@
 		mode = next;
 		if (next === 'event' && !permissionChecked) {
 			canCreate = null;
-			permissionError = false;
 			try {
 				const res = await eventService.canCreate();
 				canCreate = res.canCreateEvents;
 			} catch {
 				canCreate = false;
-				permissionError = true;
 			} finally {
 				permissionChecked = true;
 			}

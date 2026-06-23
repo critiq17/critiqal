@@ -4,7 +4,6 @@
 	import { eventService } from '$lib/services/event.service';
 	import { UseEventRsvp } from '$lib/features/events/useEventRsvp.svelte';
 	import { mobileEventsStore } from '$lib/stores/mobile-events.store.svelte';
-	import { navStack } from '$lib/stores/nav-stack.store.svelte';
 	import { getTelegramWebApp } from '$lib/telegram';
 	import Avatar from '$lib/ui/Avatar.svelte';
 	import Button from '$lib/ui/Button.svelte';

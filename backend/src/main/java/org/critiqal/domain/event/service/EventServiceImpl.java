@@ -124,7 +124,7 @@ public class EventServiceImpl implements EventService {
     private Event doPublish(Event event) {
         event.status = EventStatus.PUBLISHED;
         event.updatedAt = Instant.now();
-        publishedEvent.fire(new EventPublishedEvent(event.id));
+        publishedEvent.fireAsync(new EventPublishedEvent(event.id));
         return event;
     }
 
@@ -140,7 +140,7 @@ public class EventServiceImpl implements EventService {
         }
         event.status = EventStatus.CANCELLED;
         event.updatedAt = Instant.now();
-        cancelledEvent.fire(new EventCancelledEvent(event.id));
+        cancelledEvent.fireAsync(new EventCancelledEvent(event.id));
         return event;
     }
 
