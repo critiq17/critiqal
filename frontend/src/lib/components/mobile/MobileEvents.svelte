@@ -179,7 +179,7 @@
 	.create-fab {
 		position: absolute;
 		right: 18px;
-		bottom: calc(var(--bottom-nav-height, 72px) + var(--safe-bottom, 0px) + 18px);
+		bottom: calc(var(--bottom-nav-height, 72px) + var(--safe-bottom, 0px) + 8px);
 		z-index: 15;
 		width: 54px;
 		height: 54px;

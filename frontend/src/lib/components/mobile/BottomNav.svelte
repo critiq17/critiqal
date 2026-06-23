@@ -4,7 +4,6 @@
   import type { MobileTab } from '$lib/stores/mobile-tab.store.svelte';
   import { openCompose } from '$lib/stores/compose.store.svelte';
   import { getTelegramWebApp } from '$lib/telegram';
-  import { elasticDrag } from '$lib/actions/elasticDrag';
   import { reducedMotion } from '$lib/ui/reducedMotion.svelte';
   import { t } from '$lib/i18n';
 
@@ -134,16 +133,8 @@
 
 <nav
   bind:this={navEl}
-  class="nav-pill glass glass-soft"
+  class="nav-bar glass glass-soft"
   aria-label={t('nav.feed')}
-  use:elasticDrag={{
-    axis: 'free',
-    stretch: 0.34,
-    pinned: true,
-    stretchOrigin: 'center',
-    stiffness: 180,
-    damping: 10
-  }}
 >
   <span
     bind:this={indEl}
@@ -220,31 +211,34 @@
 </nav>
 
 <style>
-  .nav-pill {
+  /* Edge-anchored bottom bar: full width, glued to the screen's left/right
+     and bottom edges, no border and no rounded island. Stays a thin frosted
+     film over the content (backdrop blur inherited from .glass), just no
+     longer floating. Bottom safe-area keeps icons clear of the home bar. */
+  .nav-bar {
     position: fixed;
-    bottom: calc(16px + var(--tg-content-bottom, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))));
     left: 0;
     right: 0;
-    margin-inline: auto;
-    width: fit-content;
-    min-width: 200px;
-    border-radius: 32px;
-    /* More transparent than default glass-soft — the menu reads as a thin
-       frosted film, not a panel. backdrop-filter inherited from .glass. */
+    bottom: 0;
+    width: 100%;
+    border-radius: 0;
+    border: none;
     background: rgba(20, 20, 22, 0.32);
     backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
     -webkit-backdrop-filter: blur(calc(var(--glass-blur) + 4px)) saturate(var(--glass-saturate));
+    /* Top hairline only (separates bar from content) plus a soft upward
+       shadow for depth. No box around the bar — it reads flush, not framed. */
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 12px 32px -8px rgba(0, 0, 0, 0.45),
-      0 2px 6px rgba(0, 0, 0, 0.25);
-    padding: 9px 16px;
+      inset 0 1px 0 rgba(255, 255, 255, 0.07),
+      0 -6px 20px -6px rgba(0, 0, 0, 0.35);
+    padding:
+      10px max(14px, env(safe-area-inset-left, 0px))
+      calc(24px + var(--tg-content-bottom, var(--tg-content-safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))))
+      max(14px, env(safe-area-inset-right, 0px));
     z-index: 100;
     display: flex;
-    gap: 10px;
+    justify-content: space-around;
     align-items: center;
-    touch-action: none;
-    transform-origin: center;
   }
 
   /* Sliding pill behind the active tab. Spring-driven via rAF in the script:
@@ -297,12 +291,11 @@
     transition: stroke var(--duration-micro) var(--ease-out-quart);
   }
 
-  .tab-btn.active svg {
+  /* Single uniform white tone across every icon. The active tab is conveyed
+     by the sliding indicator pill, not by dimming the others. */
+  .tab-btn svg,
+  .compose-btn svg {
     stroke: var(--color-text-primary);
-  }
-
-  .tab-btn:not(.active) svg {
-    stroke: var(--text-quaternary);
   }
 
   .tab-btn:active {
@@ -310,9 +303,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .nav-pill {
-      transform: none !important;
-    }
     .indicator {
       transition: opacity var(--duration-micro) var(--ease-out-quart);
     }
@@ -327,39 +317,44 @@
   }
 
   /* Reduced transparency: drop the blur and settle on an opaque dark panel
-     that matches the menu's normal dark-frost read (it is intentionally dark
+     that matches the bar's normal dark-frost read (it is intentionally dark
      in both themes). */
   @media (prefers-reduced-transparency: reduce) {
-    .nav-pill {
+    .nav-bar {
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
       background: #1f1f23;
     }
   }
 
+  /* Compose shares the exact box and icon size as the tab buttons so the
+     whole row sits on one optical line — no size or layout mismatch. */
   .compose-btn {
+    position: relative;
+    z-index: 1;
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
+    padding: 13px 22px;
+    border-radius: 20px;
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
     min-width: 48px;
     min-height: 48px;
-    justify-content: center;
     flex-shrink: 0;
-    color: var(--text-secondary-2);
+    color: var(--color-text-primary);
     transform-origin: center;
-    transition:
-      transform var(--duration-press) var(--ease-out-quart),
-      color var(--duration-micro) var(--ease-out-quart);
+    transition: transform var(--duration-press) var(--ease-out-quart);
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .compose-btn svg {
+    width: 26px;
+    height: 26px;
   }
 
   .compose-btn:active {
     transform: scale(0.92);
-    color: var(--color-text-primary);
   }
 </style>
