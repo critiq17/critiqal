@@ -9,7 +9,9 @@
 export type NavEntry =
   | { key: number; kind: 'profile'; username: string }
   | { key: number; kind: 'connections'; username: string; tab: 'followers' | 'following' }
-  | { key: number; kind: 'settings' };
+  | { key: number; kind: 'settings' }
+  | { key: number; kind: 'event-detail'; eventId: string }
+  | { key: number; kind: 'event-create' };
 
 // Distributes Omit over the union so each member is checked individually
 // (a plain Omit<Union,'key'> would reject member-specific fields).
@@ -46,6 +48,18 @@ class NavStack {
   pushSettings(): void {
     if (this.top?.kind === 'settings') return;
     this.push({ kind: 'settings' });
+  }
+
+  pushEventDetail(eventId: string): void {
+    const t = this.top;
+    // Don't stack the same event twice in a row.
+    if (t?.kind === 'event-detail' && t.eventId === eventId) return;
+    this.push({ kind: 'event-detail', eventId });
+  }
+
+  pushEventCreate(): void {
+    if (this.top?.kind === 'event-create') return;
+    this.push({ kind: 'event-create' });
   }
 
   // Pop one level — the unit of the BackButton and one swipe-back gesture.

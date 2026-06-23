@@ -9,6 +9,9 @@
 
 	// Lazy-loaded: 1294 LOC — only needed when settings is pushed onto the nav stack.
 	let MobileSettingsOverlay = $state<typeof import('./MobileSettingsOverlay.svelte').default | null>(null);
+	// Event overlays — fetched on first push to keep them out of the cold-start bundle.
+	let MobileEventDetail = $state<typeof import('./MobileEventDetail.svelte').default | null>(null);
+	let MobileEventCompose = $state<typeof import('./MobileEventCompose.svelte').default | null>(null);
 
 	// Fraction of screen width the layer *beneath* the top one is pushed left,
 	// for the iOS-style parallax depth cue.
@@ -53,23 +56,31 @@
 	// the previous top to its depth position. A pop is animated by dismissTop()
 	// (or, for reset(), the layers just unmount).
 	let prevLen = 0;
+	let prevTopKey: number | null = null;
 	$effect(() => {
-		const len = navStack.entries.length;
+		const entries = navStack.entries;
+		const len = entries.length;
+		const topKey = len > 0 ? entries[len - 1]!.key : null;
 		untrack(() => {
-			if (len > prevLen && !animating) {
-				const entries = navStack.entries;
-				const topKey = entries[len - 1]!.key;
+			// Animate in any freshly revealed top layer. This covers a normal push
+			// (length grows) AND a replace, where the composer pops itself and
+			// pushes the new event's detail in the same tick: length is unchanged
+			// but the top key flips. Without the key check the replaced layer stays
+			// parked off-screen by register(), which read as a broken half-screen.
+			if (topKey !== null && topKey !== prevTopKey && len >= prevLen && !animating) {
+				const top = topKey;
 				const belowKey = len >= 2 ? entries[len - 2]!.key : null;
 				// Deep layers (already parked) snap to the depth offset.
 				for (let i = 0; i < len - 2; i++) setX(entries[i]!.key, -sw() * PUSH, 0);
 				// register() placed the new top off-screen — slide it in while
 				// the previous top parallaxes back to the depth offset.
 				requestAnimationFrame(() => {
-					setX(topKey, 0, ENTER_MS);
+					setX(top, 0, ENTER_MS);
 					if (belowKey != null) setX(belowKey, -sw() * PUSH, ENTER_MS);
 				});
 			}
 			prevLen = len;
+			prevTopKey = topKey;
 		});
 	});
 
@@ -116,6 +127,18 @@
 	$effect(() => {
 		if (!MobileSettingsOverlay && rendered.some((e) => e.kind === 'settings')) {
 			import('./MobileSettingsOverlay.svelte').then((m) => { MobileSettingsOverlay = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (!MobileEventDetail && rendered.some((e) => e.kind === 'event-detail')) {
+			import('./MobileEventDetail.svelte').then((m) => { MobileEventDetail = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (!MobileEventCompose && rendered.some((e) => e.kind === 'event-create')) {
+			import('./MobileEventCompose.svelte').then((m) => { MobileEventCompose = m.default; });
 		}
 	});
 
@@ -228,6 +251,10 @@
 			/>
 		{:else if entry.kind === 'settings' && MobileSettingsOverlay}
 			<MobileSettingsOverlay onBack={backByButton} />
+		{:else if entry.kind === 'event-detail' && MobileEventDetail}
+			<MobileEventDetail eventId={entry.eventId} onBack={backByButton} />
+		{:else if entry.kind === 'event-create' && MobileEventCompose}
+			<MobileEventCompose onBack={backByButton} />
 		{/if}
 	</div>
 {/each}

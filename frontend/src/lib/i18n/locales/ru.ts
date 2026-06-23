@@ -37,6 +37,7 @@ export const ru = {
   nav: {
     feed: 'Лента',
     explore: 'Поиск',
+    events: 'События',
     notifications: 'Уведомления',
     profile: 'Профиль',
     settings: 'Настройки',

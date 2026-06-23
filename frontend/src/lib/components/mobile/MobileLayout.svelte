@@ -40,6 +40,7 @@
 	// Lazy-loaded heavy components — fetched on first need to keep the initial
 	// TMA bundle lean (feed-first cold start).
 	let MobileExplore = $state<typeof import('./MobileExplore.svelte').default | null>(null);
+	let MobileEvents = $state<typeof import('./MobileEvents.svelte').default | null>(null);
 	let MobileProfile = $state<typeof import('./MobileProfile.svelte').default | null>(null);
 	let MobileCommentsSheet = $state<typeof import('./MobileCommentsSheet.svelte').default | null>(null);
 	let MobilePostFocus = $state<typeof import('$lib/components/post/MobilePostFocus.svelte').default | null>(null);
@@ -48,6 +49,12 @@
 	$effect(() => {
 		if (mountedTabs.has('explore') && !MobileExplore) {
 			import('./MobileExplore.svelte').then((m) => { MobileExplore = m.default; });
+		}
+	});
+
+	$effect(() => {
+		if (mountedTabs.has('events') && !MobileEvents) {
+			import('./MobileEvents.svelte').then((m) => { MobileEvents = m.default; });
 		}
 	});
 
@@ -202,7 +209,12 @@
 					{/if}
 				{/if}
 			</div>
-			<div class="tab-panel" class:active={tabStore.active === 'profile'}>
+			<div class="tab-panel" class:active={tabStore.active === 'events'}>
+					{#if mountedTabs.has('events') && MobileEvents}
+						<MobileEvents />
+					{/if}
+				</div>
+				<div class="tab-panel" class:active={tabStore.active === 'profile'}>
 				{#if mountedTabs.has('profile') && MobileProfile}
 					{#if authStore.isAuthenticated}
 						<MobileProfile />

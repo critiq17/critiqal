@@ -31,6 +31,8 @@ public class ActivityTrackerService {
                 case COMMENT_ADDED -> statsRepo.incrementComments(event.userId());
                 case POST_LIKED -> statsRepo.incrementLikes(event.userId(), +1);
                 case POST_UNLIKED -> statsRepo.incrementLikes(event.userId(), -1);
+                case EVENT_HOSTED -> statsRepo.incrementEventsHosted(event.userId());
+                case EVENT_ATTENDED -> statsRepo.incrementEventsAttended(event.userId());
             }
             badgeCheckEvent.fireAsync(new BadgeCheckEvent(event.userId(), BadgeCheckEvent.Reason.ACTION));
         } catch (Exception e) {
