@@ -3,6 +3,7 @@
 	import PostPhotoGallery from './PostPhotoGallery.svelte';
 	import type { Post } from '$lib/types';
 	import { normalizeContent } from '$lib/utils/normalizeContent';
+	import { linkify } from '$lib/utils/linkify';
 
 	interface Props {
 		post: Post;
@@ -20,6 +21,7 @@
 	let textEl = $state<HTMLParagraphElement | null>(null);
 
 	const content = $derived(normalizeContent(post.content ?? ''));
+	const tokens = $derived(linkify(content));
 
 	function measure(): void {
 		const el = textEl;
@@ -54,7 +56,12 @@
 		class:clamped={!expanded && overflowing}
 		style:--clamp-lines={CLAMP_LINES}
 		bind:this={textEl}
-	>{content}</p>
+	>{#each tokens as token}{#if token.type === 'link'}<a
+				class="p-link"
+				href={token.href}
+				target="_blank"
+				rel="noopener noreferrer nofollow"
+				onclick={(e) => e.stopPropagation()}>{token.value}</a>{:else}{token.value}{/if}{/each}</p>
 	{#if overflowing}
 		<button class="p-more" type="button" onclick={toggle} aria-expanded={expanded}>
 			{expanded ? 'Show less' : 'Show more'}
@@ -77,6 +84,16 @@
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		text-wrap: pretty;
+	}
+
+	.p-link {
+		color: var(--color-accent);
+		text-decoration: none;
+		overflow-wrap: anywhere;
+	}
+
+	.p-link:hover {
+		text-decoration: underline;
 	}
 
 	.p-text.clamped {
