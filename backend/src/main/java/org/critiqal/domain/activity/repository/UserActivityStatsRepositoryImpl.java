@@ -61,6 +61,18 @@ public class UserActivityStatsRepositoryImpl
 
     @Override
     @Transactional
+    public void incrementEventsHosted(UUID userId) {
+        nativeIncrement(userId, "events_hosted");
+    }
+
+    @Override
+    @Transactional
+    public void incrementEventsAttended(UUID userId) {
+        nativeIncrement(userId, "events_attended");
+    }
+
+    @Override
+    @Transactional
     public int incrementAllMemberDays() {
         return getEntityManager().createNativeQuery("""
                 UPDATE user_activity_stats

@@ -8,6 +8,8 @@ public record ActivityEvent(UUID userId, ActivityType type) {
         POST_CREATED,
         COMMENT_ADDED,
         POST_LIKED,
-        POST_UNLIKED
+        POST_UNLIKED,
+        EVENT_HOSTED,
+        EVENT_ATTENDED
     }
 }

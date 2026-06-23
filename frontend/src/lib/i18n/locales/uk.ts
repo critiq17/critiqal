@@ -37,6 +37,7 @@ export const uk: Dict = {
   nav: {
     feed: 'Стрічка',
     explore: 'Пошук',
+    events: 'Події',
     notifications: 'Сповіщення',
     profile: 'Профіль',
     settings: 'Налаштування',

@@ -25,7 +25,19 @@ INSERT INTO badges (code, name, description, config) VALUES
 
     ('TRIBUNE',   'Tribune',
      'Active contributor to discussions',
-     '{"min_posts": 500, "min_comments": 100, "min_likes": 1000}')
+     '{"min_posts": 500, "min_comments": 100, "min_likes": 1000}'),
+
+    ('AEDILE',    'Aedile',
+     'Earned the trust to organize community events',
+     '{"min_posts": 10, "min_comments": 20}'),
+
+    ('PRAETOR',   'Praetor',
+     'Hosted 5 community events',
+     '{"min_events_hosted": 5}'),
+
+    ('CONSUL',    'Consul',
+     'Hosted 20 community events — a pillar of the community',
+     '{"min_events_hosted": 20}')
 
 ON CONFLICT (code) DO UPDATE
     SET name        = EXCLUDED.name,

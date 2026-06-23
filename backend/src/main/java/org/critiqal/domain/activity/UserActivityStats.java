@@ -29,6 +29,12 @@ public class UserActivityStats extends PanacheEntityBase {
     @Column(name = "member_days", nullable = false)
     public int memberDays = 0;
 
+    @Column(name = "events_hosted", nullable = false)
+    public long eventsHosted = 0;
+
+    @Column(name = "events_attended", nullable = false)
+    public long eventsAttended = 0;
+
     @Column(name = "last_updated", nullable = false)
     public Instant lastUpdated = Instant.now();
 }

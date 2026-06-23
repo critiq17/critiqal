@@ -36,6 +36,7 @@ export const en: Dict = {
   nav: {
     feed: 'Feed',
     explore: 'Explore',
+    events: 'Events',
     notifications: 'Notifications',
     profile: 'Profile',
     settings: 'Settings',
