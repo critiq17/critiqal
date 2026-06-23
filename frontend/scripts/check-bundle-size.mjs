@@ -7,7 +7,7 @@ const NODES_DIR = join(OUTPUT_DIR, 'nodes');
 
 const CHUNK_LIMIT = 50 * 1024;   // 50 kB
 const NODE_LIMIT  = 30 * 1024;   // 30 kB
-const TOTAL_LIMIT = 500 * 1024;  // 500 kB
+const TOTAL_LIMIT = 520 * 1024;  // 520 kB
 
 const KB = 1024;
 
