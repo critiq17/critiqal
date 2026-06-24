@@ -16,7 +16,7 @@ class DeviceGuardIT {
         given()
                 .contentType(JSON)
                 .header("X-Device-Id", "device-guard-new-a")
-                .body("{\"username\":\"device_first_user\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_first_user\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
     }
@@ -28,14 +28,14 @@ class DeviceGuardIT {
         given()
                 .contentType(JSON)
                 .header("X-Device-Id", deviceId)
-                .body("{\"username\":\"device_conflict_1\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_conflict_1\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
 
         given()
                 .contentType(JSON)
                 .header("X-Device-Id", deviceId)
-                .body("{\"username\":\"device_conflict_2\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_conflict_2\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(409)
                 .body("error", equalTo("This device is already linked to an account. Sign in instead."));
@@ -48,7 +48,7 @@ class DeviceGuardIT {
         var sid = given()
                 .contentType(JSON)
                 .header("X-Device-Id", deviceId)
-                .body("{\"username\":\"device_conflict_3\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_conflict_3\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");
@@ -62,7 +62,7 @@ class DeviceGuardIT {
         given()
                 .contentType(JSON)
                 .header("X-Device-Id", deviceId)
-                .body("{\"username\":\"device_conflict_4\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_conflict_4\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(409)
                 .body("error", equalTo("This device is already linked to an account. Sign in instead."));
@@ -72,7 +72,7 @@ class DeviceGuardIT {
     void register_noDeviceId_returns201_allowedFallback() {
         given()
                 .contentType(JSON)
-                .body("{\"username\":\"device_no_header_user\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"device_no_header_user\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
     }
@@ -89,7 +89,7 @@ class DeviceGuardIT {
         var sid = given()
                 .contentType(JSON)
                 .header("X-Device-Id", "device-guard-sessions-a")
-                .body("{\"username\":\"sessions_list_user\",\"password\":\"pass123\",\"email\":\"test-fill@test.local\"}")
+                .body("{\"username\":\"sessions_list_user\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");

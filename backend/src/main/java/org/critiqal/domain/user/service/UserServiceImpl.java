@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.activity.repository.UserActivityStatsRepository;
 import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
@@ -39,6 +40,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User register(Username username, String password) {
+        validatePassword(password);
         if (userRepo.findByUsername(username).isPresent()) {
             throw new ConflictException("Username already taken");
         }
@@ -87,6 +89,12 @@ public class UserServiceImpl implements UserService {
     public void updateAvatar(UUID userId, String avatarUrl) {
         var user = getById(userId);
         user.avatarUrl = avatarUrl;
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8) {
+            throw new DomainException("Password must be at least 8 characters");
+        }
     }
 
     @Override

@@ -28,7 +28,7 @@ public final class TestAuthHelper {
         var response = baseRequest()
                 .contentType(JSON)
                 .body("""
-                    {"username":"%s","password":"pass123","email":"%s"}
+                    {"username":"%s","password":"pass1234","email":"%s"}
                     """.formatted(username, email))
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -56,7 +56,7 @@ public final class TestAuthHelper {
         return baseRequest()
                 .contentType(JSON)
                 .body("""
-                    {"username":"%s","password":"pass123","email":"%s"}
+                    {"username":"%s","password":"pass1234","email":"%s"}
                     """.formatted(username, email))
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
