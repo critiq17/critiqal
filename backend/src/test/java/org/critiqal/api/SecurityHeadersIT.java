@@ -10,6 +10,14 @@ import static org.hamcrest.Matchers.notNullValue;
 public class SecurityHeadersIT {
 
     @Test
+    void anyResponse_containsRequestIdHeader() {
+        given()
+                .when().get("/api/auth/me")
+                .then()
+                .header("X-Request-Id", notNullValue());
+    }
+
+    @Test
     void anyResponse_containsRequiredSecurityHeaders() {
         given()
                 .when().get("/api/auth/me")

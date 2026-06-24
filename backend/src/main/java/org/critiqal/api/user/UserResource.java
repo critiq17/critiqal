@@ -5,24 +5,22 @@ import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
-import org.critiqal.api.security.RequireVerifiedEmail;
-import org.critiqal.domain.like.service.PostLikeServiceImpl;
-import org.critiqal.domain.post.Post;
-import org.critiqal.domain.shared.pagination.Page;
-import org.critiqal.domain.shared.pagination.PageRequest;
+import org.critiqal.api.post.PostEnricher;
 import org.critiqal.api.post.response.PostDTO;
+import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.api.user.request.UpdateProfileRequest;
 import org.critiqal.api.user.response.UserDTO;
 import org.critiqal.api.user.response.UserStatsDTO;
+import org.critiqal.domain.badge.service.BadgeService;
 import org.critiqal.domain.follow.service.FollowService;
 import org.critiqal.domain.post.service.PostService;
+import org.critiqal.domain.shared.pagination.Page;
+import org.critiqal.domain.shared.pagination.PageRequest;
 import org.critiqal.domain.user.Username;
-import org.critiqal.domain.badge.service.BadgeService;
 import org.critiqal.domain.user.service.UserService;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/users")
@@ -34,21 +32,21 @@ public class UserResource {
     private final FollowService followService;
     private final PostService postService;
     private final CurrentUser currentUser;
-    private final PostLikeServiceImpl postLikeService;
     private final BadgeService badgeService;
+    private final PostEnricher postEnricher;
 
     public UserResource(UserService userService,
                         FollowService followService,
                         PostService postService,
                         CurrentUser currentUser,
-                        PostLikeServiceImpl postLikeService,
-                        BadgeService badgeService) {
+                        BadgeService badgeService,
+                        PostEnricher postEnricher) {
         this.userService = userService;
         this.followService = followService;
         this.postService = postService;
         this.currentUser = currentUser;
-        this.postLikeService = postLikeService;
         this.badgeService = badgeService;
+        this.postEnricher = postEnricher;
     }
 
     @GET
@@ -172,27 +170,8 @@ public class UserResource {
             @BeanParam PageRequest pageRequest) {
         var user = userService.getByUsername(Username.of(username));
         var page = postService.getUserPost(user.id, pageRequest.page(), pageRequest.size());
-        return enrichWithLikes(page);
+        return postEnricher.enrichWithLikes(page);
     }
-
-    private Page<PostDTO> enrichWithLikes(Page<Post> page) {
-        if (page.content().isEmpty()) {
-            return page.map(post -> PostDTO.from(post, 0L, false));
-        }
-
-        var ids = page.content().stream().map(Post::getId).toList();
-
-        UUID userId = currentUser.idOrNull();
-        Set<UUID> liked = userId != null
-                ? postLikeService.likedPostIds(userId, ids)
-                : Set.of();
-
-        return page.map(post -> PostDTO.from(
-                post,
-                post.likeCount,
-                liked.contains(post.id)
-        ));
-    }
-    }
+}
 
 

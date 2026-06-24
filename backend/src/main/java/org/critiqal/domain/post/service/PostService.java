@@ -29,6 +29,8 @@ public interface PostService {
 
     void deletePost(UUID postId, UUID requestedId);
 
+    void deletePostWithMedia(UUID postId, UUID userId);
+
     void view(UUID postId);
 
     void recountPost(UUID postId);
