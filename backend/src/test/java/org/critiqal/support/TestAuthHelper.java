@@ -1,6 +1,7 @@
 package org.critiqal.support;
 
 import io.quarkus.arc.Arc;
+import io.quarkus.mailer.MockMailbox;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -38,6 +39,10 @@ public final class TestAuthHelper {
         // would block every subsequent write. Flip the flag directly so test
         // surface area matches the legacy contract.
         markEmailVerified(username);
+
+        // Registration sends a verification email; clear it so tests that
+        // call getMessagesSentTo() see only the emails they triggered.
+        Arc.container().instance(MockMailbox.class).get().clear();
 
         return response;
     }

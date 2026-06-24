@@ -75,6 +75,13 @@ public class UserResource {
                 .toList();
     }
 
+    @GET
+    @Path("/me")
+    @Authenticated
+    public UserDTO getMe() {
+        return UserDTO.from(userService.getById(currentUser.id()));
+    }
+
     @PUT
     @Path("/me")
     @Authenticated

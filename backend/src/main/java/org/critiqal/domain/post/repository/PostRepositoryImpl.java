@@ -134,7 +134,7 @@ public class PostRepositoryImpl implements PostRepository, PanacheRepository<Pos
 
     @Override
     public Optional<Post> findByIdOptional(UUID postId) {
-        return find("id", postId).firstResultOptional();
+        return find("id = ?1 AND status = ?2", postId, PostStatus.PUBLISHED).firstResultOptional();
     }
 
     @Override
