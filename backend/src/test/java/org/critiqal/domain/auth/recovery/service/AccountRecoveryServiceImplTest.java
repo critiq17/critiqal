@@ -4,6 +4,7 @@ import io.quarkus.elytron.security.common.BcryptUtil;
 import org.critiqal.domain.auth.email.service.EmailService;
 import org.critiqal.domain.auth.recovery.RecoveryCode;
 import org.critiqal.domain.auth.recovery.repository.RecoveryCodeRepository;
+import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.auth.verification.VerificationToken;
 import org.critiqal.domain.auth.verification.VerificationTokenType;
 import org.critiqal.domain.auth.verification.repository.VerificationTokenRepository;
@@ -35,12 +36,13 @@ class AccountRecoveryServiceImplTest {
     private final UserRepository userRepo = mock(UserRepository.class);
     private final UserService userService = mock(UserService.class);
     private final EmailService emailService = mock(EmailService.class);
+    private final SessionService sessionService = mock(SessionService.class);
 
     private AccountRecoveryServiceImpl service;
 
     @BeforeEach void setUp() {
         service = new AccountRecoveryServiceImpl(tokenRepo, codeRepo, userRepo,
-                userService, emailService, "https://critiqal.xyz", 1);
+                userService, emailService, sessionService, "https://critiqal.xyz", 1);
     }
 
     @Test
@@ -88,6 +90,20 @@ class AccountRecoveryServiceImplTest {
 
         assertNotNull(token.usedAt);
         assertTrue(BcryptUtil.matches("newpassword123", user.passwordHash));
+        verify(sessionService).revokeAll(user.id);
+    }
+
+    @Test
+    void resetPassword_revokesAllSessionsForUser() {
+        var user = user(2);
+        var token = new VerificationToken();
+        token.user = user; token.expiresAt = Instant.now().plus(1, ChronoUnit.HOURS);
+        when(tokenRepo.findByTokenHashAndType(any(), eq(VerificationTokenType.PASSWORD_RESET)))
+                .thenReturn(Optional.of(token));
+
+        service.resetPassword("valid", "newpassword123");
+
+        verify(sessionService).revokeAll(user.id);
     }
 
     @Test

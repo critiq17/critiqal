@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import org.critiqal.domain.auth.email.service.EmailService;
 import org.critiqal.domain.auth.recovery.RecoveryCode;
 import org.critiqal.domain.auth.recovery.repository.RecoveryCodeRepository;
+import org.critiqal.domain.auth.session.SessionService;
 import org.critiqal.domain.auth.verification.VerificationToken;
 import org.critiqal.domain.auth.verification.VerificationTokenType;
 import org.critiqal.domain.auth.verification.repository.VerificationTokenRepository;
@@ -41,6 +42,7 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
     private final UserRepository userRepo;
     private final UserService userService;
     private final EmailService emailService;
+    private final SessionService sessions;
     private final String appBaseUrl;
     private final int resetExpiryHours;
     private final SecureRandom random = new SecureRandom();
@@ -51,6 +53,7 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
             UserRepository userRepo,
             UserService userService,
             EmailService emailService,
+            SessionService sessions,
             @ConfigProperty(name = "app.base-url") String appBaseUrl,
             @ConfigProperty(name = "auth.token-password-reset-expiry-hours", defaultValue = "1") int resetExpiryHours) {
         this.tokenRepo = tokenRepo;
@@ -58,6 +61,7 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
         this.userRepo = userRepo;
         this.userService = userService;
         this.emailService = emailService;
+        this.sessions = sessions;
         this.appBaseUrl = appBaseUrl;
         this.resetExpiryHours = resetExpiryHours;
     }
@@ -104,6 +108,7 @@ public class AccountRecoveryServiceImpl implements AccountRecoveryService {
 
         token.usedAt = Instant.now();
         token.user.passwordHash = BcryptUtil.bcryptHash(newPassword);
+        sessions.revokeAll(token.user.id);
 
         log.infof("Password reset for userId=%s", token.user.id);
     }

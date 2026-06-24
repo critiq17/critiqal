@@ -37,6 +37,7 @@ public class InMemorySessionService implements SessionService {
 
     @Override
     public void revokeAll(UUID userId) {
+        store.entrySet().removeIf(e -> userId.equals(e.getValue()));
     }
 
     @Override
