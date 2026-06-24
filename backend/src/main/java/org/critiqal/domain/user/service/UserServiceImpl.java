@@ -6,6 +6,7 @@ import jakarta.transaction.Transactional;
 import org.critiqal.domain.activity.ActivityEvent;
 import org.critiqal.domain.activity.repository.UserActivityStatsRepository;
 import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.NotFoundException;
 import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
@@ -39,6 +40,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User register(Username username, String password) {
+        validatePassword(password);
         if (userRepo.findByUsername(username).isPresent()) {
             throw new ConflictException("Username already taken");
         }
@@ -76,6 +78,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User updateProfile(UUID userId, String name, String bio) {
+        if (name != null && name.length() > 50) {
+            throw new DomainException("Name too long (max 50)");
+        }
+        if (bio != null && bio.length() > 300) {
+            throw new DomainException("Bio too long (max 300)");
+        }
         var user = getById(userId);
         user.name = name;
         user.bio = bio;
@@ -87,6 +95,12 @@ public class UserServiceImpl implements UserService {
     public void updateAvatar(UUID userId, String avatarUrl) {
         var user = getById(userId);
         user.avatarUrl = avatarUrl;
+    }
+
+    private void validatePassword(String password) {
+        if (password == null || password.length() < 8) {
+            throw new DomainException("Password must be at least 8 characters");
+        }
     }
 
     @Override

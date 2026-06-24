@@ -1,6 +1,7 @@
 package org.critiqal.support;
 
 import io.quarkus.arc.Arc;
+import io.quarkus.mailer.MockMailbox;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -28,7 +29,7 @@ public final class TestAuthHelper {
         var response = baseRequest()
                 .contentType(JSON)
                 .body("""
-                    {"username":"%s","password":"pass123","email":"%s"}
+                    {"username":"%s","password":"pass1234","email":"%s"}
                     """.formatted(username, email))
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -38,6 +39,10 @@ public final class TestAuthHelper {
         // would block every subsequent write. Flip the flag directly so test
         // surface area matches the legacy contract.
         markEmailVerified(username);
+
+        // Registration sends a verification email; clear it so tests that
+        // call getMessagesSentTo() see only the emails they triggered.
+        Arc.container().instance(MockMailbox.class).get().clear();
 
         return response;
     }
@@ -56,7 +61,7 @@ public final class TestAuthHelper {
         return baseRequest()
                 .contentType(JSON)
                 .body("""
-                    {"username":"%s","password":"pass123","email":"%s"}
+                    {"username":"%s","password":"pass1234","email":"%s"}
                     """.formatted(username, email))
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -68,7 +73,9 @@ public final class TestAuthHelper {
         // bucket. 198.51.100.0/24 is reserved for documentation/test ranges.
         var n = IP_COUNTER.incrementAndGet();
         var ip = "198.51.100." + (n % 250 + 1);
-        return given().header("X-Forwarded-For", ip);
+        return given()
+                .header("X-Forwarded-For", ip)
+                .header("X-Device-Id", "test-device-" + n);
     }
 
     private static void markEmailVerified(String username) {

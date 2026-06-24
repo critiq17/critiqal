@@ -76,7 +76,7 @@ public class AccountRecoveryResource {
     @POST @Path("/recovery/reset") @Consumes(MediaType.APPLICATION_JSON)
     public Response resetPassword(PasswordResetRequest req) {
         recoveryService.resetPassword(req.token(), req.newPassword());
-        return Response.noContent().build();
+        return Response.ok(Map.of("message", "Password reset successfully")).build();
     }
 
     @POST @Path("/recovery/code") @Consumes(MediaType.APPLICATION_JSON)

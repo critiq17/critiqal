@@ -91,6 +91,28 @@ public class PostControllerIT {
     }
 
     @Test
+    void deletePost_removesPostAndPhotos() {
+        var sid = TestAuthHelper.registerAndGetSessionCookie("post_delete_media");
+
+        var postId = given()
+                .cookie(TestAuthHelper.COOKIE, sid)
+                .contentType(JSON)
+                .body("{\"content\":\"media test post\"}")
+                .when().post("/api/posts")
+                .then().statusCode(201)
+                .extract().path("id").toString();
+
+        given()
+                .cookie(TestAuthHelper.COOKIE, sid)
+                .when().delete("/api/posts/" + postId)
+                .then().statusCode(204);
+
+        given()
+                .when().get("/api/posts/" + postId)
+                .then().statusCode(404);
+    }
+
+    @Test
     void feed_reflectsLikeAndCommentCounters() {
         var sid = TestAuthHelper.registerAndGetSessionCookie("counter_user");
         var postId = given().cookie(TestAuthHelper.COOKIE, sid).contentType(JSON)

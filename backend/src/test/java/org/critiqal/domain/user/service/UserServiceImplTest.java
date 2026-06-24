@@ -9,6 +9,7 @@ import org.critiqal.domain.user.User;
 import org.critiqal.domain.user.Username;
 import org.critiqal.domain.user.event.UserRegisteredEvent;
 import org.critiqal.domain.user.repository.UserRepository;
+import org.critiqal.domain.shared.exception.DomainException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,11 +46,18 @@ class UserServiceImplTest {
     }
 
     @Test
+    void registerThrowsDomainExceptionForShortPassword() {
+        assertThrows(DomainException.class, () -> service.register(Username.of("any_user"), "123"));
+        assertThrows(DomainException.class, () -> service.register(Username.of("any_user"), null));
+        verify(userRepo, never()).findByUsername(any());
+    }
+
+    @Test
     void registerThrowsWhenUsernameAlreadyTaken() {
         var username = Username.of("taken_user");
         when(userRepo.findByUsername(username)).thenReturn(Optional.of(user(1, username.value())));
 
-        assertThrows(ConflictException.class, () -> service.register(username, "secret"));
+        assertThrows(ConflictException.class, () -> service.register(username, "secret123"));
 
         verify(passwordHash, never()).hash(any());
         verify(userRepo, never()).save(any());
@@ -60,14 +68,14 @@ class UserServiceImplTest {
     void registerHashesPasswordPersistsUserAndFiresEvent() {
         var username = Username.of("new_user");
         when(userRepo.findByUsername(username)).thenReturn(Optional.empty());
-        when(passwordHash.hash("secret")).thenReturn("hashed-secret");
+        when(passwordHash.hash("secret123")).thenReturn("hashed-secret");
         when(userRepo.save(any(User.class))).thenAnswer(invocation -> {
             var saved = invocation.<User>getArgument(0);
             saved.id = uuid(42);
             return saved;
         });
 
-        var saved = service.register(username, "secret");
+        var saved = service.register(username, "secret123");
 
         assertEquals(uuid(42), saved.id);
         assertEquals("new_user", saved.username);
@@ -129,6 +137,23 @@ class UserServiceImplTest {
         assertSame(user, updated);
         assertEquals("Alice", user.name);
         assertEquals("Runner", user.bio);
+    }
+
+    @Test
+    void updateProfile_nameTooLong_throwsDomainException() {
+        var longName = "A".repeat(51);
+        assertThrows(DomainException.class,
+                () -> service.updateProfile(uuid(5), longName, null));
+        verify(userRepo, never()).findByIdOptional(any());
+    }
+
+    @Test
+    void updateProfile_bioTooLong_throwsDomainException() {
+        var user = user(5, "profile_user");
+        when(userRepo.findByIdOptional(uuid(5))).thenReturn(Optional.of(user));
+        var longBio = "x".repeat(301);
+        assertThrows(DomainException.class,
+                () -> service.updateProfile(uuid(5), null, longBio));
     }
 
     @Test

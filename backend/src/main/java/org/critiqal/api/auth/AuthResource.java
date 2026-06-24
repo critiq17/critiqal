@@ -117,6 +117,12 @@ public class AuthResource {
      */
     @POST @Path("/login")
     public Response login(LoginRequest req) {
+        rateLimiter.check(RateLimiter.key("login-user", req.username().toLowerCase()), 5, Duration.ofMinutes(15));
+        var meta = metadataResolver.resolve();
+        if (meta.ipHash() != null) {
+            rateLimiter.check(RateLimiter.key("login-ip", meta.ipHash()), 20, Duration.ofHours(1));
+        }
+
         var username = Username.of(req.username());
         if (!userService.checkPassword(username, req.password())) {
             return Response.status(Response.Status.UNAUTHORIZED).build();

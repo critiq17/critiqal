@@ -2,6 +2,7 @@ package org.critiqal.domain.post.service;
 
 import jakarta.enterprise.event.Event;
 import org.critiqal.domain.activity.ActivityEvent;
+import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.post.PostStatus;
@@ -46,12 +47,13 @@ class PostServiceImplTest {
     private final Event<PostCreatedEvent> postCreatedEvent = mock(Event.class);
     @SuppressWarnings("unchecked")
     private final Event<ActivityEvent> activityEvent = mock(Event.class);
+    private final MediaService mediaService = mock(MediaService.class);
 
     private PostServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PostServiceImpl(postRepo, postViewRepo, userService, postCreatedEvent, activityEvent);
+        service = new PostServiceImpl(postRepo, postViewRepo, userService, postCreatedEvent, activityEvent, mediaService);
     }
 
     @Test
@@ -299,6 +301,22 @@ class PostServiceImplTest {
         service.deletePost(uuid(1), uuid(1));
 
         assertEquals(PostStatus.DELETED, post.status);
+    }
+
+    @Test
+    void deletePostWithMediaDeletesPostAndClearsPhotos() {
+        var author = new User();
+        author.id = uuid(1);
+        var post = new Post();
+        post.author = author;
+        post.status = PostStatus.PUBLISHED;
+
+        when(postRepo.findByIdOptional(uuid(1))).thenReturn(Optional.of(post));
+
+        service.deletePostWithMedia(uuid(1), uuid(1));
+
+        assertEquals(PostStatus.DELETED, post.status);
+        verify(mediaService).deleteAllPostPhotos(uuid(1));
     }
 
     @Test

@@ -2,9 +2,9 @@ package org.critiqal.domain.post.service;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
-import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.critiqal.domain.activity.ActivityEvent;
+import org.critiqal.domain.media.service.MediaService;
 import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.PostCreatedEvent;
 import org.critiqal.domain.post.PostStatus;
@@ -37,17 +37,20 @@ public class PostServiceImpl implements PostService {
     private final UserService userService;
     private final Event<PostCreatedEvent> postCreatedEvent;
     private final Event<ActivityEvent> activityEvent;
+    private final MediaService mediaService;
 
     public PostServiceImpl(PostRepository postRepo,
                            PostViewRepository postViewRepo,
                            UserService userService,
                            Event<PostCreatedEvent> postCreatedEvent,
-                           Event<ActivityEvent> activityEvent) {
+                           Event<ActivityEvent> activityEvent,
+                           MediaService mediaService) {
         this.postRepo = postRepo;
         this.postViewRepo = postViewRepo;
         this.userService = userService;
         this.postCreatedEvent = postCreatedEvent;
         this.activityEvent = activityEvent;
+        this.mediaService = mediaService;
     }
 
     @Override
@@ -183,6 +186,13 @@ public class PostServiceImpl implements PostService {
             throw new ForbiddenException("Not your post");
         }
         post.status = PostStatus.DELETED;
+    }
+
+    @Override
+    @Transactional
+    public void deletePostWithMedia(UUID postId, UUID userId) {
+        deletePost(postId, userId);
+        mediaService.deleteAllPostPhotos(postId);
     }
 
     @Override

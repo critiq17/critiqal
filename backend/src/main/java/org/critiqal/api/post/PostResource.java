@@ -9,14 +9,10 @@ import org.critiqal.api.post.request.CreatePostRequest;
 import org.critiqal.api.post.response.PostDTO;
 import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.like.service.PostLikeServiceImpl;
-import org.critiqal.domain.media.service.MediaService;
-import org.critiqal.domain.post.Post;
 import org.critiqal.domain.post.service.PostService;
 import org.critiqal.domain.shared.pagination.Page;
 import org.critiqal.domain.shared.pagination.PageRequest;
 
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/posts")
@@ -25,24 +21,24 @@ import java.util.UUID;
 public class PostResource {
 
     private final PostService postService;
-    private final MediaService mediaService;
     private final CurrentUser currentUser;
     private final PostLikeServiceImpl postLikeService;
+    private final PostEnricher postEnricher;
 
     public PostResource(PostService postService,
-                        MediaService mediaService,
                         CurrentUser currentUser,
-                        PostLikeServiceImpl postLikeService) {
+                        PostLikeServiceImpl postLikeService,
+                        PostEnricher postEnricher) {
         this.postService = postService;
-        this.mediaService = mediaService;
         this.currentUser = currentUser;
         this.postLikeService = postLikeService;
+        this.postEnricher = postEnricher;
     }
 
     @GET
     public Page<PostDTO> getFeed(@BeanParam PageRequest pageRequest) {
         var page = postService.getLatestFeed(pageRequest.page(), pageRequest.size());
-        return enrichWithLikes(page);
+        return postEnricher.enrichWithLikes(page);
     }
 
     @GET
@@ -51,7 +47,7 @@ public class PostResource {
             @QueryParam("q") String query,
             @BeanParam PageRequest pageRequest) {
         var page = postService.search(query, pageRequest.page(), pageRequest.size());
-        return enrichWithLikes(page);
+        return postEnricher.enrichWithLikes(page);
     }
 
     @GET
@@ -80,27 +76,7 @@ public class PostResource {
     @Authenticated
     @RequireVerifiedEmail
     public Response deletePost(@PathParam("id") UUID id) {
-        postService.deletePost(id, currentUser.id());
-        mediaService.deleteAllPostPhotos(id);
+        postService.deletePostWithMedia(id, currentUser.id());
         return Response.noContent().build();
-    }
-
-    private Page<PostDTO> enrichWithLikes(Page<Post> page) {
-        if (page.content().isEmpty()) {
-            return page.map(post -> PostDTO.from(post, 0L, false));
-        }
-
-        var ids = page.content().stream().map(Post::getId).toList();
-
-        UUID userId = currentUser.idOrNull();
-        Set<UUID> liked = userId != null
-                ? postLikeService.likedPostIds(userId, ids)
-                : Set.of();
-
-        return page.map(post -> PostDTO.from(
-                post,
-                post.likeCount,
-                liked.contains(post.id)
-        ));
     }
 }
