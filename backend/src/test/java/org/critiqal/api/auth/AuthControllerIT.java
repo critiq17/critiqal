@@ -15,6 +15,7 @@ class AuthControllerIT {
     void register_validData_returns201WithCookieAndUser() {
         given()
             .contentType(JSON)
+            .header("X-Device-Id", "auth-it-device-1")
             .body("{\"username\":\"newuser_auth\",\"password\":\"pass1234\",\"email\":\"newuser_auth@test.local\"}")
         .when().post("/api/auth/register")
         .then()
@@ -28,10 +29,10 @@ class AuthControllerIT {
     void register_duplicateUsername_returns409() {
         var body = "{\"username\":\"duplicate_user\",\"password\":\"pass1234\",\"email\":\"duplicate_user@test.local\"}";
 
-        given().contentType(JSON).body(body)
+        given().contentType(JSON).header("X-Device-Id", "auth-it-device-dup-1").body(body)
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
-        given().contentType(JSON).body(body)
+        given().contentType(JSON).header("X-Device-Id", "auth-it-device-dup-2").body(body)
                 .when().post("/api/auth/register")
                 .then().statusCode(409);
     }
@@ -39,6 +40,7 @@ class AuthControllerIT {
     @Test
     void login_validCredentials_returnsCookie() {
         given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-login-1")
                 .body("{\"username\":\"login_valid_user\",\"password\":\"pass1234\",\"email\":\"login_valid_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
@@ -56,6 +58,7 @@ class AuthControllerIT {
     @Test
     void login_wrongPassword_returns401() {
         given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-wrong-pw-1")
                 .body("{\"username\":\"wrong_pass_user\",\"password\":\"pass1234\",\"email\":\"wrong_pass_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201);
@@ -77,6 +80,7 @@ class AuthControllerIT {
     @Test
     void me_validCookie_returnsUser() {
         var sid = given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-me-1")
                 .body("{\"username\":\"me_user\",\"password\":\"pass1234\",\"email\":\"me_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -102,6 +106,7 @@ class AuthControllerIT {
     @Test
     void revokeSession_ownSession_returns204() {
         var sid = given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-revoke-1")
                 .body("{\"username\":\"revoke_user\",\"password\":\"pass1234\",\"email\":\"revoke_user@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -127,12 +132,14 @@ class AuthControllerIT {
     @Test
     void revokeSession_otherUserSession_returns403() {
         var aliceSid = given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-alice-revoke-1")
                 .body("{\"username\":\"alice_revoke\",\"password\":\"pass1234\",\"email\":\"alice_revoke@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
                 .extract().cookie("session");
 
         var bobSid = given().contentType(JSON)
+                .header("X-Device-Id", "auth-it-device-bob-revoke-1")
                 .body("{\"username\":\"bob_revoke\",\"password\":\"pass1234\",\"email\":\"bob_revoke@test.local\"}")
                 .when().post("/api/auth/register")
                 .then().statusCode(201)
@@ -161,7 +168,17 @@ class AuthControllerIT {
     void register_shortPassword_returns400() {
         given()
             .contentType(JSON)
+            .header("X-Device-Id", "auth-it-device-short-pw-1")
             .body("{\"username\":\"short_pw_user\",\"password\":\"123\",\"email\":\"short_pw_user@test.local\"}")
+        .when().post("/api/auth/register")
+        .then().statusCode(400);
+    }
+
+    @Test
+    void register_noDeviceId_returns400() {
+        given()
+            .contentType(JSON)
+            .body("{\"username\":\"no_device_user\",\"password\":\"pass1234\",\"email\":\"no_device_user@test.local\"}")
         .when().post("/api/auth/register")
         .then().statusCode(400);
     }

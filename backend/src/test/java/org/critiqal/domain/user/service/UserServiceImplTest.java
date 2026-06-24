@@ -140,6 +140,23 @@ class UserServiceImplTest {
     }
 
     @Test
+    void updateProfile_nameTooLong_throwsDomainException() {
+        var longName = "A".repeat(51);
+        assertThrows(DomainException.class,
+                () -> service.updateProfile(uuid(5), longName, null));
+        verify(userRepo, never()).findByIdOptional(any());
+    }
+
+    @Test
+    void updateProfile_bioTooLong_throwsDomainException() {
+        var user = user(5, "profile_user");
+        when(userRepo.findByIdOptional(uuid(5))).thenReturn(Optional.of(user));
+        var longBio = "x".repeat(301);
+        assertThrows(DomainException.class,
+                () -> service.updateProfile(uuid(5), null, longBio));
+    }
+
+    @Test
     void updateAvatarMutatesLoadedUser() {
         var user = user(5, "avatar_user");
         when(userRepo.findByIdOptional(uuid(5))).thenReturn(Optional.of(user));

@@ -69,12 +69,12 @@ class DeviceGuardIT {
     }
 
     @Test
-    void register_noDeviceId_returns201_allowedFallback() {
+    void register_noDeviceId_returns400() {
         given()
                 .contentType(JSON)
                 .body("{\"username\":\"device_no_header_user\",\"password\":\"pass1234\",\"email\":\"test-fill@test.local\"}")
                 .when().post("/api/auth/register")
-                .then().statusCode(201);
+                .then().statusCode(400);
     }
 
     @Test

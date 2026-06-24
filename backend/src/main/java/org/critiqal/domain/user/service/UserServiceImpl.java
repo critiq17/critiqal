@@ -78,6 +78,12 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public User updateProfile(UUID userId, String name, String bio) {
+        if (name != null && name.length() > 50) {
+            throw new DomainException("Name too long (max 50)");
+        }
+        if (bio != null && bio.length() > 300) {
+            throw new DomainException("Bio too long (max 300)");
+        }
         var user = getById(userId);
         user.name = name;
         user.bio = bio;

@@ -11,13 +11,12 @@ import org.critiqal.domain.post_photo.service.PostPhotoService;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.critiqal.domain.post.service.PostService;
-import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.shared.exception.ForbiddenException;
+import org.critiqal.infra.security.ImageValidator;
 import org.jboss.resteasy.reactive.RestForm;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.IOException;
-import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/media")
@@ -85,14 +84,8 @@ public class PostPhotoResource {
         return Response.noContent().build();
     }
 
-    private void validateImage(FileUpload file) {
-        var allowed = Set.of("image/jpeg", "image/png", "image/webp", "image/heic");
-        if (!allowed.contains(file.contentType())) {
-            throw new DomainException("Only images are allowed");
-        }
-        if (file.size() > 10 * 1024 * 1024) {
-            throw new DomainException("Max file size is 10MB");
-        }
+    private void validateImage(FileUpload file) throws IOException {
+        ImageValidator.validate(file);
     }
 
 }

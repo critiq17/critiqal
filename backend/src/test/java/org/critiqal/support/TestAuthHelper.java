@@ -68,7 +68,9 @@ public final class TestAuthHelper {
         // bucket. 198.51.100.0/24 is reserved for documentation/test ranges.
         var n = IP_COUNTER.incrementAndGet();
         var ip = "198.51.100." + (n % 250 + 1);
-        return given().header("X-Forwarded-For", ip);
+        return given()
+                .header("X-Forwarded-For", ip)
+                .header("X-Device-Id", "test-device-" + n);
     }
 
     private static void markEmailVerified(String username) {

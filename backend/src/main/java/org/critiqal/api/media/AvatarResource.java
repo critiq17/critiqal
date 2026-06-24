@@ -7,15 +7,14 @@ import jakarta.ws.rs.core.Response;
 import org.critiqal.api.CurrentUser;
 import org.critiqal.api.security.RequireVerifiedEmail;
 import org.critiqal.domain.media.service.MediaService;
-import org.critiqal.domain.shared.exception.DomainException;
 import org.critiqal.domain.user.service.UserService;
+import org.critiqal.infra.security.ImageValidator;
 import org.jboss.resteasy.reactive.RestForm;
 import org.jboss.resteasy.reactive.multipart.FileUpload;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 @Path("/api/media")
@@ -72,14 +71,8 @@ public class AvatarResource {
         return Response.noContent().build();
     }
 
-    private void validateImage(FileUpload file) {
-        var allowed = Set.of("image/jpeg", "image/png", "image/webp", "image/heic");
-        if (!allowed.contains(file.contentType())) {
-            throw new DomainException("Only images are allowed");
-        }
-        if (file.size() > 10 * 1024 * 1024) {
-            throw new DomainException("Max file size is 10MB");
-        }
+    private void validateImage(FileUpload file) throws IOException {
+        ImageValidator.validate(file);
     }
 
 }

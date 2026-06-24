@@ -3,6 +3,7 @@ package org.critiqal.infra.auth.metadata;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.critiqal.domain.auth.session.repository.AuthSessionRepository;
 import org.critiqal.domain.shared.exception.ConflictException;
+import org.critiqal.domain.shared.exception.DomainException;
 
 @ApplicationScoped
 public class DeviceGuard {
@@ -14,7 +15,7 @@ public class DeviceGuard {
     }
 
     public void assertCanRegister(String deviceIdHash) {
-        if (deviceIdHash == null) return;
+        if (deviceIdHash == null) throw new DomainException("Device identification required");
         if (authSessionRepository.existsByDeviceIdHash(deviceIdHash)) {
             throw new ConflictException("This device is already linked to an account. Sign in instead.");
         }
