@@ -30,11 +30,13 @@ public class RateLimiter {
     }
 
     public void check(String key, int max, Duration window) {
-        var raw = val.get(key);
-        var current = raw == null ? 0 : Integer.parseInt(raw);
-        if (current >= max) throw new DomainException("Too many attempts. Please try again later.");
-        if (raw == null) { val.setex(key, window.toSeconds(), "1"); }
-        else { val.incr(key); }
+        long current = val.incr(key);
+        if (current == 1) {
+            keys.expire(key, window.toSeconds());
+        }
+        if (current > max) {
+            throw new DomainException("Too many attempts. Please try again later.");
+        }
     }
     public static String key(String action, String id) { return "rate" + action + ":" + id; }
 }
