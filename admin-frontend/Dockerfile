@@ -1,17 +1,20 @@
-FROM node:20-alpine AS build
+FROM node:20.19-alpine AS build
 
 WORKDIR /app
 
-RUN corepack enable
+# Пинним ту же major-версию pnpm, что использовалась в GitHub Actions
+RUN npm install -g pnpm@9
 
 COPY package.json pnpm-lock.yaml ./
+
 RUN pnpm install --frozen-lockfile
 
 COPY . .
 
 RUN pnpm run build
 
-FROM node:20-alpine AS runtime
+
+FROM node:20.19-alpine AS runtime
 
 WORKDIR /app
 
@@ -19,7 +22,7 @@ ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
 
-RUN corepack enable
+RUN npm install -g pnpm@9
 
 COPY package.json pnpm-lock.yaml ./
 
