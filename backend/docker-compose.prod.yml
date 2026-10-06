@@ -100,5 +100,5 @@ services:
     logging: *default-logging
 
 volumes:
-  postgres_data_prod:
-  redis_data_prod:
+  postgres_data:
+  redis_data:

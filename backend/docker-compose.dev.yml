@@ -1,52 +1,108 @@
 name: critiqal-dev
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: critiqal-dev-db
     restart: unless-stopped
+
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+   
     volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
+    
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+    logging: *default-logging
+
+
   redis:
     image: redis:7-alpine
-    container_name: critiqal-dev-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+
+    volumes:
+      - redis_data:/data
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+    logging: *default-logging
+
+
   backend:
     image: ${BACKEND_IMAGE:-ghcr.io/critiq17/critiqal-backend:dev}
-    container_name: critiqal-dev-backend
     restart: unless-stopped
+
     ports:
-      - "8083:8082"
-    env_file: .env
+      - "127.0.0.1:11102:8082"
+    
+    env_file: 
+      - .env
+    
     environment:
       DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379
+    
     volumes:
-      - ../keys/privateKey.pem:/app/privateKey.pem:ro
-      - ../keys/publicKey.pem:/app/publicKey.pem:ro
+      - ./keys/privateKey.pem:/app/privateKey.pem:ro
+      - ./keys/publicKey.pem:/app/publicKey.pem:ro
+    
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+    logging: *default-logging
+
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-ghcr.io/critiq17/critiqal-frontend:dev}
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:11101:3000"
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+
+    logging: *default-logging
+
+  admin:
+    image: ${ADMIN_IMAGE:-ghcr.io/critiq17/critiqal-admin:dev}
+    restart: unless-stopped
+
+    ports:
+      - "127.0.0.1:11103:3000"
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+
+    logging: *default-logging
+
+
 volumes:
-  postgres_data_dev:
+  postgres_data:
+  redist_data:
