@@ -105,4 +105,4 @@ services:
 
 volumes:
   postgres_data:
-  redist_data:
+  redis_data:
